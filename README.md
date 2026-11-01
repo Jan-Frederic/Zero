@@ -6,6 +6,15 @@ A colorful, F-Zero-inspired anti-gravity racer. Eight increasingly difficult neo
 
 https://jan-frederic.github.io/Zero/ (deployed automatically via GitHub Actions, see `.github/workflows/pages.yml`).
 
+### Install as an app (PWA)
+
+Chroma Overdrive is a Progressive Web App: install it and it runs fullscreen from your home screen, **fully offline** — game, soundtrack and fonts are cached by the service worker.
+
+- **Android / Chrome / Edge:** tap the ⤓ button in the top bar (or *Install app* in the browser menu).
+- **iPhone / iPad (Safari):** tap *Share* → *Add to Home Screen* (the ⤓ button shows this hint).
+
+Each deploy stamps the service worker with the commit SHA, so installed copies update automatically on the next launch.
+
 ## Play locally
 
 Run `npm start` in this folder, then open **http://localhost:3000**. No dependencies or installation required; Node.js 18+ is sufficient. You can also open `index.html` directly in a browser. Fonts use Google Fonts, with local fallbacks.

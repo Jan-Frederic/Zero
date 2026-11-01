@@ -55,3 +55,15 @@ button{touch-action:manipulation}
   .result-position{margin:0}.result-position b{font-size:48px}.result-stats{padding:8px 0}.result-stats b{font-size:17px}#result-record{margin:6px 0;font-size:12px}
   .modal-card .start-button{margin-top:10px;padding:10px 20px}.text-button{margin-top:8px}
 }
+
+/* PWA: install button, toast, and safe areas for notched phones in standalone/fullscreen mode. */
+.install-button{color:var(--acid);border-color:#ddff4666}
+.pwa-toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translate(-50%,20px);max-width:calc(100% - 32px);background:#09091aee;border:1px solid var(--acid);color:#fff;font:11px var(--mono);letter-spacing:1px;padding:12px 16px;opacity:0;transition:opacity .3s,transform .3s;z-index:20;pointer-events:none;text-align:center}
+.pwa-toast.visible{opacity:1;transform:translate(-50%,0)}
+@supports(padding:env(safe-area-inset-top)){
+  .topbar{top:env(safe-area-inset-top);left:max(36px,env(safe-area-inset-left));right:max(36px,env(safe-area-inset-right))}
+  .bottom-bar{bottom:env(safe-area-inset-bottom);left:max(36px,env(safe-area-inset-left));right:max(36px,env(safe-area-inset-right))}
+  .touch-controls{right:max(15px,env(safe-area-inset-right));bottom:calc(85px + env(safe-area-inset-bottom))}
+  @media(max-width:600px){.topbar,.bottom-bar{left:max(15px,env(safe-area-inset-left));right:max(15px,env(safe-area-inset-right))}}
+  @media(max-height:520px) and (orientation:landscape){.topbar,.bottom-bar{left:max(16px,env(safe-area-inset-left));right:max(16px,env(safe-area-inset-right))}.touch-controls{bottom:calc(58px + env(safe-area-inset-bottom))}.hud{left:max(3%,env(safe-area-inset-left));right:max(3%,env(safe-area-inset-right))}}
+}
