@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#0a081b">
+  <title>CHROMA OVERDRIVE — Anti-gravity racing</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23dcff00' d='M38 2 8 38h23l-5 24 30-38H33z'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="effects.css">
+</head>
+<body>
+  <canvas id="game" aria-label="Anti-gravity racing game"></canvas>
+  <div class="vignette"></div>
+  <header class="topbar">
+    <a class="wordmark" href="./" aria-label="Chroma Overdrive home"><span class="brand-icon">ϟ</span> CHROMA<span class="wordmark-light">/ OVERDRIVE</span></a>
+    <div class="top-right"><span class="live-dot"></span><span class="system-label">ANTI-GRAVITY RACING SYSTEM</span><button id="sound" class="icon-button" aria-label="Mute soundtrack" title="Sound (M)">♫</button><button id="fullscreen" class="icon-button" aria-label="Enter fullscreen" title="Fullscreen">⛶</button></div>
+  </header>
+
+  <main id="menu" class="menu">
+    <section class="hero">
+      <div class="eyebrow"><span></span> THE FUTURE HAS NO SPEED LIMIT</div>
+      <h1>CHROMA<br><span>OVERDRIVE</span><i>™</i></h1>
+      <div class="hero-rule"><span>01 / NEON GRAND PRIX</span><span>EST. 2097</span></div>
+      <p>Zero gravity. Full throttle.<br>Leave the ordinary in another dimension.</p>
+      <button id="start" class="start-button"><span>ENTER THE RACE</span><b>↗</b></button>
+      <div class="start-note"><kbd>ENTER</kbd> TO LAUNCH <span>3 LAPS · 20 PILOTS · NO LIMITS</span></div>
+      <div class="ship-picker"><span class="small-label">YOUR MACHINE</span><div class="ship-options" role="group" aria-label="Choose machine"><button class="ship-option selected" data-ship="0"><span style="--chip:#31f9ff"></span> PHANTOM</button><button class="ship-option" data-ship="1"><span style="--chip:#ff46ac"></span> VIPER</button><button class="ship-option" data-ship="2"><span style="--chip:#ddff42"></span> PULSE</button></div><div id="ship-info">BALANCED / PRECISION HANDLING</div></div>
+    </section>
+    <aside class="circuit-panel">
+      <div class="panel-top"><span class="small-label">SELECT LEVEL</span><span class="pill">01 — 08</span></div>
+      <div class="circuit-preview"><svg viewBox="0 0 330 140" aria-hidden="true"><defs><filter id="glow"><feGaussianBlur stdDeviation="3"/></filter></defs><path class="map-glow" d="M58 102 C10 80 52 26 94 40 S139 91 172 57 S245 18 275 46 S315 105 265 106 S197 85 170 113 S89 125 58 102Z"/><path class="map-line" d="M58 102 C10 80 52 26 94 40 S139 91 172 57 S245 18 275 46 S315 105 265 106 S197 85 170 113 S89 125 58 102Z"/><circle cx="59" cy="102" r="5" fill="#edff80"/><path d="M53 91v22M65 96v22" stroke="white" stroke-width="2"/></svg><span class="map-caption">SECTOR 07 / NIGHTFALL</span></div>
+      <div class="circuit-heading"><div><span id="track-type" class="small-label pink">THE ELECTRIC METROPOLIS</span><h2 id="track-name">NEON HORIZON</h2></div><div class="track-arrows"><button id="prev-track" aria-label="Previous circuit">←</button><button id="next-track" aria-label="Next circuit">→</button></div></div>
+      <div class="track-stats"><div><span>CLASS</span><strong id="track-class">HYPER</strong></div><div><span>DISTANCE</span><strong>7.2 <small>KM</small></strong></div><div><span>DIFFICULTY</span><strong id="difficulty" class="difficulty">▰▰▰<em>▰▰▰▰▰</em></strong></div></div>
+    </aside>
+    <div class="scene-label"><span class="live-dot"></span> LIVE CIRCUIT FEED <b id="feed-label">NIGHT CITY // 2097</b></div>
+  </main>
+
+  <section id="hud" class="hud hidden" aria-label="Race instruments">
+    <div class="race-top"><div class="position-box"><span class="small-label">POSITION</span><div><b id="position">20</b><span>/ 20</span></div></div><div class="lap-box"><span class="small-label">LAP <b id="lap">01</b> / 03</span><strong id="timer">00:00.000</strong><span id="best-label">BEST — —:—</span></div><button id="pause" class="pause-button" aria-label="Pause race">Ⅱ <span>PAUSE</span></button></div>
+    <div class="race-bottom"><div class="telemetry"><span class="small-label">CIRCUIT TELEMETRY</span><canvas id="minimap" width="190" height="125"></canvas><span id="hud-track">NEON HORIZON</span></div><div class="speedometer"><div id="boost-label">ANTI-GRAVITY DRIVE ONLINE</div><div class="speed-value"><b id="speed">000</b><span>KM/H</span></div><div class="shield-readout"><span>HULL SHIELD</span><b id="shield-text">100%</b></div><div class="shield-track"><div id="shield-fill"></div></div><div class="energy-label"><span>BOOST ENERGY</span><b id="energy-text">100%</b><span class="laser-readout">LASER<b id="laser-count">10</b></span></div><div class="energy-track"><div id="energy-fill"></div></div><div class="boost-hint"><kbd>SPACE</kbd> BOOST <kbd>X</kbd> LASER <span>↟ CYAN PADS</span></div></div></div>
+    <div id="race-message" class="race-message"></div><div id="countdown" class="countdown"></div>
+    <div class="progress-track"><div id="progress"></div></div>
+  </section>
+
+  <section id="pause-screen" class="modal hidden"><div class="modal-card"><span class="eyebrow">TAKE A BREATH, PILOT</span><h2>RACE PAUSED</h2><p>The future can wait a moment.</p><button id="resume" class="start-button"><span>BACK TO OVERDRIVE</span><b>↗</b></button><button id="quit" class="text-button">RETURN TO GARAGE</button></div></section>
+  <section id="results" class="modal hidden"><div class="modal-card results-card"><span id="result-eyebrow" class="eyebrow">NEON GRAND PRIX / RACE COMPLETE</span><h2 id="result-title">PODIUM FINISH</h2><div class="result-position"><b id="result-position">01</b><span>/ 20</span></div><div class="result-stats"><div><span>RACE TIME</span><b id="result-time"></b></div><div><span>BEST LAP</span><b id="result-lap"></b></div></div><p id="result-record"></p><button id="again" class="start-button"><span>RACE AGAIN</span><b>↗</b></button><button id="garage" class="text-button">RETURN TO GARAGE</button></div></section>
+
+  <footer class="bottom-bar"><div class="music"><button id="music-toggle" aria-label="Play soundtrack"><span class="equalizer"><i></i><i></i><i></i><i></i></span></button><div><span id="music-status">SOUNDTRACK / PRESS PLAY</span><strong>MORBID FINGERS <em>— Redemption (Live, 2003)</em></strong></div></div><div class="controls"><span><kbd>W</kbd><kbd>↑</kbd> ACCELERATE</span><span><kbd>A</kbd><kbd>D</kbd> STEER</span><span><kbd>SPACE</kbd> BOOST</span><span><kbd>X</kbd> LASER</span><span><kbd>ESC</kbd> PAUSE</span></div><span class="version">V.1.0 <b>✦</b></span></footer>
+  <div id="touch-controls" class="touch-controls"><button data-key="ArrowLeft" aria-label="Steer left">◀</button><button data-key="ArrowRight" aria-label="Steer right">▶</button><button data-key="Space" aria-label="Boost">ϟ</button><button data-key="KeyX" aria-label="Fire laser">◎</button><button data-key="ArrowUp" aria-label="Accelerate">▲</button></div>
+  <audio id="soundtrack" src="Morbid_Fingers%20-%20live-%20Emmerich_Juli_2003%20-%2003%20Redemption.mp3" loop preload="metadata"></audio>
+  <script src="game.js"></script>
+</body>
+</html>
