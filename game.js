@@ -6,6 +6,12 @@
   const audio = $('soundtrack');
   const TAU = Math.PI * 2, SEG = 200, COUNT = 1200, LENGTH = SEG * COUNT, ROAD = 1700, DEPTH = .88, PILOT_COUNT = 20, LASER_CAPACITY = 10;
   const keys = new Set();
+  // Touch gestures: a floating stick anywhere on the track. Drag sideways to steer, slide up to boost,
+  // slide down to brake, tap (or touch with a second finger) to fire. Holding a finger accelerates.
+  const gesture = { id: null, originX: 0, originY: 0, x: 0, y: 0, startTime: 0, moved: false, steer: 0, accel: false, brake: false, boost: false, fire: false, fireQueued: false, extra: new Set() };
+  let hintTime = 0;
+  const STICK = 64, DEADZONE = 7, VERTICAL = 42;
+  function resetGesture() { gesture.id = null; gesture.steer = 0; gesture.accel = gesture.brake = gesture.boost = gesture.fire = gesture.fireQueued = false; gesture.extra.clear(); }
   const tracks = [
     { name: 'NEON HORIZON', type: 'THE ELECTRIC METROPOLIS', feed: 'NIGHT CITY // 2097', sector: 'SECTOR 07 / NIGHTFALL', class: 'HYPER', difficulty: 3, sky: ['#090c32', '#442085', '#ed398f'], fog: '#743190', road: '#151033', edge: '#ff45ca', second: '#40f6ff', sun: '#ffb334', curve: 1, hill: 1, width: 1, grip: 1, bends: [[3, .75], [7, .32]], padEvery: 240, padStart: 155, padLength: 16, recharge: 90, hazards: 0, rivalPace: 1 },
     { name: 'SOLAR RIOT', type: 'BURN THROUGH THE AFTERGLOW', feed: 'SOLAR FIELDS // 2097', sector: 'SECTOR 12 / SOLAR STORM', class: 'INFERNO', difficulty: 4, sky: ['#23092d', '#9c1b61', '#ff8542'], fog: '#ba3b6a', road: '#291039', edge: '#ffb52e', second: '#eaff4d', sun: '#ffef82', curve: 1.3, hill: 1.3, width: .97, grip: .98, bends: [[2, .55], [5, .34], [9, .16]], padEvery: 260, padStart: 167, padLength: 14, recharge: 82, hazards: 2, hazardTypes: ['mine'], rivalPace: 1.02 },
@@ -186,26 +192,27 @@
     const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
     rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 880, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 135) * track.rivalPace, color: colors[i], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => ({ seed: i, distance: 0, lane: 0, dropCooldown: .8 + i * 1.25, color: ['#a7ff4f', '#54f8ff', '#ff73dc', '#fff16b'][i % 4] }));
-    keys.clear(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
+    keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
     $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE';
     $('race-message').classList.remove('visible'); messageTime = 0;
     playMusic(); updateHUD();
+    if (window.matchMedia?.('(pointer: coarse)').matches) { hintTime = 6; document.body.classList.add('hinting'); }
   }
   function pauseRace() {
     if (mode === 'racing' || mode === 'countdown') {
-      $('pause-screen').dataset.previous = mode; mode = 'paused'; keys.clear();
+      $('pause-screen').dataset.previous = mode; mode = 'paused'; keys.clear(); resetGesture();
       $('pause-screen').classList.remove('hidden'); document.body.classList.add('paused');
     } else if (mode === 'paused') {
       mode = $('pause-screen').dataset.previous || 'racing'; $('pause-screen').classList.add('hidden'); document.body.classList.remove('paused');
     }
   }
   function garage() {
-    mode = 'menu'; keys.clear(); speed = 0; playerX = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; boosting = false;
+    mode = 'menu'; keys.clear(); resetGesture(); speed = 0; playerX = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; boosting = false;
     explosions = []; laserShots = []; enemyShots = []; bombs = []; ufos = []; particles = []; screenFlash = 0;
     $('menu').classList.remove('hidden'); ['hud', 'pause-screen', 'results'].forEach(id => $(id).classList.add('hidden'));
-    document.body.classList.remove('racing', 'paused', 'boosting', 'critical', 'destroyed');
+    document.body.classList.remove('racing', 'paused', 'boosting', 'critical', 'destroyed', 'hinting'); hintTime = 0;
   }
   function showMessage(text, duration = 1.5) { $('race-message').textContent = text; $('race-message').classList.add('visible'); messageTime = duration; }
   function createExplosion(worldDistance, lane, color, size = 1, cartoon = false) {
@@ -286,6 +293,7 @@
     }
     if (mode === 'menu') { position = mod(position + dt * 2900, LENGTH); playerX = Math.sin(time * .14) * .18; return; }
     if (mode === 'paused' || mode === 'finished') return;
+    if (hintTime > 0) { hintTime -= dt; if (hintTime <= 0 || gesture.moved) { hintTime = 0; document.body.classList.remove('hinting'); } }
     if (mode === 'countdown') {
       const old = Math.ceil(countdown); countdown -= dt;
       $('countdown').textContent = countdown > 0 ? Math.ceil(countdown) : 'GO!';
@@ -303,10 +311,11 @@
     elapsed += dt; collisionCooldown = Math.max(0, collisionCooldown - dt); wallCooldown = Math.max(0, wallCooldown - dt); laserCooldown = Math.max(0, laserCooldown - dt); shake *= Math.pow(.008, dt);
     if (messageTime > 0) { messageTime -= dt; if (messageTime <= 0) $('race-message').classList.remove('visible'); }
     const machine = machines[shipIndex], track = tracks[trackIndex];
-    const accelerate = keys.has('ArrowUp') || keys.has('KeyW');
-    const brake = keys.has('ArrowDown') || keys.has('KeyS');
-    const steer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA'));
-    const boostHeld = keys.has('Space') || keys.has('ShiftLeft') || keys.has('ShiftRight');
+    const brake = keys.has('ArrowDown') || keys.has('KeyS') || gesture.brake;
+    const accelerate = (keys.has('ArrowUp') || keys.has('KeyW') || gesture.accel) && !brake;
+    const keySteer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA'));
+    const steer = keySteer || gesture.steer;
+    const boostHeld = keys.has('Space') || keys.has('ShiftLeft') || keys.has('ShiftRight') || gesture.boost;
     if (!boostHeld) boostLocked = false;
     const wasBoosting = boosting;
     boosting = boostHeld && !boostLocked && energy > 0 && speed > 2500 && !brake;
@@ -378,7 +387,7 @@
           } else {
             speed = Math.max(2500, speed * (1 - (track.hazardPenalty || .24)));
             energy = Math.max(0, energy - (12 + trackIndex * 1.4)); shake = .9; screenFlash = Math.max(screenFlash, .3);
-            if (energy <= 0 && (keys.has('Space') || keys.has('ShiftLeft') || keys.has('ShiftRight'))) boostLocked = true;
+            if (energy <= 0 && boostHeld) boostLocked = true;
             showMessage(hazard.type === 'gate' ? 'LASER GATE HIT  /  SHIELD -' + Math.round(17 + trackIndex * 1.5) : hazard.type === 'drone' ? 'DRONE COLLISION  /  SHIELD -' + Math.round(17 + trackIndex * 1.5) : 'MINE STRIKE  /  SHIELD -' + Math.round(17 + trackIndex * 1.5), 1.1);
             playImpactSound(1 + trackIndex * .055); playExplosionSound(.85); collisionCooldown = Math.max(collisionCooldown, .55);
             createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, hazard.type === 'gate' ? '#ff456d' : track.edge, .75);
@@ -456,7 +465,7 @@
       }
     }
     enemyShots = enemyShots.filter(shot => time < shot.expires);
-    if ((keys.has('KeyX') || keys.has('KeyF')) && laserCooldown <= 0) fireLaser();
+    if ((keys.has('KeyX') || keys.has('KeyF') || gesture.fire || gesture.fireQueued) && laserCooldown <= 0) { gesture.fireQueued = false; fireLaser(); }
     laserShots = laserShots.filter(shot => time - shot.started < shot.duration);
     explosions = explosions.filter(explosion => time - explosion.started < explosion.duration);
     rank = 1 + rivals.filter(r => r.alive && r.distance > distance + 1050).length;
@@ -842,6 +851,14 @@
     for (const r of rivals) { if (!r.alive) continue; const [x, y] = point(mod(r.distance, LENGTH) / LENGTH); map.fillStyle = r.color; map.beginPath(); map.arc(x, y, 2.5, 0, TAU); map.fill(); }
     const [x, y] = point(position / LENGTH); map.shadowColor = '#ddff46'; map.shadowBlur = 9; map.fillStyle = '#ddff46'; map.beginPath(); map.arc(x, y, 4, 0, TAU); map.fill(); map.shadowBlur = 0;
   }
+  function drawStick() {
+    const dx = clamp(gesture.x - gesture.originX, -STICK, STICK), dy = clamp(gesture.y - gesture.originY, -STICK, STICK);
+    ctx.save(); ctx.globalAlpha = .55; ctx.lineWidth = 2;
+    ctx.strokeStyle = gesture.boost ? '#ddff46' : gesture.brake ? '#ff4eb8' : '#4df8ff';
+    ctx.beginPath(); ctx.arc(gesture.originX, gesture.originY, STICK, 0, TAU); ctx.stroke();
+    ctx.globalAlpha = .8; ctx.fillStyle = ctx.strokeStyle; ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 16;
+    ctx.beginPath(); ctx.arc(gesture.originX + dx, gesture.originY + dy, 18, 0, TAU); ctx.fill(); ctx.restore();
+  }
   function render() {
     ctx.save();
     if (shake > .03 && (mode === 'racing' || mode === 'wrecked')) ctx.translate(Math.sin(time * 121) * shake * 8, Math.cos(time * 93) * shake * 5);
@@ -876,6 +893,7 @@
       flash.addColorStop(.24, `rgba(255,55,153,${screenFlash * .2})`); flash.addColorStop(1, '#ff3b9a00');
       ctx.fillStyle = flash; ctx.fillRect(0, 0, W, H);
     }
+    if (gesture.id !== null && (mode === 'racing' || mode === 'countdown')) drawStick();
     // A light scanline texture ties the entire scene together.
     ctx.fillStyle = '#05051b12'; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
     ctx.restore();
@@ -912,12 +930,44 @@
     }
   });
   window.addEventListener('keyup', event => keys.delete(event.code));
-  window.addEventListener('blur', () => { keys.clear(); if (mode === 'racing' || mode === 'countdown') pauseRace(); });
+  window.addEventListener('blur', () => { keys.clear(); resetGesture(); if (mode === 'racing' || mode === 'countdown') pauseRace(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && (mode === 'racing' || mode === 'countdown')) pauseRace(); });
   document.querySelectorAll('[data-key]').forEach(button => {
     button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(event.pointerId); keys.add(button.dataset.key); });
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, () => keys.delete(button.dataset.key));
   });
+  const gestureActive = () => mode === 'racing' || mode === 'countdown';
+  function updateGesture() {
+    let dx = gesture.x - gesture.originX, dy = gesture.y - gesture.originY;
+    // Float the origin behind the finger so reversing direction responds instantly.
+    if (Math.abs(dx) > STICK) { gesture.originX += dx - Math.sign(dx) * STICK; dx = Math.sign(dx) * STICK; }
+    if (Math.abs(dy) > STICK) { gesture.originY += dy - Math.sign(dy) * STICK; dy = Math.sign(dy) * STICK; }
+    if (Math.hypot(dx, dy) > 14) gesture.moved = true;
+    gesture.steer = Math.abs(dx) < DEADZONE ? 0 : clamp((dx - Math.sign(dx) * DEADZONE) / (STICK * .7 - DEADZONE), -1, 1);
+    gesture.boost = dy < -VERTICAL; gesture.brake = dy > VERTICAL; gesture.accel = !gesture.brake;
+  }
+  canvas.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'mouse' || !gestureActive()) return;
+    event.preventDefault();
+    try { canvas.setPointerCapture(event.pointerId); } catch { /* Synthetic pointers cannot be captured. */ }
+    if (gesture.id === null) {
+      Object.assign(gesture, { id: event.pointerId, originX: event.clientX, originY: event.clientY, x: event.clientX, y: event.clientY, startTime: performance.now(), moved: false });
+      updateGesture();
+    } else { gesture.extra.add(event.pointerId); if (mode === 'racing') gesture.fireQueued = true; }
+  });
+  canvas.addEventListener('pointermove', event => {
+    if (event.pointerId !== gesture.id) return;
+    event.preventDefault(); gesture.x = event.clientX; gesture.y = event.clientY; updateGesture();
+  });
+  function endGesture(event) {
+    if (gesture.extra.delete(event.pointerId)) return;
+    if (event.pointerId !== gesture.id) return;
+    const tap = !gesture.moved && performance.now() - gesture.startTime < 260;
+    const extra = new Set(gesture.extra); resetGesture(); gesture.extra = extra;
+    if (tap && mode === 'racing') gesture.fireQueued = true;
+  }
+  for (const type of ['pointerup', 'pointercancel']) canvas.addEventListener(type, endGesture);
+  canvas.addEventListener('contextmenu', event => event.preventDefault());
   window.addEventListener('resize', resize);
   resize(); buildTrack(); requestAnimationFrame(frame);
 })();

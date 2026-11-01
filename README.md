@@ -21,7 +21,24 @@ Run `npm start` in this folder, then open **http://localhost:3000**. No dependen
 | Esc / P | Pause / resume |
 | M | Mute / unmute |
 
-The machine cruises automatically; hold accelerate for race speed. Boost spends energy; release it to recharge, or drive over cyan pads. Shield energy drops on collisions; when shields fail, your ship and the remaining pack detonate in a chain reaction. Laser shots damage rival hulls over multiple hits; rivals fire back and boost. Trampolines launch you into a temporary air boost. Dodge falling UFO bombs, and watch for neon cats crossing the track: collisions produce a harmless, cartoony pixel-pop and reload one laser shot. Touch controls appear on mobile. Choose a circuit and machine in the garage; lap records are saved per circuit in this browser.
+### Touch (phones & tablets)
+
+The game is fully playable with touch gestures, in portrait and landscape:
+
+| Gesture | Action |
+| --- | --- |
+| Tap **ENTER THE RACE** | Start race |
+| Touch and hold anywhere on the track | Accelerate |
+| Drag left / right | Steer (analog, floating stick) |
+| Slide up while holding | Boost |
+| Slide down while holding | Brake |
+| Quick tap, or tap with a second finger | Fire laser |
+| ϟ / ◎ / ▼ buttons | Boost / laser / brake (alternative to gestures) |
+| Ⅱ button | Pause |
+
+A short gesture guide appears at the start of every race on touch devices.
+
+The machine cruises automatically; hold accelerate for race speed. Boost spends energy; release it to recharge, or drive over cyan pads. Shield energy drops on collisions; when shields fail, your ship and the remaining pack detonate in a chain reaction. Laser shots damage rival hulls over multiple hits; rivals fire back and boost. Trampolines launch you into a temporary air boost. Dodge falling UFO bombs, and watch for neon cats crossing the track: collisions produce a harmless, cartoony pixel-pop and reload one laser shot. Choose a circuit and machine in the garage; lap records are saved per circuit in this browser.
 
 Music starts on your first click or race launch. The bottom-left music button independently pauses the soundtrack. The top-right sound button mutes both music and synthesized engine effects.
 
