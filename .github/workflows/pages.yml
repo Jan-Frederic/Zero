@@ -36,7 +36,7 @@ jobs:
       - name: Prepare site
         run: |
           mkdir _site
-          cp index.html game.js pwa.js sw.js manifest.webmanifest style.css effects.css .nojekyll *.mp3 _site/
+          cp index.html game.js pwa.js sw.js manifest.webmanifest og-image.jpg style.css effects.css .nojekyll *.mp3 _site/
           cp -r icons _site/
           sed -i "s/const VERSION = 'dev';/const VERSION = '${GITHUB_SHA::12}';/" _site/sw.js
           grep -q "${GITHUB_SHA::12}" _site/sw.js
