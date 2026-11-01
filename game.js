@@ -5,6 +5,8 @@
   const map = $('minimap').getContext('2d');
   const audio = $('soundtrack');
   const TAU = Math.PI * 2, SEG = 200, COUNT = 1200, LENGTH = SEG * COUNT, ROAD = 1700, DEPTH = .88, PILOT_COUNT = 20, LASER_CAPACITY = 10;
+  // One laser cell recharges every LASER_RECHARGE seconds; HULL_STRENGTH > 1 makes the shield last that many times longer.
+  const LASER_RECHARGE = 2.5, HULL_STRENGTH = 2;
   const keys = new Set();
   // Touch gestures: a floating stick anywhere on the track. Drag sideways to steer, slide up to boost,
   // slide down to brake, tap (or touch with a second finger) to fire. Holding a finger accelerates.
@@ -34,7 +36,7 @@
   let shake = 0, steerVisual = 0, distance = 0, bestLap = 0, previousTime = 0, muted = false, beat = 0;
   let audioContext, analyser, frequency, engineGain, engineOsc, musicSource, musicGain, sfxBus;
   let particles = [], explosions = [], laserShots = [], enemyShots = [], hitHazards = new Set(), hitRamps = new Set(), rank = 20, lastPad = -1, launchGoTime = 0, boostLocked = false;
-  let laserAmmo = LASER_CAPACITY, laserCooldown = 0, screenFlash = 0, wreckedAt = 0, wreckRank = PILOT_COUNT, wreckBurst = null;
+  let laserAmmo = LASER_CAPACITY, laserCharge = 0, laserCooldown = 0, screenFlash = 0, wreckedAt = 0, wreckRank = PILOT_COUNT, wreckBurst = null;
   const mod = (a, n) => ((a % n) + n) % n;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -187,7 +189,7 @@
   }
   function startRace() {
     mode = 'countdown'; position = 0; distance = 0; playerX = 0; speed = 0; energy = 100; elapsed = 0; lap = 1; lapStart = 0;
-    laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = LASER_CAPACITY; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
+    laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = LASER_CAPACITY; laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
     const track = tracks[trackIndex];
     const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
     rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 880, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 135) * track.rivalPace, color: colors[i], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
@@ -220,7 +222,7 @@
     shake = Math.max(shake, .55 * size); screenFlash = Math.max(screenFlash, .26 * size);
   }
   function fireLaser() {
-    if (laserAmmo <= 0) { laserCooldown = .5; showMessage('LASER CELLS DEPLETED', .7); return; }
+    if (laserAmmo <= 0) { laserCooldown = .5; showMessage('LASER CELLS RECHARGING', .7); return; }
     const track = tracks[trackIndex];
     const target = rivals.filter(r => r.alive && r.distance > distance + 1350 && r.distance < distance + 19000 && Math.abs(r.x * track.width - playerX) < track.width * .32)
       .sort((a, b) => a.distance - b.distance)[0];
@@ -257,8 +259,9 @@
     showMessage('SHIELDS DOWN  /  TOTAL CHAIN REACTION', 1.3);
     playExplosionSound(1.65); updateHUD();
   }
+  const hullLoss = amount => Math.round(amount / HULL_STRENGTH);
   function damageShield(amount) {
-    shield = Math.max(0, shield - amount);
+    shield = Math.max(0, shield - amount / HULL_STRENGTH);
     if (shield <= 25) screenFlash = Math.max(screenFlash, .08 + (25 - shield) * .005);
     if (shield === 0) { destroyPlayer(); return true; }
     return false;
@@ -357,7 +360,7 @@
       const side = Math.sign(playerX); playerX = side * edgeLimit; speed = Math.max(2800, speed - dt * 15500); energy = Math.max(0, energy - dt * 10); shake = .5; screenFlash = Math.max(screenFlash, .08);
       for (let i = 0; i < 3; i++) particles.push({ x: W * .5 + side * 65, y: H * .81, vx: (random(time * 200 + i) - .5) * 600, vy: -random(time * 300 + i) * 260, life: .4, color: '#ffbd45' });
       if (wallCooldown <= 0) {
-        wallCooldown = .85; showMessage('BARRIER CONTACT  /  SHIELD -10', .7); playImpactSound(.65);
+        wallCooldown = .85; showMessage('BARRIER CONTACT  /  SHIELD -' + hullLoss(10), .7); playImpactSound(.65);
         if (damageShield(10)) { updateHUD(); return; }
       }
     }
@@ -388,7 +391,7 @@
             speed = Math.max(2500, speed * (1 - (track.hazardPenalty || .24)));
             energy = Math.max(0, energy - (12 + trackIndex * 1.4)); shake = .9; screenFlash = Math.max(screenFlash, .3);
             if (energy <= 0 && boostHeld) boostLocked = true;
-            showMessage(hazard.type === 'gate' ? 'LASER GATE HIT  /  SHIELD -' + Math.round(17 + trackIndex * 1.5) : hazard.type === 'drone' ? 'DRONE COLLISION  /  SHIELD -' + Math.round(17 + trackIndex * 1.5) : 'MINE STRIKE  /  SHIELD -' + Math.round(17 + trackIndex * 1.5), 1.1);
+            showMessage(hazard.type === 'gate' ? 'LASER GATE HIT  /  SHIELD -' + hullLoss(17 + trackIndex * 1.5) : hazard.type === 'drone' ? 'DRONE COLLISION  /  SHIELD -' + hullLoss(17 + trackIndex * 1.5) : 'MINE STRIKE  /  SHIELD -' + hullLoss(17 + trackIndex * 1.5), 1.1);
             playImpactSound(1 + trackIndex * .055); playExplosionSound(.85); collisionCooldown = Math.max(collisionCooldown, .55);
             createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, hazard.type === 'gate' ? '#ff456d' : track.edge, .75);
             if (damageShield(17 + trackIndex * 1.5)) { updateHUD(); return; }
@@ -413,7 +416,7 @@
       bomb.exploded = true; createExplosion(bomb.distance, bomb.lane * track.width, bomb.color, 1.05);
       if (hit) {
         speed = Math.max(2600, speed * .7); shake = 1; screenFlash = Math.max(screenFlash, .38);
-        showMessage('UFO BOMB HIT!  SHIELD -22', 1.1); playImpactSound(1.2); playExplosionSound(1.15);
+        showMessage('UFO BOMB HIT!  SHIELD -' + hullLoss(22), 1.1); playImpactSound(1.2); playExplosionSound(1.15);
         if (damageShield(22)) { updateHUD(); return; }
       } else if (nearImpact) showMessage('BOMB DODGED!', .65);
       else playExplosionSound(.55);
@@ -446,11 +449,11 @@
       if (Math.abs(r.distance - (distance + 1050)) < 340 && Math.abs(r.x * track.width - playerX) < .2 * track.width && collisionCooldown <= 0 && jumpHeight < 90) {
         if (boosting) {
           r.alive = false; createExplosion(r.distance, r.x * track.width, r.color, 1.45); speed *= .94; collisionCooldown = .45;
-          showMessage('BOOST RAM  /  RIVAL DESTROYED  /  SHIELD -6', 1.15); playExplosionSound(1.35);
+          showMessage('BOOST RAM  /  RIVAL DESTROYED  /  SHIELD -' + hullLoss(6), 1.15); playExplosionSound(1.35);
           if (damageShield(6)) { updateHUD(); return; }
         } else {
           playerX = clamp(playerX + (playerX >= r.x * track.width ? .15 : -.15) * track.width, -edgeLimit, edgeLimit); speed *= .78; shake = .8; collisionCooldown = 1;
-          showMessage('HULL CONTACT  /  SHIELD -14', .7); playImpactSound(.9);
+          showMessage('HULL CONTACT  /  SHIELD -' + hullLoss(14), .7); playImpactSound(.9);
           if (damageShield(14)) { updateHUD(); return; }
         }
       }
@@ -460,11 +463,15 @@
       shot.resolved = true;
       if (jumpHeight < 105 && Math.abs(playerX - shot.targetLane * track.width) < .21 * track.width) {
         shake = Math.max(shake, .55); screenFlash = Math.max(screenFlash, .18);
-        showMessage('ENEMY LASER HIT  /  SHIELD -8', .95); playImpactSound(.68);
+        showMessage('ENEMY LASER HIT  /  SHIELD -' + hullLoss(8), .95); playImpactSound(.68);
         if (damageShield(8)) { updateHUD(); return; }
       }
     }
     enemyShots = enemyShots.filter(shot => time < shot.expires);
+    if (laserAmmo < LASER_CAPACITY) {
+      laserCharge += dt / LASER_RECHARGE;
+      if (laserCharge >= 1) { laserCharge -= 1; laserAmmo++; if (laserAmmo === LASER_CAPACITY) laserCharge = 0; }
+    } else laserCharge = 0;
     if ((keys.has('KeyX') || keys.has('KeyF') || gesture.fire || gesture.fireQueued) && laserCooldown <= 0) { gesture.fireQueued = false; fireLaser(); }
     laserShots = laserShots.filter(shot => time - shot.started < shot.duration);
     explosions = explosions.filter(explosion => time - explosion.started < explosion.duration);
@@ -484,6 +491,8 @@
     $('shield-text').textContent = Math.round(shield) + '%'; document.body.classList.toggle('critical', shield <= 25 && mode !== 'wrecked');
     $('energy-text').textContent = Math.round(energy) + '%'; $('position').textContent = String(rank).padStart(2, '0');
     $('laser-count').textContent = String(laserAmmo).padStart(2, '0');
+    $('laser-fill').style.width = Math.min(100, (laserAmmo + laserCharge) / LASER_CAPACITY * 100) + '%';
+    document.body.classList.toggle('lasers-empty', laserAmmo === 0);
     $('lap').textContent = String(lap).padStart(2, '0'); $('timer').textContent = formatTime(elapsed);
     $('progress').style.width = Math.min(100, distance / (LENGTH * 3) * 100) + '%';
     const laserIncoming = enemyShots.some(shot => !shot.resolved && shot.impactAt - time < .55);

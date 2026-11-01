@@ -163,11 +163,38 @@ test('UFOs drop bombs, trampolines jump and boost, and cats reload lasers', () =
 test('shield reaches zero, triggers the chain explosion, and resets on retry', () => {
   const { element: el, step, key, inspect } = harness();
   el('start').fire('click'); key('ArrowUp'); step(3.05);
-  key('ArrowRight'); step(14);
+  key('ArrowRight');
+  for (let i = 0; i < 60 && inspect().mode !== 'finished'; i++) step(1);
   assert.equal(inspect().mode, 'finished');
   assert.equal(el('shield-text').textContent, '0%');
   assert.equal(el('result-title').textContent, 'SHIELDS DOWN.');
   assert.match(el('result-record').textContent, /NOVA/);
   el('again').fire('click');
   assert.equal(el('shield-text').textContent, '100%');
+});
+
+test('laser cells recharge on their own and fill the laser bar', () => {
+  const { element: el, step, key } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  for (let i = 0; i < 3; i++) { key('KeyX'); step(.05); key('KeyX', 'keyup'); step(.3); }
+  assert.equal(el('laser-count').textContent, '07');
+  assert.ok(Number.parseFloat(el('laser-fill').style.width) < 75, 'laser bar drops after firing');
+  step(2.6);
+  assert.equal(el('laser-count').textContent, '08', 'one cell recharges after 2.5 s');
+  step(5.1);
+  assert.equal(el('laser-count').textContent, '10');
+  assert.equal(el('laser-fill').style.width, '100%');
+  step(3);
+  assert.equal(el('laser-count').textContent, '10', 'recharge stops at capacity');
+});
+
+test('the hull withstands twice as much damage before failing', () => {
+  const { element: el, step, key, disableAirRaid } = harness();
+  for (let i = 0; i < 7; i++) el('next-track').fire('click');
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  disableAirRaid();
+  key('ArrowRight'); step(.9); key('ArrowRight', 'keyup'); step(1.65);
+  assert.match(el('race-message').textContent, /LASER GATE HIT/);
+  // This run deals ~37 raw damage (barrier scrape + laser gate): 63% with the old hull, 81% with the doubled one.
+  assert.equal(el('shield-text').textContent, '81%');
 });
