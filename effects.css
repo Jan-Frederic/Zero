@@ -67,3 +67,4 @@ button{touch-action:manipulation}
   @media(max-width:600px){.topbar,.bottom-bar{left:max(15px,env(safe-area-inset-left));right:max(15px,env(safe-area-inset-right))}}
   @media(max-height:520px) and (orientation:landscape){.topbar,.bottom-bar{left:max(16px,env(safe-area-inset-left));right:max(16px,env(safe-area-inset-right))}.touch-controls{bottom:calc(58px + env(safe-area-inset-bottom))}.hud{left:max(3%,env(safe-area-inset-left));right:max(3%,env(safe-area-inset-right))}}
 }
+@media(max-width:600px),(max-height:520px){.wordmark-light{display:inline;font-size:10px;letter-spacing:1px}}

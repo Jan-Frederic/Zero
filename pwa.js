@@ -16,7 +16,7 @@
     clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove('visible'), 5000);
   }
   window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); deferred = event; button.classList.remove('hidden'); });
-  window.addEventListener('appinstalled', () => { deferred = null; button.classList.add('hidden'); toast('INSTALLED — LAUNCH OVERDRIVE FROM YOUR HOME SCREEN'); });
+  window.addEventListener('appinstalled', () => { deferred = null; button.classList.add('hidden'); toast('INSTALLED — LAUNCH MORBID RACERS FROM YOUR HOME SCREEN'); });
   if (ios && !standalone) button.classList.remove('hidden');
   button.addEventListener('click', async () => {
     if (deferred) { deferred.prompt(); await deferred.userChoice.catch(() => null); deferred = null; button.classList.add('hidden'); }

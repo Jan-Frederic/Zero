@@ -1,8 +1,8 @@
-// Service worker: makes Chroma Overdrive installable and fully playable offline.
+// Service worker: makes Morbid Racers installable and fully playable offline.
 // VERSION is replaced with the commit SHA on deploy, so every release gets a fresh cache.
 const VERSION = 'dev';
-const CACHE = `overdrive-${VERSION}`;
-const FONT_CACHE = 'overdrive-fonts';
+const CACHE = `morbid-racers-${VERSION}`;
+const FONT_CACHE = 'morbid-racers-fonts';
 const SOUNDTRACK = 'Morbid_Fingers%20-%20live-%20Emmerich_Juli_2003%20-%2003%20Redemption.mp3';
 const ASSETS = ['./', 'index.html', 'style.css', 'effects.css', 'game.js', 'pwa.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', SOUNDTRACK];

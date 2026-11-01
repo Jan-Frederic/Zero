@@ -787,7 +787,7 @@
     line(p.x - p.w * .7, p.y - height * 1.16, p.x + p.w * .7, p.y - height * 1.16, t.second, thickness * .25);
     if (p.w > 80) {
       ctx.textAlign = 'center'; ctx.font = `bold ${Math.min(14, Math.max(7, p.w * .025))}px monospace`; ctx.fillStyle = '#f5f2ff';
-      ctx.fillText(s.index === 30 ? 'CHROMA  /  OVERDRIVE' : `${t.class}  /  HYPER VELOCITY`, p.x, p.y - height * 1.035);
+      ctx.fillText(s.index === 30 ? 'MORBID  /  RACERS' : `${t.class}  /  HYPER VELOCITY`, p.x, p.y - height * 1.035);
     }
   }
   function drawShip(x, y, width, color, dark, steer, player, rivalBoost = false, airborne = false) {
