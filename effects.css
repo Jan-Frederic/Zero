@@ -76,3 +76,6 @@ button{touch-action:manipulation}
 body.lasers-empty #laser-fill{background:#ff8fd0;animation:criticalShield .42s alternate infinite}
 body.lasers-empty .laser-label b{color:#ff8fd0}
 @media(max-height:520px) and (orientation:landscape){.laser-label{margin-top:5px}.shield-readout{margin-top:4px}.energy-track{margin-top:4px}}
+
+/* Victory confetti rains over everything, including the results card. */
+.confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:40}

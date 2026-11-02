@@ -34,11 +34,11 @@ function harness() {
   };
   sandbox.window = sandbox;
   const source = fs.readFileSync('game.js', 'utf8').replace('  resize(); buildTrack(); requestAnimationFrame(frame);\n})();',
-    '  resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
+    '  resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ ufoList: ufos.map(u => ({ lane: u.lane, slot: u.slot })), crashing: crashingUfos.length, blasts: megaBlasts.length, confetti: confetti.length, callout: callout && callout.text, dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__eliminateRivals = () => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
   vm.runInNewContext(source, sandbox);
   const step = seconds => { for (let i = 0; i < Math.ceil(seconds * 20); i++) { now += 50; frame(now); } };
   const key = (code, type = 'keydown') => (windowEvents[type] || []).forEach(fn => fn({ code, repeat: false, target: element('body'), preventDefault() {} }));
-  return { element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b) };
+  return { element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b), eliminateRivals: () => sandbox.__eliminateRivals() };
 }
 
 test('circuit selection, driving, boost, pause, full race, records and restart', () => {
@@ -227,4 +227,37 @@ test('a destroyed rival smokes and spins out before it explodes', () => {
   step(.8);
   assert.equal(inspect().dying, 0, 'the wreck sequence is over');
   assert.ok(inspect().explosions >= 2, 'it explodes at the end');
+});
+
+test('UFOs can be shot down: they careen, smoke, explode huge and are replaced', () => {
+  const { element: el, step, key, inspect, setRacePosition } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(3.05); step(.5);
+  const total = inspect().ufos;
+  assert.ok(total >= 2);
+  // Line up under the first UFO, then fire.
+  const lane = inspect().ufoList.find(u => u.slot === 0).lane;
+  setRacePosition(inspect().distance, lane * .98);
+  key('KeyX'); step(.05); key('KeyX', 'keyup');
+  assert.equal(inspect().crashing, 1, 'the UFO is going down');
+  assert.equal(inspect().ufos, total - 1);
+  assert.ok(inspect().callout && inspect().callout.length > 3, 'the announcer shouts a kill call');
+  assert.match(el('race-message').textContent, /UFO HIT/);
+  step(2.7);
+  assert.equal(inspect().crashing, 0);
+  assert.ok(inspect().blasts > 0 || inspect().mode !== 'racing', 'a mega blast follows the crash');
+  for (let i = 0; i < 80 && inspect().ufos < total && inspect().mode === 'racing'; i++) step(.1);
+  if (inspect().mode === 'racing') assert.equal(inspect().ufos, total, 'a new UFO warps in');
+});
+
+test('winning a race throws confetti across the screen', () => {
+  const { element: el, step, key, inspect, setRacePosition, disableAirRaid, eliminateRivals } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  disableAirRaid(); eliminateRivals();
+  for (let lap = 0; lap < 3 && inspect().mode === 'racing'; lap++) {
+    setRacePosition((lap + 1) * 240000 - 60, 0);
+    step(.5);
+  }
+  assert.equal(inspect().mode, 'finished');
+  assert.equal(el('result-position').textContent, '01');
+  assert.ok(inspect().confetti > 100, 'confetti is launched');
 });
