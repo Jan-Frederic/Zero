@@ -74,7 +74,7 @@ test('circuit selection, driving, boost, pause, full race, records and restart',
   disableAirRaid();
   let steering = null;
   key('KeyX');
-  for (let i = 0; i < 450 && el('results').classList.contains('hidden'); i++) {
+  for (let i = 0; i < 900 && el('results').classList.contains('hidden'); i++) {
     for (let frame = 0; frame < 20 && el('results').classList.contains('hidden'); frame++) {
       const x = inspect().playerX;
       const wanted = x > .1 ? 'ArrowLeft' : x < -.1 ? 'ArrowRight' : null;
@@ -87,8 +87,8 @@ test('circuit selection, driving, boost, pause, full race, records and restart',
     }
   }
   if (steering) key(steering, 'keyup'); key('KeyX', 'keyup');
-  assert.equal(el('results').classList.contains('hidden'), false, 'three laps finish the race');
-  assert.equal(el('lap').textContent, '03');
+  assert.equal(el('results').classList.contains('hidden'), false, 'six laps finish the race');
+  assert.equal(el('lap').textContent, '06');
   assert.match(el('result-time').textContent, /^\d\d:\d\d\.\d{3}$/);
   assert.ok(Number(storage.get('chroma-best-0')) > 0, 'best lap persists');
   el('again').fire('click');
@@ -253,7 +253,7 @@ test('winning a race throws confetti across the screen', () => {
   const { element: el, step, key, inspect, setRacePosition, disableAirRaid, eliminateRivals } = harness();
   el('start').fire('click'); key('ArrowUp'); step(3.05);
   disableAirRaid(); eliminateRivals();
-  for (let lap = 0; lap < 3 && inspect().mode === 'racing'; lap++) {
+  for (let lap = 0; lap < 6 && inspect().mode === 'racing'; lap++) {
     setRacePosition((lap + 1) * 240000 - 60, 0);
     step(.5);
   }
@@ -287,13 +287,13 @@ test('star gates trigger 10 s of hyperdrive: invincible, infinite boost, mega la
   assert.equal(el('body').classList.contains('hyper'), false);
 });
 
-test('the 20th UFO kill summons the mothership, which attacks and can be destroyed', () => {
+test('the 10th UFO kill summons the mothership, which attacks and can be destroyed', () => {
   const { element: el, step, key, inspect, setRacePosition, setUfoKills, setBossHp, eliminateRivals } = harness();
   el('start').fire('click'); key('ArrowUp'); step(3.05); step(.5);
-  eliminateRivals(); setUfoKills(19);
+  eliminateRivals(); setUfoKills(9);
   const aim = () => { const st = inspect(); setRacePosition(st.distance, (st.boss ? st.boss.lane : st.ufoList.find(u => u.slot === 0).lane) * .98); };
   aim(); key('KeyX'); step(.05); key('KeyX', 'keyup');
-  assert.equal(inspect().ufoKills, 20);
+  assert.equal(inspect().ufoKills, 10);
   assert.ok(inspect().boss, 'the mothership appears');
   assert.equal(inspect().ufos, 0, 'regular UFOs make way');
   assert.equal(el('body').classList.contains('boss'), true, 'boss health bar is shown');

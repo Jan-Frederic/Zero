@@ -38,8 +38,8 @@
   // Shot-down UFOs fly wild screen-space crash paths; new UFOs warp in to replace them.
   let hyperTime = 0, hyperStarted = 0, hitGates = new Set();
   const HYPER_TIME = 10;
-  // Mothership boss: appears after every 20 UFO kills.
-  const BOSS_EVERY = 20, BOSS_HP = 40;
+  // Mothership boss: appears after every 10 UFO kills. Races run LAP_COUNT laps.
+  const BOSS_EVERY = 10, BOSS_HP = 40, LAP_COUNT = 6;
   let ufoKills = 0, boss = null, bossAttacks = [];
   let crashingUfos = [], ufoRespawns = [], smoke = [], megaBlasts = [], confetti = [], callout = null;
   let jetSource, jetFilter, jetGain, jetWhine, jetWhineGain;
@@ -1015,7 +1015,7 @@
     rank = 1 + rivals.filter(r => r.alive && r.distance > distance + 1050).length;
     if (Math.floor(distance / LENGTH) > Math.floor(prevDistance / LENGTH)) {
       laps.push(elapsed - lapStart); lapStart = elapsed;
-      if (laps.length === 3) { finishRace(); } else { lap = laps.length + 1; showMessage(lap === 3 ? 'FINAL LAP — MAKE IT COUNT' : 'LAP 02 — KEEP PUSHING', 2.2); soundEffect(660, .4); }
+      if (laps.length === LAP_COUNT) { finishRace(); } else { lap = laps.length + 1; showMessage(lap === LAP_COUNT ? 'FINAL LAP — MAKE IT COUNT' : `LAP ${String(lap).padStart(2, '0')} / ${String(LAP_COUNT).padStart(2, '0')} — KEEP PUSHING`, 2.2); soundEffect(660, .4); }
     }
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 450 * dt; p.life -= dt; }
     particles = particles.filter(p => p.life > 0).slice(-100);
@@ -1038,7 +1038,7 @@
     $('laser-fill').style.width = Math.min(100, (laserAmmo + laserCharge) / LASER_CAPACITY * 100) + '%';
     document.body.classList.toggle('lasers-empty', laserAmmo === 0);
     $('lap').textContent = String(lap).padStart(2, '0'); $('timer').textContent = formatTime(elapsed);
-    $('progress').style.width = Math.min(100, distance / (LENGTH * 3) * 100) + '%';
+    $('progress').style.width = Math.min(100, distance / (LENGTH * LAP_COUNT) * 100) + '%';
     const laserIncoming = enemyShots.some(shot => !shot.resolved && shot.impactAt - time < .55);
     const bombIncoming = bombs.some(bomb => !bomb.exploded && bomb.distance - (distance + 1050) < 4200);
     $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
