@@ -47,6 +47,11 @@ The game is fully playable with touch gestures, in portrait and landscape:
 
 A short gesture guide appears at the start of every race on touch devices.
 
+**Setup on the start screen** (touch devices, remembered on the device):
+
+- **Steering: TOUCH / GYRO** — with GYRO you steer by tilting the device like a steering wheel; the neutral position is calibrated when the race starts and after every pause. Holding, sliding and tapping still accelerate, boost, brake and fire. On iPhone/iPad the browser asks once for motion-sensor access.
+- **Screen: PORTRAIT / LANDSCAPE** — where the browser allows it (Android, installed app) the screen is locked to that orientation; otherwise (e.g. iOS Safari) the game pauses and asks you to rotate the device, with a one-tap switch to the other orientation.
+
 The machine cruises automatically; hold accelerate for race speed. Boost spends energy; release it to recharge. Drive over the cyan pads to recharge boost energy, hull shield and laser cells at once. Shield energy drops on collisions (the reinforced hull takes half damage); when shields fail, your ship and the remaining pack detonate in a chain reaction. Laser shots damage rival hulls over multiple hits; a beaten rival trails smoke, spins out of control and then explodes; rivals fire back and boost. Trampolines launch you into a temporary air boost with a roaring jet blast (boosts roar too). Shoot the UFOs: a hit UFO careens across the whole screen trailing smoke, then goes off in a screen-filling mega blast while a robot announcer yells things like *ALIEN KILLER!* or *FATALITY!* — and fresh UFOs keep warping in. Finish first and confetti rains over the whole screen. Dodge falling UFO bombs, and watch for neon cats crossing the track: collisions produce a harmless, cartoony pixel-pop and reload one laser shot. Choose a circuit and machine in the garage; lap records are saved per circuit in this browser.
 
 Music starts on your first click or race launch. The bottom-left music button independently pauses the soundtrack. The top-right sound button mutes both music and synthesized engine effects.

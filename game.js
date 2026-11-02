@@ -364,6 +364,64 @@
     playToneSweep(48, 160, .9 * power, 'sawtooth', .16 * power);
     playToneSweep(700, 3200, .8 * power, 'sawtooth', .03 * power);
   }
+  // ---- Setup: steering (touch or gyro) and screen orientation, chosen on the start screen and remembered.
+  const settings = { steering: 'touch', screen: window.matchMedia?.('(orientation: landscape)')?.matches ? 'landscape' : 'portrait' };
+  try { Object.assign(settings, JSON.parse(localStorage.getItem('morbid-settings') || '{}')); } catch { /* defaults */ }
+  const tilt = { x: 0, neutral: 0, live: false };
+  function saveSettings() { try { localStorage.setItem('morbid-settings', JSON.stringify(settings)); } catch { /* ignore */ } }
+  function screenAngle() { return (screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : Number(window.orientation) || 0) * Math.PI / 180; }
+  // Roll angle of the device relative to the screen's horizontal axis, from the gravity direction in device coordinates.
+  function onTilt(event) {
+    if (event.beta == null || event.gamma == null) return;
+    const b = event.beta * Math.PI / 180, g = event.gamma * Math.PI / 180, a = screenAngle();
+    const dx = Math.sin(g) * Math.cos(b), dy = -Math.sin(b);
+    tilt.x = Math.asin(clamp(dx * Math.cos(a) - dy * Math.sin(a), -1, 1)) * 180 / Math.PI; tilt.live = true;
+  }
+  // Touch steering stays available until the sensor actually delivers data.
+  const gyroActive = () => settings.steering === 'gyro' && tilt.live;
+  function calibrateTilt() { tilt.neutral = tilt.live ? tilt.x : 0; }
+  const TILT_FULL = 20, TILT_DEAD = 2.5;
+  function tiltSteer() {
+    if (!tilt.live) return 0;
+    const d = tilt.x - tilt.neutral;
+    return Math.abs(d) < TILT_DEAD ? 0 : clamp((d - Math.sign(d) * TILT_DEAD) / (TILT_FULL - TILT_DEAD), -1, 1);
+  }
+  async function enableGyro() {
+    if (!window.DeviceOrientationEvent) return false;
+    try {
+      if (typeof DeviceOrientationEvent.requestPermission === 'function' && await DeviceOrientationEvent.requestPermission() !== 'granted') return false;
+    } catch { return false; }
+    if (!enableGyro.listening) { window.addEventListener('deviceorientation', onTilt); enableGyro.listening = true; }
+    return true;
+  }
+  function setupNote(text) { $('setup-note').textContent = text; }
+  function renderSettings() {
+    document.querySelectorAll('[data-steer]').forEach(b => b.classList.toggle('selected', b.dataset.steer === settings.steering));
+    document.querySelectorAll('[data-screen]').forEach(b => b.classList.toggle('selected', b.dataset.screen === settings.screen));
+    $('steer-hint').textContent = settings.steering === 'gyro' ? 'TILT ◀ ▶' : 'DRAG ◀ ▶';
+    document.body.classList.toggle('gyro', settings.steering === 'gyro');
+    checkOrientation();
+  }
+  function currentOrientation() { return window.matchMedia?.('(orientation: landscape)')?.matches ? 'landscape' : 'portrait'; }
+  // Lock the orientation where the browser allows it (Android, installed app); everywhere else ask the player to rotate.
+  async function applyScreenSetting(fromGesture) {
+    if (!window.matchMedia?.('(pointer: coarse)').matches || !screen.orientation?.lock) { checkOrientation(); return; }
+    try {
+      if (fromGesture && !document.fullscreenElement && !matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches) await document.documentElement.requestFullscreen?.();
+      await screen.orientation.lock(settings.screen);
+    } catch { /* Not allowed here (e.g. iOS): the rotate prompt takes over. */ }
+    checkOrientation();
+  }
+  function checkOrientation() {
+    const overlay = $('rotate-overlay');
+    const wrong = !!window.matchMedia?.('(pointer: coarse)').matches && currentOrientation() !== settings.screen;
+    overlay.classList.toggle('hidden', !wrong);
+    if (wrong) {
+      $('rotate-title').textContent = `ROTATE TO ${settings.screen.toUpperCase()}`; $('rotate-setting').textContent = settings.screen.toUpperCase();
+      $('rotate-other').textContent = settings.screen === 'portrait' ? 'LANDSCAPE' : 'PORTRAIT';
+      if (mode === 'racing' || mode === 'countdown') pauseRace();
+    }
+  }
   function startRace() {
     mode = 'countdown'; position = 0; distance = 0; playerX = 0; speed = 0; energy = 100; elapsed = 0; lap = 1; lapStart = 0;
     laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = LASER_CAPACITY; laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
@@ -377,7 +435,8 @@
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
     $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE';
     $('race-message').classList.remove('visible'); messageTime = 0;
-    playMusic(); primeSpeech(); updateHUD();
+    if (settings.steering === 'gyro' && !enableGyro.listening) enableGyro();
+    playMusic(); primeSpeech(); calibrateTilt(); applyScreenSetting(true); updateHUD();
     if (window.matchMedia?.('(pointer: coarse)').matches) { hintTime = 6; document.body.classList.add('hinting'); }
   }
   function pauseRace() {
@@ -385,7 +444,7 @@
       $('pause-screen').dataset.previous = mode; mode = 'paused'; keys.clear(); resetGesture();
       $('pause-screen').classList.remove('hidden'); document.body.classList.add('paused');
     } else if (mode === 'paused') {
-      mode = $('pause-screen').dataset.previous || 'racing'; $('pause-screen').classList.add('hidden'); document.body.classList.remove('paused');
+      mode = $('pause-screen').dataset.previous || 'racing'; $('pause-screen').classList.add('hidden'); document.body.classList.remove('paused'); calibrateTilt();
     }
   }
   function garage() {
@@ -533,7 +592,7 @@
       const old = Math.ceil(countdown); countdown -= dt;
       $('countdown').textContent = countdown > 0 ? Math.ceil(countdown) : 'GO!';
       if (Math.ceil(countdown) !== old && countdown > 0) soundEffect(440, .13);
-      if (countdown <= 0) { mode = 'racing'; launchGoTime = .8; soundEffect(880, .35); }
+      if (countdown <= 0) { mode = 'racing'; launchGoTime = .8; soundEffect(880, .35); calibrateTilt(); }
       updateHUD(); return;
     }
     if (mode === 'wrecked') {
@@ -549,7 +608,7 @@
     const brake = keys.has('ArrowDown') || keys.has('KeyS') || gesture.brake;
     const accelerate = (keys.has('ArrowUp') || keys.has('KeyW') || gesture.accel) && !brake;
     const keySteer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA'));
-    const steer = keySteer || gesture.steer;
+    const steer = keySteer || (gyroActive() ? tiltSteer() : gesture.steer);
     const boostHeld = keys.has('Space') || keys.has('ShiftLeft') || keys.has('ShiftRight') || gesture.boost;
     if (!boostHeld) boostLocked = false;
     const wasBoosting = boosting;
@@ -1201,7 +1260,7 @@
     if (Math.abs(dx) > STICK) { gesture.originX += dx - Math.sign(dx) * STICK; dx = Math.sign(dx) * STICK; }
     if (Math.abs(dy) > STICK) { gesture.originY += dy - Math.sign(dy) * STICK; dy = Math.sign(dy) * STICK; }
     if (Math.hypot(dx, dy) > 14) gesture.moved = true;
-    gesture.steer = Math.abs(dx) < DEADZONE ? 0 : clamp((dx - Math.sign(dx) * DEADZONE) / (STICK * .7 - DEADZONE), -1, 1);
+    gesture.steer = gyroActive() || Math.abs(dx) < DEADZONE ? 0 : clamp((dx - Math.sign(dx) * DEADZONE) / (STICK * .7 - DEADZONE), -1, 1);
     gesture.boost = dy < -VERTICAL; gesture.brake = dy > VERTICAL; gesture.accel = !gesture.brake;
   }
   canvas.addEventListener('pointerdown', event => {
@@ -1226,6 +1285,23 @@
   }
   for (const type of ['pointerup', 'pointercancel']) canvas.addEventListener(type, endGesture);
   canvas.addEventListener('contextmenu', event => event.preventDefault());
+  document.querySelectorAll('[data-steer]').forEach(button => button.addEventListener('click', async () => {
+    if (button.dataset.steer === 'gyro') {
+      setupNote('ASKING FOR MOTION SENSOR ACCESS…');
+      if (!await enableGyro()) { settings.steering = 'touch'; setupNote('GYRO NOT AVAILABLE — USING TOUCH'); renderSettings(); return; }
+      setupNote('GYRO ON — HOLD YOUR DEVICE NEUTRAL WHEN THE RACE STARTS');
+    } else setupNote('DRAG ON THE TRACK TO STEER');
+    settings.steering = button.dataset.steer; saveSettings(); renderSettings();
+  }));
+  document.querySelectorAll('[data-screen]').forEach(button => button.addEventListener('click', () => {
+    settings.screen = button.dataset.screen; saveSettings(); renderSettings(); applyScreenSetting(true);
+    setupNote(`SCREEN: ${settings.screen.toUpperCase()}`);
+  }));
+  $('rotate-switch').addEventListener('click', () => { settings.screen = settings.screen === 'portrait' ? 'landscape' : 'portrait'; saveSettings(); renderSettings(); });
+  window.matchMedia?.('(orientation: landscape)').addEventListener?.('change', () => setTimeout(checkOrientation, 50));
+  // A remembered gyro choice needs the sensor again; iOS will re-ask on the next tap of GYRO.
+  if (settings.steering === 'gyro') enableGyro().then(ok => { if (!ok && typeof window.DeviceOrientationEvent?.requestPermission !== 'function') { settings.steering = 'touch'; renderSettings(); } });
+  renderSettings();
   window.addEventListener('resize', resize);
   resize(); buildTrack(); requestAnimationFrame(frame);
 })();
