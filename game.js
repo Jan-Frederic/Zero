@@ -365,10 +365,12 @@
     playToneSweep(700, 3200, .8 * power, 'sawtooth', .03 * power);
   }
   // ---- Setup: steering (touch or gyro) and screen orientation, chosen on the start screen and remembered.
-  const settings = { steering: 'touch', screen: window.matchMedia?.('(orientation: landscape)')?.matches ? 'landscape' : 'portrait' };
-  try { Object.assign(settings, JSON.parse(localStorage.getItem('morbid-settings') || '{}')); } catch { /* defaults */ }
+  // Defaults: gyro steering in landscape. (v2 key: earlier builds saved touch/portrait implicitly.)
+  const SETTINGS_KEY = 'morbid-settings-v2';
+  const settings = { steering: 'gyro', screen: 'landscape' };
+  try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch { /* defaults */ }
   const tilt = { x: 0, neutral: 0, live: false };
-  function saveSettings() { try { localStorage.setItem('morbid-settings', JSON.stringify(settings)); } catch { /* ignore */ } }
+  function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ } }
   function screenAngle() { return (screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : Number(window.orientation) || 0) * Math.PI / 180; }
   // Roll angle of the device relative to the screen's horizontal axis, from the gravity direction in device coordinates.
   function onTilt(event) {
