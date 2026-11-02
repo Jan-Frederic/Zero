@@ -34,11 +34,11 @@ function harness() {
   };
   sandbox.window = sandbox;
   const source = fs.readFileSync('game.js', 'utf8').replace('  resize(); buildTrack(); requestAnimationFrame(frame);\n})();',
-    '  resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ hyperTime, stargates: segments.filter(s => s.stargate).map(s => ({ index: s.index, lane: s.stargate.lane })), energy, ufoList: ufos.map(u => ({ lane: u.lane, slot: u.slot })), crashing: crashingUfos.length, blasts: megaBlasts.length, confetti: confetti.length, callout: callout && callout.text, dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__eliminateRivals = () => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
+    '  resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ ufoKills, boss: boss && { hp: boss.hp, lane: boss.lane, dying: !!boss.dying }, bossAttacks: bossAttacks.length, hyperTime, stargates: segments.filter(s => s.stargate).map(s => ({ index: s.index, lane: s.stargate.lane })), energy, ufoList: ufos.map(u => ({ lane: u.lane, slot: u.slot })), crashing: crashingUfos.length, blasts: megaBlasts.length, confetti: confetti.length, callout: callout && callout.text, dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__setUfoKills = n => { ufoKills = n; };\n  window.__setBossHp = n => { if (boss) boss.hp = n; };\n  window.__eliminateRivals = () => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
   vm.runInNewContext(source, sandbox);
   const step = seconds => { for (let i = 0; i < Math.ceil(seconds * 20); i++) { now += 50; frame(now); } };
   const key = (code, type = 'keydown') => (windowEvents[type] || []).forEach(fn => fn({ code, repeat: false, target: element('body'), preventDefault() {} }));
-  return { element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b), eliminateRivals: () => sandbox.__eliminateRivals() };
+  return { element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b), eliminateRivals: () => sandbox.__eliminateRivals(), setUfoKills: n => sandbox.__setUfoKills(n), setBossHp: n => sandbox.__setBossHp(n) };
 }
 
 test('circuit selection, driving, boost, pause, full race, records and restart', () => {
@@ -285,4 +285,31 @@ test('star gates trigger 10 s of hyperdrive: invincible, infinite boost, mega la
   step(11);
   assert.equal(inspect().hyperTime <= 0, true, 'hyperdrive ends after 10 s');
   assert.equal(el('body').classList.contains('hyper'), false);
+});
+
+test('the 20th UFO kill summons the mothership, which attacks and can be destroyed', () => {
+  const { element: el, step, key, inspect, setRacePosition, setUfoKills, setBossHp, eliminateRivals } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(3.05); step(.5);
+  eliminateRivals(); setUfoKills(19);
+  const aim = () => { const st = inspect(); setRacePosition(st.distance, (st.boss ? st.boss.lane : st.ufoList.find(u => u.slot === 0).lane) * .98); };
+  aim(); key('KeyX'); step(.05); key('KeyX', 'keyup');
+  assert.equal(inspect().ufoKills, 20);
+  assert.ok(inspect().boss, 'the mothership appears');
+  assert.equal(inspect().ufos, 0, 'regular UFOs make way');
+  assert.equal(el('body').classList.contains('boss'), true, 'boss health bar is shown');
+  let attacked = false;
+  for (let i = 0; i < 80 && !attacked; i++) { step(.1); attacked = inspect().bossAttacks > 0; }
+  assert.ok(attacked, 'the mothership fires lasers or lightning');
+  const hp = inspect().boss.hp;
+  step(.5); aim(); key('KeyX'); step(.05); key('KeyX', 'keyup');
+  assert.ok(!inspect().boss || inspect().boss.hp < hp || inspect().mode !== 'racing', 'lasers damage the mothership');
+  if (inspect().mode !== 'racing') return;
+  setBossHp(1); step(.3); aim(); key('KeyX'); step(.05); key('KeyX', 'keyup');
+  assert.equal(inspect().boss.dying, true);
+  assert.match(el('race-message').textContent, /LEGENDARY/);
+  assert.equal(el('shield-text').textContent, '100%', 'beating the boss restores the shield');
+  step(2.6);
+  assert.equal(inspect().boss, null, 'the mothership is gone');
+  for (let i = 0; i < 80 && inspect().ufos === 0; i++) step(.1);
+  assert.ok(inspect().ufos > 0, 'regular UFOs return afterwards');
 });

@@ -38,6 +38,9 @@
   // Shot-down UFOs fly wild screen-space crash paths; new UFOs warp in to replace them.
   let hyperTime = 0, hyperStarted = 0, hitGates = new Set();
   const HYPER_TIME = 10;
+  // Mothership boss: appears after every 20 UFO kills.
+  const BOSS_EVERY = 20, BOSS_HP = 40;
+  let ufoKills = 0, boss = null, bossAttacks = [];
   let crashingUfos = [], ufoRespawns = [], smoke = [], megaBlasts = [], confetti = [], callout = null;
   let jetSource, jetFilter, jetGain, jetWhine, jetWhineGain;
   const UFO_CRASH_TIME = 2.6, UFO_SLOTS_SPACING = 4300;
@@ -47,7 +50,7 @@
     ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
     ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
     ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
-  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive', 'first-place'];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive', 'first-place', 'mothership-warning', 'mothership-down'];
   const voiceBuffers = new Map();
   let voiceSource = null;
   let shake = 0, steerVisual = 0, distance = 0, bestLap = 0, previousTime = 0, muted = false, beat = 0;
@@ -283,7 +286,9 @@
     for (let i = 0; i < 5; i++) points.push([W * (.08 + random(seed + i * 3) * .84), H * (.12 + random(seed + i * 3 + 1) * .62)]);
     points.push([W * (.35 + random(seed + 40) * .3), H * (.3 + random(seed + 41) * .2)]);
     crashingUfos.push({ ...ufo, started: time, points, startSize: start.size, spinDir: random(seed + 9) > .5 ? 1 : -1, x: start.x, y: start.y, size: start.size, angle: 0 });
-    ufoRespawns.push({ at: time + UFO_CRASH_TIME + 2 + random(seed + 77) * 3, slot: ufo.slot });
+    ufoKills++;
+    if (ufoKills % BOSS_EVERY === 0) summonBoss();
+    else if (!boss) ufoRespawns.push({ at: time + UFO_CRASH_TIME + 2 + random(seed + 77) * 3, slot: ufo.slot });
     const [phrase, clip] = KILL_CALLS[Math.floor(random(seed + 5) * KILL_CALLS.length)];
     showCallout(phrase, ufo.color); robotSay(phrase, clip);
     showMessage('UFO HIT  /  IT IS GOING DOWN!', 1.2);
@@ -323,6 +328,145 @@
     ctx.beginPath(); ctx.ellipse(0, -size * .13, size * .42, size * .3, 0, Math.PI, TAU); ctx.fillStyle = '#aeeaff'; ctx.fill(); ctx.strokeStyle = '#efffff'; ctx.lineWidth = Math.max(1, size * .04); ctx.stroke();
     for (let i = -2; i <= 2; i++) { ctx.fillStyle = (i + Math.floor(time * 7)) % 2 ? '#fff4a0' : color; ctx.beginPath(); ctx.arc(i * size * .32, size * .05, Math.max(1, size * .055), 0, TAU); ctx.fill(); }
   }
+  function summonBoss() {
+    // Regular UFOs retreat; the mothership descends from the top of the screen.
+    ufos = []; ufoRespawns = []; bombs = [];
+    boss = { hp: BOSS_HP, arrived: time + 2.6, started: time, lane: 0, x: W / 2, y: -H * .3, size: Math.min(W, H) * .3, nextAttack: time + 4, hitFlash: 0, dying: 0, pattern: 0 };
+    showCallout('WARNING: MOTHERSHIP!', '#ff3b6b'); showMessage('THE MOTHERSHIP HAS ARRIVED  /  SHOOT IT DOWN!', 2.6);
+    robotSay('Warning. Mothership approaching', 'mothership-warning');
+    if (audioContext && !muted) for (let i = 0; i < 4; i++) setTimeout(() => playToneSweep(440, 880, .32, 'square', .05), i * 420);
+    playToneSweep(40, 30, 2.4, 'sawtooth', .14);
+  }
+  const bossScreenX = lane => W / 2 + (lane - playerX / tracks[trackIndex].width) * W * .42;
+  function bossAttackRoadX(lane) { return W / 2 + (lane * tracks[trackIndex].width - playerX) * W * .42; }
+  function updateBoss(dt) {
+    if (!boss) return;
+    const k = clamp((time - boss.started) / 2.6, 0, 1), track = tracks[trackIndex];
+    boss.size = Math.min(W, H) * .26; boss.hitFlash = Math.max(0, boss.hitFlash - dt * 4);
+    if (boss.dying) {
+      const d = (time - boss.dying) / 2.4;
+      boss.y += dt * H * .12; boss.angle = (boss.angle || 0) + dt * (1 + d * 4);
+      if (Math.random() < dt * 9) megaBlasts.push({ x: boss.x + (Math.random() - .5) * boss.size * 1.6, y: boss.y + (Math.random() - .5) * boss.size * .4, started: time, duration: .9, color: ['#ff4eb8', '#ffd35a', '#7dfcff'][Math.floor(Math.random() * 3)], seed: Math.floor(Math.random() * 999) });
+      for (let n = 0; n < 4; n++) smoke.push({ x: boss.x + (Math.random() - .5) * boss.size, y: boss.y, r: boss.size * (.08 + Math.random() * .1), vx: (Math.random() - .5) * 60, vy: -40 - Math.random() * 60, life: 1.4, max: 1.6, fire: Math.random() < .4 });
+      if (Math.random() < dt * 6) { playExplosionSound(1.4); shake = Math.max(shake, 1.2); }
+      if (d >= 1) {
+        megaBlasts.push({ x: boss.x, y: boss.y, started: time, duration: 2.2, color: '#ff4eb8', seed: 99 }); megaBlasts.push({ x: boss.x, y: boss.y, started: time + .2, duration: 2, color: '#ddff46', seed: 42 });
+        screenFlash = 1; shake = 3; playExplosionSound(3); playToneSweep(60, 14, 2.4, 'sawtooth', .24); playNoiseBurst(2.6, .34, 1600, 30);
+        boss = null; document.body.classList.remove('boss');
+        for (let i = 0; i < 2 + Math.floor(trackIndex / 3); i++) ufoRespawns.push({ at: time + 4 + i * 2, slot: i });
+      }
+      return;
+    }
+    // Hover, weaving across the sky.
+    boss.lane = Math.sin((time - boss.started) * .55) * .55;
+    boss.x = clamp(lerp(W / 2, bossScreenX(boss.lane), k), boss.size * 1.05, W - boss.size * 1.05);
+    boss.y = lerp(-H * .3, H * (H < 520 ? .4 : .31), 1 - Math.pow(1 - k, 3)) + Math.sin(time * 1.7) * H * .015;
+    if (time >= boss.nextAttack && time > boss.arrived) {
+      const enraged = boss.hp < BOSS_HP / 2, lanePlayer = playerX / track.width;
+      if (boss.pattern % 2 === 0) {
+        // Laser: telegraph the player's lane, then fire a thick beam down into it.
+        bossAttacks.push({ type: 'laser', lane: clamp(lanePlayer, -.85, .85), warnUntil: time + (enraged ? .75 : 1), until: time + (enraged ? 1.35 : 1.6), hit: false });
+        playToneSweep(300, 1400, .9, 'sawtooth', .04);
+      } else {
+        // Lightning: two or three bolts around the player.
+        const bolts = enraged ? 3 : 2;
+        for (let i = 0; i < bolts; i++) bossAttacks.push({ type: 'bolt', lane: clamp(lanePlayer + (i - (bolts - 1) / 2) * .42 + (Math.random() - .5) * .1, -.85, .85), warnUntil: time + .7 + i * .12, until: time + 1.05 + i * .12, hit: false, seed: Math.random() * 1000 });
+        playNoiseBurst(.4, .05, 8000, 2000);
+      }
+      boss.pattern++; boss.nextAttack = time + (enraged ? 1.7 : 2.4);
+    }
+    for (const a of bossAttacks) {
+      if (time >= a.warnUntil && !a.fired) {
+        a.fired = true;
+        if (a.type === 'laser') { playToneSweep(1600, 200, .6, 'sawtooth', .08); playNoiseBurst(.6, .14, 5000, 500); }
+        else { playNoiseBurst(.35, .22, 9000, 400); playToneSweep(2400, 80, .3, 'square', .06); screenFlash = Math.max(screenFlash, .35); }
+      }
+      if (a.fired && !a.hit && time < a.until && jumpHeight < 105 && Math.abs(playerX - a.lane * track.width) < (a.type === 'laser' ? .2 : .16) * track.width) {
+        a.hit = true; shake = Math.max(shake, .9); screenFlash = Math.max(screenFlash, .4);
+        showMessage((a.type === 'laser' ? 'MOTHERSHIP LASER  /  ' : 'LIGHTNING STRIKE  /  ') + shieldText(a.type === 'laser' ? 16 : 12), 1);
+        playImpactSound(1.1);
+        if (damageShield(a.type === 'laser' ? 16 : 12)) return;
+      }
+    }
+    bossAttacks = bossAttacks.filter(a => time < a.until);
+  }
+  function hitBoss(power) {
+    boss.hp = Math.max(0, boss.hp - power); boss.hitFlash = 1; playImpactSound(.8);
+    megaBlasts.push({ x: boss.x + (Math.random() - .5) * boss.size * .8, y: boss.y + boss.size * .05, started: time, duration: .5, color: '#ffd35a', seed: Math.floor(Math.random() * 999) });
+    if (boss.hp <= 0) {
+      boss.dying = time; bossAttacks = [];
+      showCallout('MOTHERSHIP DESTROYED!', '#ddff46'); showMessage('LEGENDARY!  SHIELD + LASER RESTORED', 2.4);
+      robotSay('Mothership destroyed. You are a legend', 'mothership-down');
+      shield = 100; laserAmmo = LASER_CAPACITY; laserCharge = 0; energy = 100;
+    } else showMessage(`MOTHERSHIP HIT  /  ${Math.ceil(boss.hp / BOSS_HP * 100)}%`, .6);
+  }
+  function drawBoss() {
+    if (!boss) return;
+    const s = boss.size, hue = (time * 60) % 360;
+    // Attack telegraphs and effects on the road.
+    for (const a of bossAttacks) {
+      const rx = bossAttackRoadX(a.lane), ry = H * .8;
+      if (!a.fired) {
+        const blink = Math.sin(time * 30) > 0 ? .55 : .25;
+        ctx.save(); ctx.globalAlpha = blink; ctx.fillStyle = a.type === 'laser' ? '#ff2d55' : '#9fe8ff';
+        ctx.beginPath(); ctx.ellipse(rx, ry, W * (a.type === 'laser' ? .085 : .06), H * .03, 0, 0, TAU); ctx.fill();
+        ctx.globalAlpha = blink * .5; ctx.fillRect(rx - 2, boss.y, 4, ry - boss.y); ctx.restore();
+      } else {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        if (a.type === 'laser') {
+          const wob = Math.sin(time * 50) * 3;
+          for (const [w, c] of [[W * .07, '#ff2d5588'], [W * .035, '#ff7a90'], [W * .012, '#ffffff']]) {
+            ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(boss.x - w * .3, boss.y + s * .12); ctx.lineTo(boss.x + w * .3, boss.y + s * .12); ctx.lineTo(rx + w + wob, ry); ctx.lineTo(rx - w + wob, ry); ctx.fill();
+          }
+        } else {
+          for (let strand = 0; strand < 2; strand++) {
+            ctx.beginPath(); ctx.moveTo(boss.x + (a.lane - boss.lane) * s * .3, boss.y + s * .12);
+            const steps = 9;
+            for (let i = 1; i <= steps; i++) {
+              const t = i / steps, jitter = i === steps ? 0 : (Math.random() - .5) * W * .06;
+              ctx.lineTo(lerp(boss.x, rx, t) + jitter, lerp(boss.y + s * .12, ry, t));
+            }
+            ctx.strokeStyle = strand ? '#ffffff' : '#7dfcff'; ctx.lineWidth = strand ? 2 : 7; ctx.shadowColor = '#7dfcff'; ctx.shadowBlur = 25; ctx.stroke();
+          }
+          ctx.fillStyle = '#c9f7ff'; ctx.globalAlpha = .7; ctx.beginPath(); ctx.ellipse(rx, ry, W * .07, H * .035, 0, 0, TAU); ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+    // The mothership itself.
+    ctx.save(); ctx.translate(boss.x, boss.y); ctx.rotate(boss.angle || Math.sin(time * 1.2) * .04);
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .25;
+    const beam = ctx.createLinearGradient(0, 0, 0, H * .7); beam.addColorStop(0, `hsla(${hue},100%,70%,.6)`); beam.addColorStop(1, 'hsla(0,0%,0%,0)');
+    ctx.fillStyle = beam; ctx.beginPath(); ctx.moveTo(-s * .25, s * .1); ctx.lineTo(s * .25, s * .1); ctx.lineTo(s * .9, H * .7); ctx.lineTo(-s * .9, H * .7); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    ctx.shadowColor = boss.hitFlash > 0 ? '#ffffff' : '#ff4eb8'; ctx.shadowBlur = 40;
+    ctx.beginPath(); ctx.ellipse(0, 0, s, s * .24, 0, 0, TAU); ctx.fillStyle = boss.hitFlash > .5 ? '#ffffff' : '#1d1734'; ctx.fill();
+    ctx.lineWidth = s * .025; ctx.strokeStyle = '#ff4eb8'; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, s * .06, s * .72, s * .1, 0, 0, Math.PI); ctx.fillStyle = '#2d2350'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, -s * .1, s * .38, s * .24, 0, Math.PI, TAU); ctx.fillStyle = '#9fe8ff'; ctx.fill(); ctx.strokeStyle = '#e8ffff'; ctx.lineWidth = s * .012; ctx.stroke();
+    ctx.shadowBlur = 0;
+    // Alien silhouette in the dome.
+    ctx.fillStyle = '#1b3d2a'; ctx.beginPath(); ctx.ellipse(0, -s * .2, s * .07, s * .085, 0, 0, TAU); ctx.fill(); ctx.fillRect(-s * .05, -s * .13, s * .1, s * .06);
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(-s * .028, -s * .2, s * .022, s * .012, .4, 0, TAU); ctx.ellipse(s * .028, -s * .2, s * .022, s * .012, -.4, 0, TAU); ctx.fill();
+    for (let i = 0; i < 14; i++) {
+      const a = i / 14 * Math.PI * 2 + time * 1.5, lx = Math.cos(a) * s * .86, ly = Math.sin(a) * s * .17;
+      if (Math.sin(a) < -.2) continue;
+      ctx.fillStyle = (i + Math.floor(time * 8)) % 3 ? `hsl(${(hue + i * 25) % 360},100%,65%)` : '#fff5a0';
+      ctx.beginPath(); ctx.arc(lx, ly, s * .03, 0, TAU); ctx.fill();
+    }
+    for (const side of [-1, 1]) { ctx.fillStyle = '#ff2d55'; ctx.fillRect(side * s * .55 - s * .03, s * .12, s * .06, s * .07); }
+    ctx.restore();
+    if (!boss.dying) {
+      // Health bar floating above the mothership.
+      const bw = s * 1.3, bx = boss.x - bw / 2, by = boss.y - s * .5;
+      ctx.save(); ctx.fillStyle = '#09091acc'; ctx.fillRect(bx - 3, by - 15, bw + 6, 24);
+      ctx.fillStyle = '#ffffff22'; ctx.fillRect(bx, by, bw, 6);
+      const hp = ctx.createLinearGradient(bx, 0, bx + bw, 0); hp.addColorStop(0, '#ff2d55'); hp.addColorStop(.6, '#ff4eb8'); hp.addColorStop(1, '#ffb347');
+      ctx.fillStyle = hp; ctx.shadowColor = '#ff2d55'; ctx.shadowBlur = 12; ctx.fillRect(bx, by, bw * boss.hp / BOSS_HP, 6);
+      ctx.shadowBlur = 0; ctx.fillStyle = '#ff8aa2'; ctx.font = `${Math.max(9, s * .055)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center';
+      ctx.fillText(`☠ MOTHERSHIP  ${Math.ceil(boss.hp / BOSS_HP * 100)}%`, boss.x, by - 4); ctx.restore();
+    }
+  }
   function drawCrashLayer() {
     ctx.save();
     for (const p of smoke) {
@@ -356,6 +500,7 @@
       }
       ctx.restore();
     }
+    drawBoss();
     if (callout) {
       const k = (time - callout.started) / 1.9;
       if (k >= 1) callout = null;
@@ -506,7 +651,7 @@
     const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
     rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set();
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
     keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
@@ -527,7 +672,7 @@
   function garage() {
     mode = 'menu'; keys.clear(); resetGesture(); speed = 0; playerX = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; boosting = false;
     explosions = []; laserShots = []; enemyShots = []; bombs = []; ufos = []; particles = []; screenFlash = 0;
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; callout = null; hyperTime = 0; document.body.classList.remove('hyper');
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; callout = null; hyperTime = 0; boss = null; bossAttacks = []; document.body.classList.remove('hyper', 'boss');
     $('menu').classList.remove('hidden'); ['hud', 'pause-screen', 'results'].forEach(id => $(id).classList.add('hidden'));
     document.body.classList.remove('racing', 'paused', 'boosting', 'critical', 'destroyed', 'hinting'); hintTime = 0;
   }
@@ -542,6 +687,11 @@
     const reach = hyper() ? .6 : .32;
     const target = rivals.filter(r => r.alive && r.distance > distance + 1350 && r.distance < distance + (hyper() ? 26000 : 19000) && Math.abs(r.x * track.width - playerX) < track.width * reach)
       .sort((a, b) => a.distance - b.distance)[0];
+    if (boss && !boss.dying && time > boss.arrived - .6 && Math.abs(boss.lane * track.width - playerX) < track.width * (hyper() ? .7 : .45)) {
+      if (!hyper()) laserAmmo--; laserCooldown = hyper() ? .1 : .24;
+      laserShots.push({ screen: true, color: track.second, mega: hyper(), started: time, duration: .2, x: boss.x, y: boss.y + boss.size * .05 });
+      playLaserSound(); hitBoss(hyper() ? 3 : 1); return;
+    }
     const ufoTarget = ufos.filter(u => time - u.spawnedAt > 1 && u.distance < distance + 19000 && Math.abs(u.lane * track.width - playerX) < track.width * (hyper() ? .62 : .34))
       .sort((a, b) => a.distance - b.distance)[0];
     if (ufoTarget && (!target || ufoTarget.distance < target.distance + 6000)) {
@@ -615,7 +765,8 @@
     for (const bomb of bombs) if (!bomb.exploded) createExplosion(bomb.distance, bomb.lane * tracks[trackIndex].width, '#ff9b42', .95);
     bombs = [];
     for (const ufo of ufos) createExplosion(ufo.distance, ufo.lane * tracks[trackIndex].width, ufo.color, 1.2);
-    ufos = []; ufoRespawns = []; crashingUfos = []; hyperTime = 0; document.body.classList.remove('hyper');
+    ufos = []; ufoRespawns = []; crashingUfos = []; hyperTime = 0; bossAttacks = []; if (boss) { megaBlasts.push({ x: boss.x, y: boss.y, started: time, duration: 1.6, color: '#ff4eb8', seed: 7 }); boss = null; }
+    document.body.classList.remove('hyper', 'boss');
     for (let i = 0; i < 4; i++) createExplosion(distance + 900 + i * 620, playerX + (i % 2 ? .3 : -.3), i % 2 ? '#49f8ff' : '#ff54c8', 1.1 + i * .12);
     showMessage('SHIELDS DOWN  /  TOTAL CHAIN REACTION', 1.3);
     playExplosionSound(1.65); updateHUD();
@@ -709,7 +860,8 @@
       jumpVelocity -= 1450 * dt;
       if (jumpHeight === 0 && jumpVelocity < 0) jumpVelocity = 0;
     }
-    updateCrashingUfos(dt);
+    updateCrashingUfos(dt); updateBoss(dt);
+    if (mode !== 'racing') { updateHUD(); return; }
     for (const ufo of ufos) {
       ufo.distance = distance + 6900 + ufo.slot * UFO_SLOTS_SPACING + Math.sin(time * .38 + ufo.seed) * 280;
       ufo.lane = Math.sin(time * .8 + ufo.seed * 2.1) * .58;
@@ -870,6 +1022,8 @@
     document.body.classList.toggle('boosting', boosting || jumpBoostTimer > 0); updateHUD();
   }
   function updateHUD() {
+    $('ufo-kills').textContent = `${String(ufoKills % BOSS_EVERY).padStart(2, '0')}/${BOSS_EVERY}`;
+    document.body.classList.toggle('boss', !!boss);
     document.body.classList.toggle('hyper', hyper());
     if (hyper()) {
       $('hyper-time').textContent = hyperTime.toFixed(1); $('hyper-fill').style.width = (hyperTime / HYPER_TIME * 100) + '%';
@@ -1213,6 +1367,7 @@
         }
       }
       for (const shot of laserShots) {
+        if (shot.screen) continue;
         const worldPosition = mod(shot.distance, LENGTH);
         if (Math.floor(worldPosition / SEG) === s.index && s.depth > 4) {
           const f = worldPosition % SEG / SEG, rw = lerp(a.w, b.w, f);
