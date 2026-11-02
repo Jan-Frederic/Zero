@@ -47,7 +47,7 @@ The game is fully playable with touch gestures, in portrait and landscape:
 
 A short gesture guide appears at the start of every race on touch devices.
 
-The machine cruises automatically; hold accelerate for race speed. Boost spends energy; release it to recharge, or drive over cyan pads. Shield energy drops on collisions (the reinforced hull takes half damage); when shields fail, your ship and the remaining pack detonate in a chain reaction. Laser shots damage rival hulls over multiple hits; rivals fire back and boost. Trampolines launch you into a temporary air boost. Dodge falling UFO bombs, and watch for neon cats crossing the track: collisions produce a harmless, cartoony pixel-pop and reload one laser shot. Choose a circuit and machine in the garage; lap records are saved per circuit in this browser.
+The machine cruises automatically; hold accelerate for race speed. Boost spends energy; release it to recharge. Drive over the cyan pads to recharge boost energy, hull shield and laser cells at once. Shield energy drops on collisions (the reinforced hull takes half damage); when shields fail, your ship and the remaining pack detonate in a chain reaction. Laser shots damage rival hulls over multiple hits; rivals fire back and boost. Trampolines launch you into a temporary air boost. Dodge falling UFO bombs, and watch for neon cats crossing the track: collisions produce a harmless, cartoony pixel-pop and reload one laser shot. Choose a circuit and machine in the garage; lap records are saved per circuit in this browser.
 
 Music starts on your first click or race launch. The bottom-left music button independently pauses the soundtrack. The top-right sound button mutes both music and synthesized engine effects.
 

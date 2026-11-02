@@ -7,6 +7,8 @@
   const TAU = Math.PI * 2, SEG = 200, COUNT = 1200, LENGTH = SEG * COUNT, ROAD = 1700, DEPTH = .88, PILOT_COUNT = 20, LASER_CAPACITY = 10;
   // One laser cell recharges every LASER_RECHARGE seconds; HULL_STRENGTH > 1 makes the shield last that many times longer.
   const LASER_RECHARGE = 2.5, HULL_STRENGTH = 2;
+  // Cyan pads refill shield and laser cells in proportion to each track's boost recharge rate.
+  const PAD_SHIELD = .45, PAD_LASER = .1;
   const keys = new Set();
   // Touch gestures: a floating stick anywhere on the track. Drag sideways to steer, slide up to boost,
   // slide down to brake, tap (or touch with a second finger) to fire. Holding a finger accelerates.
@@ -365,9 +367,16 @@
       }
     }
     if (seg.pad && Math.abs(playerX - seg.padLane * track.width) < .31 * track.width) {
+      // Cyan pads recharge everything: boost energy, hull shield and laser cells.
       energy = Math.min(100, energy + dt * track.recharge); speed = Math.min(15000, speed + dt * 6000);
+      shield = Math.min(100, shield + dt * track.recharge * PAD_SHIELD);
+      if (laserAmmo < LASER_CAPACITY) {
+        laserCharge += dt * track.recharge * PAD_LASER;
+        while (laserCharge >= 1 && laserAmmo < LASER_CAPACITY) { laserCharge -= 1; laserAmmo++; }
+        if (laserAmmo === LASER_CAPACITY) laserCharge = 0;
+      }
       const id = Math.floor(distance / LENGTH) * COUNT + Math.floor(seg.index / track.padEvery);
-      if (lastPad !== id) { lastPad = id; showMessage('ENERGY SURGE  +', 1.1); soundEffect(1000, .2); }
+      if (lastPad !== id) { lastPad = id; showMessage('RECHARGE  /  BOOST + SHIELD + LASER', 1.1); soundEffect(1000, .2); }
     }
     const firstHazardSegment = Math.floor((distance + 1050 - SEG * .5) / SEG);
     const lastHazardSegment = Math.floor((distance + speed * dt + 1050 + SEG * .5) / SEG);
