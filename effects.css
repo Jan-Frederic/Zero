@@ -100,3 +100,17 @@ body.lasers-empty .laser-label b{color:#ff8fd0}
 .rotate-overlay .text-button{margin-top:18px;border:1px solid #ffffff30}
 @media(max-width:600px) and (max-height:760px){.hero{top:3%}.hero p,.hero-rule{display:none}h1{font-size:16vw;margin:14px 0 14px}.ship-picker{margin-top:14px}#ship-info{display:none}.start-button{padding:14px 20px}}
 @media(max-width:600px) and (max-height:680px){.hero>.eyebrow{display:none}h1{margin-top:6px}.circuit-panel{padding:10px 14px}.circuit-heading h2{font-size:22px}}
+
+/* Hyperdrive: 15 s of light speed — cycling colours over the whole scene and a countdown meter. */
+@keyframes hyperHue{from{filter:hue-rotate(0deg) saturate(1.5)}to{filter:hue-rotate(360deg) saturate(1.5)}}
+body.hyper #game{animation:hyperHue 2.2s linear infinite}
+.hyper-meter{display:none;position:absolute;right:0;top:62px;min-width:200px;text-align:center;padding:8px 14px;background:#09091acc;border:1px solid #7dfcff;box-shadow:0 0 24px #7dfcff66}
+.hyper-meter span{font:10px var(--mono);letter-spacing:2px;color:#7dfcff}.hyper-meter b{display:block;font:italic 800 26px var(--display);color:#fff;text-shadow:0 0 14px #ff4eb8}
+.hyper-meter i{display:block;height:5px;background:#ffffff22;margin-top:4px}.hyper-meter em{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ff4eb8,#ddff46,#4df8ff,#a88aff);transition:width .1s linear}
+body.hyper .hyper-meter{display:block}
+body.hyper-ending .hyper-meter{animation:criticalShield .25s alternate infinite}
+body.hyper #energy-fill{background:linear-gradient(90deg,#ff4eb8,#ddff46,#4df8ff,#a88aff)!important}
+body.hyper #shield-fill{background:linear-gradient(90deg,#fff,#7dfcff,#fff)!important}
+body.hyper .shield-readout b::after{content:' ∞'}
+@media(max-width:600px){.hyper-meter{right:auto;left:50%;transform:translateX(-50%);top:92px;min-width:150px;padding:5px 10px}.hyper-meter b{font-size:18px}}
+@media(max-height:520px) and (orientation:landscape){.hyper-meter{top:46px;min-width:130px;padding:4px 10px}.hyper-meter b{font-size:16px}}

@@ -36,6 +36,8 @@
   let laps = [], rivals = [], ufos = [], bombs = [], segments = [], countdown = 3.6, messageTime = 0, collisionCooldown = 0, wallCooldown = 0, boosting = false;
   let jumpHeight = 0, jumpVelocity = 0, jumpBoostTimer = 0;
   // Shot-down UFOs fly wild screen-space crash paths; new UFOs warp in to replace them.
+  let hyperTime = 0, hyperStarted = 0, hitGates = new Set();
+  const HYPER_TIME = 15;
   let crashingUfos = [], ufoRespawns = [], smoke = [], megaBlasts = [], confetti = [], callout = null;
   let jetSource, jetFilter, jetGain, jetWhine, jetWhineGain;
   const UFO_CRASH_TIME = 2.6, UFO_SLOTS_SPACING = 4300;
@@ -92,6 +94,14 @@
       while (segments[index].pad || segments[index].hazard || segments[index].trampoline || placed.some(other => Math.abs(other - index) < 22)) index = mod(index + 31, COUNT);
       placed.push(index);
       segments[index].trampoline = { index, lane: trampolineLanes[i % trampolineLanes.length] };
+    }
+    // Star gates: rare lane-specific portals that trigger the 15-second hyperdrive.
+    const gateLanes = [.4, -.4, 0];
+    for (let i = 0; i < 2; i++) {
+      let index = mod(Math.floor((i + .62) * COUNT / 2), COUNT);
+      while (segments[index].pad || segments[index].hazard || segments[index].trampoline || placed.some(other => Math.abs(other - index) < 24)) index = mod(index + 37, COUNT);
+      placed.push(index);
+      segments[index].stargate = { index, lane: gateLanes[(i + trackIndex) % gateLanes.length] };
     }
     try { bestLap = Number(localStorage.getItem(`chroma-best-${trackIndex}`)) || 0; } catch { bestLap = 0; }
   }
@@ -206,12 +216,31 @@
     if (muted || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
     try {
       speechSynthesis.cancel();
-      const voice = new SpeechSynthesisUtterance(text);
+      // Staccato word-by-word delivery, the lowest pitch and a novelty robot voice where the OS has one.
+      const words = text.replace(/[!.,]/g, '').trim().split(/\s+/);
+      const voice = new SpeechSynthesisUtterance(words.join('. '));
       const voices = speechSynthesis.getVoices(), english = voices.filter(v => /^en/i.test(v.lang));
-      voice.voice = english.find(v => /male|daniel|fred|google uk english male|david/i.test(v.name)) || english[0] || null;
-      voice.pitch = pitch; voice.rate = .86; voice.volume = 1;
+      voice.voice = english.find(v => /zarvox|trinoids|ralph|robot/i.test(v.name)) || english.find(v => /fred|albert|male|daniel|david/i.test(v.name)) || english[0] || null;
+      voice.pitch = 0; voice.rate = .72; voice.volume = 1;
       speechSynthesis.speak(voice);
+      playRobotCarrier(words.length * .42 + .3);
     } catch { /* Speech is a bonus. */ }
+  }
+  // Vocoder-style bed under the speech: a ring-modulated buzz gated like syllables, plus data chirps.
+  function playRobotCarrier(duration) {
+    if (!audioContext || muted) return;
+    try {
+      const now = audioContext.currentTime + .05;
+      const carrier = audioContext.createOscillator(), mod = audioContext.createOscillator(), ring = audioContext.createGain(), out = audioContext.createGain(), filter = audioContext.createBiquadFilter();
+      carrier.type = 'square'; carrier.frequency.value = 82; mod.type = 'sine'; mod.frequency.value = 31;
+      ring.gain.value = 0; mod.connect(ring.gain); carrier.connect(ring); ring.connect(filter); filter.type = 'bandpass'; filter.frequency.value = 900; filter.Q.value = 1.4; filter.connect(out); out.connect(sfxBus);
+      out.gain.setValueAtTime(0, now);
+      for (let t = 0; t < duration; t += .14) { out.gain.setValueAtTime(.05, now + t); out.gain.setValueAtTime(.012, now + t + .09); }
+      out.gain.setValueAtTime(0, now + duration);
+      carrier.start(now); mod.start(now); carrier.stop(now + duration + .05); mod.stop(now + duration + .05);
+      carrier.onended = () => { carrier.disconnect(); mod.disconnect(); ring.disconnect(); filter.disconnect(); out.disconnect(); };
+      for (let i = 0; i < 6; i++) setTimeout(() => playToneSweep(600 + Math.random() * 1800, 300 + Math.random() * 2400, .05, 'square', .018), i * 45);
+    } catch { /* optional */ }
   }
   function primeSpeech() {
     // iOS only allows speech after it was started inside a user gesture once.
@@ -306,7 +335,7 @@
       if (k >= 1) callout = null;
       else {
         const pop = k < .12 ? 1.7 - k / .12 * .7 : 1, size = Math.min(W * .085, 86) * pop;
-        ctx.save(); ctx.globalAlpha = k > .75 ? (1 - k) / .25 : 1; ctx.translate(W / 2, H * .3); ctx.rotate(-.06);
+        ctx.save(); ctx.globalAlpha = k > .75 ? (1 - k) / .25 : 1; ctx.translate(W / 2, H * .38); ctx.rotate(-.06);
         ctx.font = `italic 900 ${size}px 'Barlow Condensed', Impact, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.lineWidth = size * .14; ctx.strokeStyle = '#09091a'; ctx.strokeText(callout.text, 0, 0, W * .92);
         ctx.shadowColor = callout.color; ctx.shadowBlur = 30; ctx.fillStyle = callout.color; ctx.fillText(callout.text, 0, 0, W * .92);
@@ -359,10 +388,11 @@
   }
   function playJetBlast(power = 1) {
     // Ignition: a roaring whoosh that tears upward, a deep rumble and a screaming turbine.
-    playNoiseBurst(1.1 * power, .32 * power, 300, 6500);
-    playNoiseBurst(1.4 * power, .22 * power, 5200, 140);
-    playToneSweep(48, 160, .9 * power, 'sawtooth', .16 * power);
-    playToneSweep(700, 3200, .8 * power, 'sawtooth', .03 * power);
+    const v = power * .6;
+    playNoiseBurst(1.1 * power, .32 * v, 300, 6500);
+    playNoiseBurst(1.4 * power, .22 * v, 5200, 140);
+    playToneSweep(48, 160, .9 * power, 'sawtooth', .16 * v);
+    playToneSweep(700, 3200, .8 * power, 'sawtooth', .03 * v);
   }
   // ---- Setup: steering (touch or gyro) and screen orientation, chosen on the start screen and remembered.
   // Defaults: gyro steering in landscape. (v2 key: earlier builds saved touch/portrait implicitly.)
@@ -424,6 +454,25 @@
       if (mode === 'racing' || mode === 'countdown') pauseRace();
     }
   }
+  const hyper = () => hyperTime > 0 && mode === 'racing';
+  const shieldText = amount => hyper() ? 'INVINCIBLE' : 'SHIELD -' + hullLoss(amount);
+  function activateHyper() {
+    const fresh = hyperTime <= 0;
+    hyperTime = HYPER_TIME; if (fresh) hyperStarted = time;
+    energy = 100; boostLocked = false; screenFlash = Math.max(screenFlash, 1); shake = Math.max(shake, 1.2);
+    showCallout('HYPERDRIVE!', '#7dfcff'); showMessage('LIGHT SPEED  /  INVINCIBLE  /  MEGA LASER  /  ∞ BOOST', 2.4);
+    robotSay('Hyperdrive engaged');
+    playNoiseBurst(2.2, .25, 120, 9000); playToneSweep(80, 1800, 1.6, 'sawtooth', .07); playToneSweep(1200, 4200, 1.2, 'sine', .035);
+    [392, 523, 659, 784, 1047].forEach((f, i) => playToneSweepAt(f, i * .07));
+  }
+  function playToneSweepAt(freq, delay) {
+    if (!audioContext || muted) return;
+    setTimeout(() => playToneSweep(freq, freq * 2, .35, 'triangle', .04), delay * 1000);
+  }
+  function endHyper() {
+    hyperTime = 0; showMessage('HYPERDRIVE OFFLINE', 1.3);
+    playToneSweep(1400, 60, 1.1, 'sawtooth', .06); playNoiseBurst(.9, .12, 6000, 120);
+  }
   function startRace() {
     mode = 'countdown'; position = 0; distance = 0; playerX = 0; speed = 0; energy = 100; elapsed = 0; lap = 1; lapStart = 0;
     laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = LASER_CAPACITY; laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
@@ -431,7 +480,7 @@
     const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
     rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 880, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 135) * track.rivalPace, color: colors[i], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null;
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set();
     keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
@@ -452,7 +501,7 @@
   function garage() {
     mode = 'menu'; keys.clear(); resetGesture(); speed = 0; playerX = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; boosting = false;
     explosions = []; laserShots = []; enemyShots = []; bombs = []; ufos = []; particles = []; screenFlash = 0;
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; callout = null;
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; callout = null; hyperTime = 0; document.body.classList.remove('hyper');
     $('menu').classList.remove('hidden'); ['hud', 'pause-screen', 'results'].forEach(id => $(id).classList.add('hidden'));
     document.body.classList.remove('racing', 'paused', 'boosting', 'critical', 'destroyed', 'hinting'); hintTime = 0;
   }
@@ -462,24 +511,25 @@
     shake = Math.max(shake, .55 * size); screenFlash = Math.max(screenFlash, .26 * size);
   }
   function fireLaser() {
-    if (laserAmmo <= 0) { laserCooldown = .5; showMessage('LASER CELLS RECHARGING', .7); return; }
+    if (laserAmmo <= 0 && !hyper()) { laserCooldown = .5; showMessage('LASER CELLS RECHARGING', .7); return; }
     const track = tracks[trackIndex];
-    const target = rivals.filter(r => r.alive && r.distance > distance + 1350 && r.distance < distance + 19000 && Math.abs(r.x * track.width - playerX) < track.width * .32)
+    const reach = hyper() ? .6 : .32;
+    const target = rivals.filter(r => r.alive && r.distance > distance + 1350 && r.distance < distance + (hyper() ? 26000 : 19000) && Math.abs(r.x * track.width - playerX) < track.width * reach)
       .sort((a, b) => a.distance - b.distance)[0];
-    const ufoTarget = ufos.filter(u => time - u.spawnedAt > 1 && u.distance < distance + 19000 && Math.abs(u.lane * track.width - playerX) < track.width * .34)
+    const ufoTarget = ufos.filter(u => time - u.spawnedAt > 1 && u.distance < distance + 19000 && Math.abs(u.lane * track.width - playerX) < track.width * (hyper() ? .62 : .34))
       .sort((a, b) => a.distance - b.distance)[0];
     if (ufoTarget && (!target || ufoTarget.distance < target.distance + 6000)) {
-      laserAmmo--; laserCooldown = .24;
-      laserShots.push({ distance: ufoTarget.distance, lane: ufoTarget.lane * track.width, air: true, color: track.second, started: time, duration: .2, x: W * .5, y: H * .79 });
+      if (!hyper()) laserAmmo--; laserCooldown = hyper() ? .1 : .24;
+      laserShots.push({ distance: ufoTarget.distance, lane: ufoTarget.lane * track.width, air: true, color: track.second, mega: hyper(), started: time, duration: .2, x: W * .5, y: H * .79 });
       playLaserSound(); shootDownUfo(ufoTarget); return;
     }
     const lane = target ? target.x * track.width : clamp(playerX, -track.width * .85, track.width * .85);
     const targetDistance = target ? target.distance : distance + 9000;
-    laserAmmo--; laserCooldown = .24;
-    laserShots.push({ distance: targetDistance, lane, color: track.second, started: time, duration: .2, x: W * .5, y: H * .79 });
+    if (!hyper()) laserAmmo--; laserCooldown = hyper() ? .1 : .24;
+    laserShots.push({ distance: targetDistance, lane, color: track.second, mega: hyper(), started: time, duration: hyper() ? .28 : .2, x: W * .5, y: H * .79 });
     playLaserSound();
     if (target) {
-      target.hull -= 1; target.stunnedUntil = time + .32;
+      target.hull = hyper() ? 0 : target.hull - 1; target.stunnedUntil = time + .32;
       createExplosion(target.distance, lane, target.color, target.hull > 0 ? .3 : .45);
       if (target.hull <= 0) {
         knockOut(target); showMessage('RIVAL DESTROYED  /  +1 PLACE', 1.1);
@@ -539,13 +589,14 @@
     for (const bomb of bombs) if (!bomb.exploded) createExplosion(bomb.distance, bomb.lane * tracks[trackIndex].width, '#ff9b42', .95);
     bombs = [];
     for (const ufo of ufos) createExplosion(ufo.distance, ufo.lane * tracks[trackIndex].width, ufo.color, 1.2);
-    ufos = []; ufoRespawns = []; crashingUfos = [];
+    ufos = []; ufoRespawns = []; crashingUfos = []; hyperTime = 0; document.body.classList.remove('hyper');
     for (let i = 0; i < 4; i++) createExplosion(distance + 900 + i * 620, playerX + (i % 2 ? .3 : -.3), i % 2 ? '#49f8ff' : '#ff54c8', 1.1 + i * .12);
     showMessage('SHIELDS DOWN  /  TOTAL CHAIN REACTION', 1.3);
     playExplosionSound(1.65); updateHUD();
   }
   const hullLoss = amount => Math.round(amount / HULL_STRENGTH);
   function damageShield(amount) {
+    if (hyper()) return false;
     shield = Math.max(0, shield - amount / HULL_STRENGTH);
     if (shield <= 25) screenFlash = Math.max(screenFlash, .08 + (25 - shield) * .005);
     if (shield === 0) { destroyPlayer(); return true; }
@@ -582,9 +633,9 @@
     }
     if (jetGain) {
       const jet = mode === 'racing' && !muted ? (jumpBoostTimer > 0 ? 1 : boosting ? .8 : 0) : 0, now = audioContext.currentTime;
-      jetGain.gain.setTargetAtTime(jet * .5, now, jet ? .05 : .25);
+      jetGain.gain.setTargetAtTime(jet * .28, now, jet ? .05 : .25);
       jetFilter.frequency.setTargetAtTime(500 + speed / 9 + (jumpBoostTimer > 0 ? 900 : 0), now, .1);
-      jetWhineGain.gain.setTargetAtTime(jet * .022, now, jet ? .08 : .3);
+      jetWhineGain.gain.setTargetAtTime(jet * .012, now, jet ? .08 : .3);
       jetWhine.frequency.setTargetAtTime(700 + speed / 8 + (jumpBoostTimer > 0 ? 600 : 0), now, .15);
     }
     if (mode === 'menu') { position = mod(position + dt * 2900, LENGTH); playerX = Math.sin(time * .14) * .18; return; }
@@ -614,10 +665,11 @@
     const boostHeld = keys.has('Space') || keys.has('ShiftLeft') || keys.has('ShiftRight') || gesture.boost;
     if (!boostHeld) boostLocked = false;
     const wasBoosting = boosting;
+    if (hyper()) { energy = 100; boostLocked = false; }
     boosting = boostHeld && !boostLocked && energy > 0 && speed > 2500 && !brake;
     if (boosting && !wasBoosting) { playBoostSound(1); playJetBlast(.75); }
     if (boosting) {
-      speed = Math.min(14900 * machine.top, speed + 9000 * dt); energy = Math.max(0, energy - machine.drain * dt);
+      speed = Math.min((hyper() ? 19800 : 14900) * machine.top, speed + (hyper() ? 14000 : 9000) * dt); if (!hyper()) energy = Math.max(0, energy - machine.drain * dt);
       if (energy <= 0) { boostLocked = true; showMessage('BOOST DEPLETED', 1); }
     } else {
       const target = brake ? 3000 : accelerate ? 10700 * machine.top : 6500;
@@ -625,6 +677,7 @@
       energy = Math.min(100, energy + dt * 7);
     }
     jumpBoostTimer = Math.max(0, jumpBoostTimer - dt);
+    if (hyperTime > 0) { hyperTime -= dt; if (hyperTime <= 0) endHyper(); }
     if (jumpHeight > 0 || jumpVelocity > 0) {
       jumpHeight = Math.max(0, jumpHeight + jumpVelocity * dt);
       jumpVelocity -= 1450 * dt;
@@ -654,7 +707,7 @@
       const side = Math.sign(playerX); playerX = side * edgeLimit; speed = Math.max(2800, speed - dt * 15500); energy = Math.max(0, energy - dt * 10); shake = .5; screenFlash = Math.max(screenFlash, .08);
       for (let i = 0; i < 3; i++) particles.push({ x: W * .5 + side * 65, y: H * .81, vx: (random(time * 200 + i) - .5) * 600, vy: -random(time * 300 + i) * 260, life: .4, color: '#ffbd45' });
       if (wallCooldown <= 0) {
-        wallCooldown = .85; showMessage('BARRIER CONTACT  /  SHIELD -' + hullLoss(10), .7); playImpactSound(.65);
+        wallCooldown = .85; showMessage('BARRIER CONTACT  /  ' + shieldText(10), .7); playImpactSound(.65);
         if (damageShield(10)) { updateHUD(); return; }
       }
     }
@@ -680,7 +733,9 @@
         if (jumpedClear) hitHazards.add(id);
         else if (Math.abs(playerX - lane * track.width) < hazard.radius * track.width) {
           hitHazards.add(id);
-          if (hazard.type === 'cat') {
+          if (hyper() && hazard.type !== 'cat') {
+            createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, '#7dfcff', 1); showMessage('SMASHED THROUGH!', .7); playExplosionSound(.7);
+          } else if (hazard.type === 'cat') {
             speed = Math.max(3500, speed * .92); shake = Math.max(shake, .3); screenFlash = Math.max(screenFlash, .13);
             const previousAmmo = laserAmmo;
             laserAmmo = Math.min(LASER_CAPACITY, laserAmmo + 1);
@@ -692,7 +747,7 @@
             speed = Math.max(2500, speed * (1 - (track.hazardPenalty || .24)));
             energy = Math.max(0, energy - (12 + trackIndex * 1.4)); shake = .9; screenFlash = Math.max(screenFlash, .3);
             if (energy <= 0 && boostHeld) boostLocked = true;
-            showMessage(hazard.type === 'gate' ? 'LASER GATE HIT  /  SHIELD -' + hullLoss(17 + trackIndex * 1.5) : hazard.type === 'drone' ? 'DRONE COLLISION  /  SHIELD -' + hullLoss(17 + trackIndex * 1.5) : 'MINE STRIKE  /  SHIELD -' + hullLoss(17 + trackIndex * 1.5), 1.1);
+            showMessage(hazard.type === 'gate' ? 'LASER GATE HIT  /  ' + shieldText(17 + trackIndex * 1.5) : hazard.type === 'drone' ? 'DRONE COLLISION  /  ' + shieldText(17 + trackIndex * 1.5) : 'MINE STRIKE  /  ' + shieldText(17 + trackIndex * 1.5), 1.1);
             playImpactSound(1 + trackIndex * .055); playExplosionSound(.85); collisionCooldown = Math.max(collisionCooldown, .55);
             createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, hazard.type === 'gate' ? '#ff456d' : track.edge, .75);
             if (damageShield(17 + trackIndex * 1.5)) { updateHUD(); return; }
@@ -700,6 +755,8 @@
           }
         }
       }
+      const gate = roadSegment.stargate;
+      if (gate && !hitGates.has(id) && Math.abs(playerX - gate.lane * track.width) < .3 * track.width) { hitGates.add(id); activateHyper(); }
       const trampoline = roadSegment.trampoline;
       if (trampoline && !hitRamps.has(id) && jumpHeight < 1 && jumpVelocity <= 0 && Math.abs(playerX - trampoline.lane * track.width) < .27 * track.width) {
         hitRamps.add(id); jumpHeight = 2; jumpVelocity = 850; jumpBoostTimer = 1.25; playJetBlast(1.25);
@@ -716,8 +773,8 @@
       const hit = nearImpact && jumpHeight < 105 && Math.abs(playerX - bomb.lane * track.width) < .2 * track.width;
       bomb.exploded = true; createExplosion(bomb.distance, bomb.lane * track.width, bomb.color, 1.05);
       if (hit) {
-        speed = Math.max(2600, speed * .7); shake = 1; screenFlash = Math.max(screenFlash, .38);
-        showMessage('UFO BOMB HIT!  SHIELD -' + hullLoss(22), 1.1); playImpactSound(1.2); playExplosionSound(1.15);
+        if (!hyper()) speed = Math.max(2600, speed * .7); shake = 1; screenFlash = Math.max(screenFlash, .38);
+        showMessage('UFO BOMB HIT!  ' + shieldText(22), 1.1); playImpactSound(1.2); playExplosionSound(1.15);
         if (damageShield(22)) { updateHUD(); return; }
       } else if (nearImpact) showMessage('BOMB DODGED!', .65);
       else playExplosionSound(.55);
@@ -749,13 +806,13 @@
         }
       }
       if (Math.abs(r.distance - (distance + 1050)) < 340 && Math.abs(r.x * track.width - playerX) < .2 * track.width && collisionCooldown <= 0 && jumpHeight < 90) {
-        if (boosting) {
-          knockOut(r); createExplosion(r.distance, r.x * track.width, r.color, .5); speed *= .94; collisionCooldown = .45;
-          showMessage('BOOST RAM  /  RIVAL DESTROYED  /  SHIELD -' + hullLoss(6), 1.15); playExplosionSound(1.35);
+        if (boosting || hyper()) {
+          knockOut(r); createExplosion(r.distance, r.x * track.width, r.color, .5); if (!hyper()) speed *= .94; collisionCooldown = .45;
+          showMessage('BOOST RAM  /  RIVAL DESTROYED  /  ' + shieldText(6), 1.15); playExplosionSound(1.35);
           if (damageShield(6)) { updateHUD(); return; }
         } else {
           playerX = clamp(playerX + (playerX >= r.x * track.width ? .15 : -.15) * track.width, -edgeLimit, edgeLimit); speed *= .78; shake = .8; collisionCooldown = 1;
-          showMessage('HULL CONTACT  /  SHIELD -' + hullLoss(14), .7); playImpactSound(.9);
+          showMessage('HULL CONTACT  /  ' + shieldText(14), .7); playImpactSound(.9);
           if (damageShield(14)) { updateHUD(); return; }
         }
       }
@@ -765,7 +822,7 @@
       shot.resolved = true;
       if (jumpHeight < 105 && Math.abs(playerX - shot.targetLane * track.width) < .21 * track.width) {
         shake = Math.max(shake, .55); screenFlash = Math.max(screenFlash, .18);
-        showMessage('ENEMY LASER HIT  /  SHIELD -' + hullLoss(8), .95); playImpactSound(.68);
+        showMessage('ENEMY LASER HIT  /  ' + shieldText(8), .95); playImpactSound(.68);
         if (damageShield(8)) { updateHUD(); return; }
       }
     }
@@ -787,6 +844,11 @@
     document.body.classList.toggle('boosting', boosting || jumpBoostTimer > 0); updateHUD();
   }
   function updateHUD() {
+    document.body.classList.toggle('hyper', hyper());
+    if (hyper()) {
+      $('hyper-time').textContent = hyperTime.toFixed(1); $('hyper-fill').style.width = (hyperTime / HYPER_TIME * 100) + '%';
+      document.body.classList.toggle('hyper-ending', hyperTime < 3);
+    } else document.body.classList.remove('hyper-ending');
     $('speed').textContent = String(Math.round(speed / 11.5)).padStart(3, '0');
     $('energy-fill').style.width = energy + '%'; $('energy-fill').style.background = energy < 20 ? '#ff4b85' : 'var(--acid)';
     $('shield-fill').style.width = shield + '%'; $('shield-fill').style.background = shield < 26 ? '#ff426e' : 'var(--cyan)';
@@ -845,11 +907,72 @@
         if (random(i * 400 + row * 17 + col) > .48) { ctx.fillStyle = color + (row % 3 === 0 ? '90' : '38'); ctx.fillRect(x + 4 + col * 7, y + 6 + row * 10, 2, 3); }
       }
     }
+    if (hyperTime > 0 && mode !== 'menu') drawHyperSpace();
     const ground = ctx.createLinearGradient(0, H * .5, 0, H); ground.addColorStop(0, t.fog); ground.addColorStop(.12, '#311248'); ground.addColorStop(1, '#0e0925');
     ctx.fillStyle = ground; ctx.fillRect(0, H * .55, W, H * .45);
     const gridHorizon = H * .51;
     for (let i = -14; i <= 14; i++) line(W / 2 + i * 22 - playerX * 15, gridHorizon, W / 2 + i * W / 7 - playerX * 130, H, t.edge + '28');
     for (let i = 0; i < 22; i++) { const q = mod(i / 22 + position / 50000, 1); const y = gridHorizon + q ** 3 * (H - gridHorizon); line(0, y, W, y, t.edge + '35'); }
+  }
+  // Light-speed space: nebulae, a ringed planet and star streaks rushing out of the vanishing point.
+  function hyperFade() { return clamp(Math.min((time - hyperStarted) * 2.5, hyperTime * 1.5), 0, 1); }
+  function drawHyperSpace() {
+    const k = hyperFade(), cx = W * .5 - playerX * 30, cy = H * .42, hue = (time * 90) % 360;
+    ctx.save(); ctx.globalAlpha = k;
+    const deep = ctx.createRadialGradient(cx, cy, 10, cx, cy, Math.max(W, H) * .9);
+    deep.addColorStop(0, '#ffffff'); deep.addColorStop(.04, `hsl(${hue},100%,70%)`); deep.addColorStop(.25, `hsl(${(hue + 60) % 360},90%,22%)`); deep.addColorStop(1, '#03010d');
+    ctx.fillStyle = deep; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 5; i++) {
+      const nx = W * (.15 + random(i + 300) * .7) + Math.sin(time * .3 + i) * 40, ny = H * (.1 + random(i + 310) * .35), nr = Math.max(W, H) * (.18 + random(i + 320) * .2);
+      const neb = ctx.createRadialGradient(nx, ny, 1, nx, ny, nr); neb.addColorStop(0, `hsla(${(hue + i * 70) % 360},100%,60%,.45)`); neb.addColorStop(1, 'hsla(0,0%,0%,0)');
+      ctx.fillStyle = neb; ctx.fillRect(nx - nr, ny - nr, nr * 2, nr * 2);
+    }
+    for (let i = 0; i < 160; i++) {
+      const angle = random(i * 3.1) * TAU, phase = mod(time * (1.2 + random(i) * 1.6) + random(i + 7), 1), r0 = phase * phase * Math.max(W, H) * .8;
+      const len = 10 + phase * phase * 220, x = cx + Math.cos(angle) * r0, y = cy + Math.sin(angle) * r0 * .7;
+      ctx.globalAlpha = k * phase; line(x, y, x + Math.cos(angle) * len, y + Math.sin(angle) * len * .7, `hsl(${(hue + i * 9) % 360},100%,${70 + phase * 25}%)`, .6 + phase * 2.4);
+    }
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = k;
+    const px = W * .78 - playerX * 50, py = H * .2, pr = Math.min(W, H) * .08;
+    const planet = ctx.createRadialGradient(px - pr * .4, py - pr * .4, 2, px, py, pr); planet.addColorStop(0, `hsl(${(hue + 180) % 360},90%,75%)`); planet.addColorStop(1, `hsl(${(hue + 240) % 360},80%,25%)`);
+    ctx.fillStyle = planet; ctx.beginPath(); ctx.arc(px, py, pr, 0, TAU); ctx.fill();
+    ctx.translate(px, py); ctx.rotate(-.4); ctx.scale(1, .28); ctx.beginPath(); ctx.arc(0, 0, pr * 1.8, 0, TAU); ctx.strokeStyle = `hsla(${(hue + 30) % 360},100%,70%,.8)`; ctx.lineWidth = pr * .18; ctx.stroke();
+    ctx.restore();
+  }
+  function drawWarpOverlay() {
+    const k = hyperFade(), cx = W * .5, cy = H * .45, hue = (time * 140) % 360;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 70; i++) {
+      const angle = random(i * 5.7 + 11) * TAU, phase = mod(time * 2.6 + random(i + 3), 1), r0 = Math.max(W, H) * (.12 + phase * .9);
+      ctx.globalAlpha = k * phase * .55;
+      line(cx + Math.cos(angle) * r0, cy + Math.sin(angle) * r0, cx + Math.cos(angle) * (r0 + 60 + phase * 260), cy + Math.sin(angle) * (r0 + 60 + phase * 260), `hsl(${(hue + i * 13) % 360},100%,72%)`, 1 + phase * 3);
+    }
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = k * .5;
+    const tunnel = ctx.createRadialGradient(cx, cy, Math.min(W, H) * .3, cx, cy, Math.max(W, H) * .75);
+    tunnel.addColorStop(0, 'hsla(0,0%,0%,0)'); tunnel.addColorStop(1, `hsla(${hue},100%,45%,.55)`); ctx.fillStyle = tunnel; ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
+  function drawStarGate(s, t) {
+    const a = s.p1, b = s.p2, g = s.stargate, width = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + width * g.lane, y = lerp(a.y, b.y, .5);
+    const r = width * .26; if (r < 3) return;
+    const cy = y - r * 1.05, hue = (time * 160 + g.index) % 360, active = hyperTime <= 0;
+    ctx.save(); ctx.translate(x, cy); ctx.globalCompositeOperation = 'lighter';
+    const core = ctx.createRadialGradient(0, 0, 1, 0, 0, r); core.addColorStop(0, `hsla(${hue},100%,85%,${active ? .55 : .18})`); core.addColorStop(.7, `hsla(${(hue + 90) % 360},100%,55%,.25)`); core.addColorStop(1, 'hsla(0,0%,0%,0)');
+    ctx.fillStyle = core; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
+    for (let ring = 0; ring < 3; ring++) {
+      ctx.beginPath(); ctx.ellipse(0, 0, r * (1 - ring * .14), r * (1 - ring * .14), time * (ring % 2 ? -1.5 : 1.2), 0, TAU);
+      ctx.strokeStyle = `hsl(${(hue + ring * 100) % 360},100%,${active ? 65 : 40}%)`; ctx.lineWidth = Math.max(1.5, r * .07); ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 18; ctx.stroke();
+    }
+    ctx.rotate(time * 2);
+    for (let i = 0; i < 8; i++) {
+      const ang = i / 8 * TAU, sx = Math.cos(ang) * r * 1.12, sy = Math.sin(ang) * r * 1.12, sr = r * .13;
+      ctx.fillStyle = i % 2 ? '#fff6a0' : `hsl(${(hue + i * 45) % 360},100%,70%)`; ctx.beginPath();
+      for (let j = 0; j < 10; j++) { const rr = j % 2 ? sr * .45 : sr, aa = j / 10 * TAU; ctx.lineTo(sx + Math.cos(aa) * rr, sy + Math.sin(aa) * rr); }
+      ctx.fill();
+    }
+    ctx.restore();
+    roadStrip(a, b, g.lane - .3, g.lane + .3, `hsla(${hue},100%,60%,.35)`);
   }
   function project(p, worldX, worldY, z, cameraY) {
     p.scale = DEPTH / Math.max(1, z); p.x = W * .5 + p.scale * worldX * W * .5;
@@ -1017,6 +1140,7 @@
         if (s.index % 3 === 1) { const cx = b.x + b.w * s.padLane; polygon([[cx - b.w * .18, a.y], [cx, b.y], [cx + b.w * .18, a.y], [cx, lerp(a.y, b.y, .5)]], '#a5ffff'); }
       }
       if (s.trampoline) drawTrampoline(s, t);
+      if (s.stargate && mode !== 'menu' && s.depth > 3) drawStarGate(s, t);
       if (s.hazard) drawHazard(s, t);
       for (const bomb of bombs) {
         const worldPosition = mod(bomb.distance, LENGTH);
@@ -1031,7 +1155,7 @@
         polygon([[a.x + a.w * side * 1.06, a.y], [b.x + b.w * side * 1.06, b.y], [b.x + b.w * side * 1.06, b.y - railB], [a.x + a.w * side * 1.06, a.y - railA]], alt ? t.edge + 'a0' : t.second + '80');
         line(a.x + a.w * side * 1.06, a.y - railA, b.x + b.w * side * 1.06, b.y - railB, side === -1 ? t.edge : t.second, Math.max(1, a.w * .003));
       }
-      if (s.tower && s.depth > 9 && s.depth < 145) drawScenery(s, t);
+      if (s.tower && s.depth > 9 && s.depth < 145 && !(hyperTime > 0 && hyperFade() > .5)) drawScenery(s, t);
       if (s.arch && s.depth > 6) drawArch(s, t);
       for (const ufo of ufos) {
         const worldPosition = mod(ufo.distance, LENGTH);
@@ -1143,8 +1267,11 @@
     for (const shot of laserShots) {
       const alpha = clamp(1 - (time - shot.started) / shot.duration, 0, 1);
       ctx.globalAlpha = alpha;
-      line(startX, startY, shot.x, shot.y, shot.color, 8);
-      line(startX, startY, shot.x, shot.y, '#ffffff', 2.2);
+      if (shot.mega) {
+        const hue = (time * 720) % 360;
+        line(startX, startY, shot.x, shot.y, `hsl(${hue},100%,60%)`, 26); line(startX, startY, shot.x, shot.y, `hsl(${(hue + 120) % 360},100%,65%)`, 12);
+      } else line(startX, startY, shot.x, shot.y, shot.color, 8);
+      line(startX, startY, shot.x, shot.y, '#ffffff', shot.mega ? 5 : 2.2);
       ctx.fillStyle = '#ffffff'; ctx.shadowColor = shot.color; ctx.shadowBlur = 25;
       ctx.beginPath(); ctx.arc(startX, startY, 5 + alpha * 4, 0, TAU); ctx.fill();
     }
@@ -1205,6 +1332,7 @@
       const glow = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .7); glow.addColorStop(0, '#6d29ff00'); glow.addColorStop(1, '#7644ff40'); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
     }
     for (const p of particles) { ctx.globalAlpha = Math.min(1, p.life * 3); line(p.x, p.y, p.x - p.vx * .03, p.y - p.vy * .03, p.color, 2); } ctx.globalAlpha = 1;
+    if (hyperTime > 0 && mode !== 'menu') drawWarpOverlay();
     if (mode !== 'menu') drawCrashLayer();
     if (screenFlash > .015) {
       const flash = ctx.createRadialGradient(W * .5, H * .62, 2, W * .5, H * .62, Math.max(W, H) * .72);

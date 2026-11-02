@@ -34,7 +34,7 @@ function harness() {
   };
   sandbox.window = sandbox;
   const source = fs.readFileSync('game.js', 'utf8').replace('  resize(); buildTrack(); requestAnimationFrame(frame);\n})();',
-    '  resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ ufoList: ufos.map(u => ({ lane: u.lane, slot: u.slot })), crashing: crashingUfos.length, blasts: megaBlasts.length, confetti: confetti.length, callout: callout && callout.text, dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__eliminateRivals = () => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
+    '  resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ hyperTime, stargates: segments.filter(s => s.stargate).map(s => ({ index: s.index, lane: s.stargate.lane })), energy, ufoList: ufos.map(u => ({ lane: u.lane, slot: u.slot })), crashing: crashingUfos.length, blasts: megaBlasts.length, confetti: confetti.length, callout: callout && callout.text, dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__eliminateRivals = () => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
   vm.runInNewContext(source, sandbox);
   const step = seconds => { for (let i = 0; i < Math.ceil(seconds * 20); i++) { now += 50; frame(now); } };
   const key = (code, type = 'keydown') => (windowEvents[type] || []).forEach(fn => fn({ code, repeat: false, target: element('body'), preventDefault() {} }));
@@ -260,4 +260,29 @@ test('winning a race throws confetti across the screen', () => {
   assert.equal(inspect().mode, 'finished');
   assert.equal(el('result-position').textContent, '01');
   assert.ok(inspect().confetti > 100, 'confetti is launched');
+});
+
+test('star gates trigger 15 s of hyperdrive: invincible, infinite boost, mega laser', () => {
+  const { element: el, step, key, inspect, setRacePosition, disableAirRaid } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  disableAirRaid();
+  const gates = inspect().stargates;
+  assert.equal(gates.length, 2, 'two star gates per track');
+  setRacePosition(gates[0].index * 200 - 1050, gates[0].lane);
+  step(.1);
+  assert.ok(inspect().hyperTime > 14, 'hyperdrive engaged');
+  assert.equal(el('body').classList.contains('hyper'), true);
+  // Infinite boost.
+  key('Space'); step(3); key('Space', 'keyup');
+  assert.equal(Number.parseInt(el('energy-text').textContent), 100, 'boost never drains');
+  // Mega laser: no ammo used and one shot destroys a rival.
+  key('KeyX'); step(.05); key('KeyX', 'keyup');
+  assert.equal(el('laser-count').textContent, '10');
+  // Invincible: scraping the wall costs nothing.
+  key('ArrowRight'); step(2); key('ArrowRight', 'keyup');
+  assert.equal(el('shield-text').textContent, '100%');
+  assert.match(el('race-message').textContent, /INVINCIBLE|SMASHED|RIVAL|UFO|LIGHT SPEED|BARRIER/);
+  step(11);
+  assert.equal(inspect().hyperTime <= 0, true, 'hyperdrive ends after 15 s');
+  assert.equal(el('body').classList.contains('hyper'), false);
 });
