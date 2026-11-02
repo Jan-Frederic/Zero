@@ -34,7 +34,7 @@ function harness() {
   };
   sandbox.window = sandbox;
   const source = fs.readFileSync('game.js', 'utf8').replace('  resize(); buildTrack(); requestAnimationFrame(frame);\n})();',
-    '  resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ mode, playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
+    '  resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
   vm.runInNewContext(source, sandbox);
   const step = seconds => { for (let i = 0; i < Math.ceil(seconds * 20); i++) { now += 50; frame(now); } };
   const key = (code, type = 'keydown') => (windowEvents[type] || []).forEach(fn => fn({ code, repeat: false, target: element('body'), preventDefault() {} }));
@@ -211,4 +211,20 @@ test('cyan pads recharge boost, shield and laser cells', () => {
   assert.ok(Number.parseInt(el('shield-text').textContent) > 40, 'pad repairs the hull shield');
   assert.ok(Number(el('laser-count').textContent) > 2, 'pad recharges laser cells');
   assert.ok(Number.parseInt(el('energy-text').textContent) > 20, 'pad refills boost energy');
+});
+
+test('a destroyed rival smokes and spins out before it explodes', () => {
+  const { element: el, step, key, inspect, disableAirRaid } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  disableAirRaid();
+  const before = Number(el('position').textContent);
+  for (let i = 0; i < 3; i++) { key('KeyX'); step(.05); key('KeyX', 'keyup'); step(.3); }
+  assert.match(el('race-message').textContent, /RIVAL DESTROYED/);
+  assert.equal(inspect().dying, 1, 'the beaten rival enters its wreck sequence');
+  assert.ok(Number(el('position').textContent) < before, 'the place is gained right away');
+  step(.8);
+  assert.equal(inspect().dying, 1, 'still smoking and spinning');
+  step(.8);
+  assert.equal(inspect().dying, 0, 'the wreck sequence is over');
+  assert.ok(inspect().explosions >= 2, 'it explodes at the end');
 });

@@ -235,13 +235,51 @@
     playLaserSound();
     if (target) {
       target.hull -= 1; target.stunnedUntil = time + .32;
-      createExplosion(target.distance, lane, target.color, target.hull > 0 ? .3 : 1.35);
+      createExplosion(target.distance, lane, target.color, target.hull > 0 ? .3 : .45);
       if (target.hull <= 0) {
-        target.alive = false; showMessage('RIVAL DESTROYED  /  +1 PLACE', 1.1); playExplosionSound(1.1);
+        knockOut(target); showMessage('RIVAL DESTROYED  /  +1 PLACE', 1.1);
       } else {
         showMessage(`RIVAL HIT  /  HULL ${target.hull}/3`, .8); playImpactSound(.48);
       }
     } else if (laserAmmo === 0) showMessage('TARGET MISSED  /  LASERS LOW', .65);
+  }
+  // A beaten rival does not vanish at once: it trails smoke, spins out of control and only then explodes.
+  const WRECK_TIME = 1.5;
+  function knockOut(rival) {
+    rival.alive = false; rival.boosting = false;
+    rival.dying = { started: time, spin: random(rival.seed + time) > .5 ? 1 : -1 };
+    playImpactSound(.7); playNoiseBurst(.9, .1, 2600, 260);
+  }
+  function updateWreck(rival, dt, track) {
+    const t = (time - rival.dying.started) / WRECK_TIME;
+    // Coast just below the player's pace so the wreck stays in view ahead instead of being overtaken at once.
+    rival.speed += (Math.max(speed * .9, 2500) - rival.speed) * Math.min(1, dt * 3); rival.distance += rival.speed * dt;
+    rival.x = clamp(rival.x + rival.dying.spin * dt * (.12 + t * .35), -1.05, 1.05);
+    if (t >= 1) {
+      rival.dying = null;
+      createExplosion(rival.distance, rival.x * track.width, rival.color, 1.4);
+      createExplosion(rival.distance + 160, rival.x * track.width + .06, '#ffb347', .8);
+      if (Math.abs(rival.distance - distance) < 15000) playExplosionSound(1.1);
+    }
+  }
+  function drawSmoke(x, y, width, rival) {
+    const t = clamp((time - rival.dying.started) / WRECK_TIME, 0, 1);
+    ctx.save();
+    for (let i = 0; i < 14; i++) {
+      const phase = mod(time * 1.7 + i / 14 + rival.seed * .13, 1);
+      const drift = Math.sin(i * 2.3 + time * 3 + rival.seed) * width * (.12 + phase * .45);
+      const px = x + drift, py = y - width * (.2 + phase * 1.6), r = width * (.14 + phase * .42) * (.75 + t * .7);
+      ctx.globalAlpha = (1 - phase) * (.5 + t * .35);
+      ctx.fillStyle = phase < .14 ? '#ff9a3d' : i % 3 ? '#8a8399' : '#b4adc2';
+      ctx.beginPath(); ctx.arc(px, py, r, 0, TAU); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 5; i++) {
+      const phase = mod(time * 4.1 + i / 5 + rival.seed, 1);
+      ctx.globalAlpha = (1 - phase) * .9; ctx.fillStyle = i % 2 ? '#ffd35a' : '#ff6b2e';
+      ctx.beginPath(); ctx.arc(x + Math.sin(i * 7.7 + time * 9) * width * .3, y - width * phase * .6, width * .06, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
   }
   function destroyPlayer() {
     if (mode !== 'racing') return;
@@ -250,8 +288,8 @@
     boosting = false; document.body.classList.remove('boosting'); document.body.classList.add('paused', 'destroyed');
     laserShots = []; enemyShots = []; wreckBurst = { started: time, duration: 1.15, color: '#ffec87', size: 2.9, seed: Math.floor(time * 1000), cartoon: false };
     for (const rival of rivals) {
-      if (!rival.alive) continue;
-      rival.alive = false; createExplosion(rival.distance, rival.x * tracks[trackIndex].width, rival.color, .85 + random(rival.seed + time) * .45);
+      if (!rival.alive && !rival.dying) continue;
+      rival.alive = false; rival.dying = null; createExplosion(rival.distance, rival.x * tracks[trackIndex].width, rival.color, .85 + random(rival.seed + time) * .45);
     }
     for (const bomb of bombs) if (!bomb.exploded) createExplosion(bomb.distance, bomb.lane * tracks[trackIndex].width, '#ff9b42', .95);
     bombs = [];
@@ -433,6 +471,7 @@
     bombs = bombs.filter(bomb => !bomb.exploded && bomb.distance > distance - 1200);
     const prevDistance = distance; distance += speed * dt; position = mod(distance, LENGTH);
     for (const r of rivals) {
+      if (r.dying) { updateWreck(r, dt, track); continue; }
       if (!r.alive) continue;
       if (r.boosting) {
         r.boostRemaining -= dt;
@@ -457,7 +496,7 @@
       }
       if (Math.abs(r.distance - (distance + 1050)) < 340 && Math.abs(r.x * track.width - playerX) < .2 * track.width && collisionCooldown <= 0 && jumpHeight < 90) {
         if (boosting) {
-          r.alive = false; createExplosion(r.distance, r.x * track.width, r.color, 1.45); speed *= .94; collisionCooldown = .45;
+          knockOut(r); createExplosion(r.distance, r.x * track.width, r.color, .5); speed *= .94; collisionCooldown = .45;
           showMessage('BOOST RAM  /  RIVAL DESTROYED  /  SHIELD -' + hullLoss(6), 1.15); playExplosionSound(1.35);
           if (damageShield(6)) { updateHUD(); return; }
         } else {
@@ -747,11 +786,18 @@
       if (s.depth > 90) { ctx.globalAlpha = (s.depth - 90) / 95 * .6; roadStrip(a, b, -1.09, 1.09, t.fog); ctx.globalAlpha = 1; }
       if (mode !== 'menu') {
         for (const r of rivals) {
-          if (!r.alive) continue;
+          if (!r.alive && !r.dying) continue;
           const rz = mod(r.distance, LENGTH);
           if (Math.floor(rz / SEG) === s.index && s.depth > 5) {
             const f = rz % SEG / SEG, rw = lerp(a.w, b.w, f);
-            drawShip(lerp(a.x, b.x, f) + rw * r.x, lerp(a.y, b.y, f) - rw * .035, rw * .115, r.color, '#393156', Math.sin(time + r.seed) * .1, false, r.boosting);
+            const rx = lerp(a.x, b.x, f) + rw * r.x, ry = lerp(a.y, b.y, f) - rw * .035;
+            if (r.dying) {
+              // Spin accelerates and the ship sags as its anti-gravity fails.
+              const t = clamp((time - r.dying.started) / WRECK_TIME, 0, 1);
+              const flicker = Math.sin(time * 40) > .3 ? '#ffffff' : r.color;
+              drawShip(rx, ry + rw * .02 * t, rw * .115, t > .7 ? flicker : r.color, '#1d1828', 0, false, false, false, r.dying.spin * (t * t * 14 + t * 2));
+              drawSmoke(rx, ry, rw * .115, r);
+            } else drawShip(rx, ry, rw * .115, r.color, '#393156', Math.sin(time + r.seed) * .1, false, r.boosting);
           }
         }
       }
@@ -808,9 +854,9 @@
       ctx.fillText(s.index === 30 ? 'MORBID  /  RACERS' : `${t.class}  /  HYPER VELOCITY`, p.x, p.y - height * 1.035);
     }
   }
-  function drawShip(x, y, width, color, dark, steer, player, rivalBoost = false, airborne = false) {
+  function drawShip(x, y, width, color, dark, steer, player, rivalBoost = false, airborne = false, spin = 0) {
     if (width < 1) return;
-    ctx.save(); ctx.translate(x, y); ctx.scale(width / 100, width / 100); ctx.rotate(steer * (player ? .1 : .06));
+    ctx.save(); ctx.translate(x, y); ctx.scale(width / 100, width / 100); ctx.rotate(steer * (player ? .1 : .06) + spin);
     const bob = Math.sin(time * 8) * (player ? 2 : 1); ctx.translate(0, bob);
     const boosted = player ? boosting || jumpBoostTimer > 0 : rivalBoost;
     const shadow = ctx.createRadialGradient(0, 24, 1, 0, 24, 110); shadow.addColorStop(0, color + '60'); shadow.addColorStop(1, color + '00');
