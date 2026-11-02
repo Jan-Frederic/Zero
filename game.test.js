@@ -55,7 +55,7 @@ test('circuit selection, driving, boost, pause, full race, records and restart',
   el('start').fire('click');
   assert.equal(el('soundtrack').paused, false);
   assert.equal(el('hud').classList.contains('hidden'), false);
-  assert.equal(el('position').textContent, '20');
+  assert.equal(el('position').textContent, '30');
   assert.equal(el('laser-count').textContent, '10');
   key('ArrowUp'); step(5);
   assert.ok(Number(el('speed').textContent) > 500, 'accelerator increases speed');
@@ -92,7 +92,7 @@ test('circuit selection, driving, boost, pause, full race, records and restart',
   assert.match(el('result-time').textContent, /^\d\d:\d\d\.\d{3}$/);
   assert.ok(Number(storage.get('chroma-best-0')) > 0, 'best lap persists');
   el('again').fire('click');
-  assert.equal(el('position').textContent, '20', 'restart resets ranking');
+  assert.equal(el('position').textContent, '30', 'restart resets ranking');
   assert.equal(el('lap').textContent, '01');
   assert.equal(el('timer').textContent, '00:00.000');
   assert.equal(el('energy-text').textContent, '100%');
@@ -121,7 +121,7 @@ test('one laser shot damages a rival without destroying it', () => {
   key('KeyX'); step(.05);
   assert.equal(el('laser-count').textContent, '09');
   assert.match(el('race-message').textContent, /RIVAL HIT  \/  HULL 2\/3/);
-  assert.equal(el('position').textContent, '20');
+  assert.equal(el('position').textContent, '30');
 });
 
 test('rival pilots fire hostile lasers that create a dodge warning', () => {
@@ -262,7 +262,7 @@ test('winning a race throws confetti across the screen', () => {
   assert.ok(inspect().confetti > 100, 'confetti is launched');
 });
 
-test('star gates trigger 15 s of hyperdrive: invincible, infinite boost, mega laser', () => {
+test('star gates trigger 10 s of hyperdrive: invincible, infinite boost, mega laser', () => {
   const { element: el, step, key, inspect, setRacePosition, disableAirRaid } = harness();
   el('start').fire('click'); key('ArrowUp'); step(3.05);
   disableAirRaid();
@@ -270,7 +270,7 @@ test('star gates trigger 15 s of hyperdrive: invincible, infinite boost, mega la
   assert.equal(gates.length, 2, 'two star gates per track');
   setRacePosition(gates[0].index * 200 - 1050, gates[0].lane);
   step(.1);
-  assert.ok(inspect().hyperTime > 14, 'hyperdrive engaged');
+  assert.ok(inspect().hyperTime > 9, 'hyperdrive engaged');
   assert.equal(el('body').classList.contains('hyper'), true);
   // Infinite boost.
   key('Space'); step(3); key('Space', 'keyup');
@@ -283,6 +283,6 @@ test('star gates trigger 15 s of hyperdrive: invincible, infinite boost, mega la
   assert.equal(el('shield-text').textContent, '100%');
   assert.match(el('race-message').textContent, /INVINCIBLE|SMASHED|RIVAL|UFO|LIGHT SPEED|BARRIER/);
   step(11);
-  assert.equal(inspect().hyperTime <= 0, true, 'hyperdrive ends after 15 s');
+  assert.equal(inspect().hyperTime <= 0, true, 'hyperdrive ends after 10 s');
   assert.equal(el('body').classList.contains('hyper'), false);
 });

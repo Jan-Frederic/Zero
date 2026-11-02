@@ -4,7 +4,7 @@
   const canvas = $('game'), ctx = canvas.getContext('2d', { alpha: false });
   const map = $('minimap').getContext('2d');
   const audio = $('soundtrack');
-  const TAU = Math.PI * 2, SEG = 200, COUNT = 1200, LENGTH = SEG * COUNT, ROAD = 1700, DEPTH = .88, PILOT_COUNT = 20, LASER_CAPACITY = 10;
+  const TAU = Math.PI * 2, SEG = 200, COUNT = 1200, LENGTH = SEG * COUNT, ROAD = 1700, DEPTH = .88, PILOT_COUNT = 30, LASER_CAPACITY = 10;
   // One laser cell recharges every LASER_RECHARGE seconds; HULL_STRENGTH > 1 makes the shield last that many times longer.
   const LASER_RECHARGE = 2.5, HULL_STRENGTH = 2;
   // Cyan pads refill shield and laser cells in proportion to each track's boost recharge rate.
@@ -37,13 +37,19 @@
   let jumpHeight = 0, jumpVelocity = 0, jumpBoostTimer = 0;
   // Shot-down UFOs fly wild screen-space crash paths; new UFOs warp in to replace them.
   let hyperTime = 0, hyperStarted = 0, hitGates = new Set();
-  const HYPER_TIME = 15;
+  const HYPER_TIME = 10;
   let crashingUfos = [], ufoRespawns = [], smoke = [], megaBlasts = [], confetti = [], callout = null;
   let jetSource, jetFilter, jetGain, jetWhine, jetWhineGain;
   const UFO_CRASH_TIME = 2.6, UFO_SLOTS_SPACING = 4300;
-  const KILL_CALLS = ['ALIEN KILLER!', 'FATALITY!', 'UFO OBLITERATED!', 'ABDUCT THIS!', 'INVASION CANCELLED!', 'CLOSE ENCOUNTER OF THE FATAL KIND!',
-    'SAUCER SMASHED!', 'GREEN MEN DOWN!', 'PROBE DENIED!', 'AREA 51 SAYS THANK YOU!', 'TOASTED SAUCER!', 'MOTHERSHIP WILL HEAR ABOUT THIS!',
-    'ULTRA KILL!', 'GALACTIC HUMILIATION!', 'NO PARKING IN MY SKY!', 'RETURN TO SENDER!'];
+  // Each kill call has a pre-rendered retro robot clip in voice/ (made by tools/make-voice.sh).
+  const KILL_CALLS = [['ALIEN KILLER!', 'alien-killer'], ['FATALITY!', 'fatality'], ['UFO OBLITERATED!', 'ufo-obliterated'], ['ABDUCT THIS!', 'abduct-this'],
+    ['INVASION CANCELLED!', 'invasion-cancelled'], ['CLOSE ENCOUNTER OF THE FATAL KIND!', 'close-encounter'], ['SAUCER SMASHED!', 'saucer-smashed'],
+    ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
+    ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
+    ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive', 'first-place'];
+  const voiceBuffers = new Map();
+  let voiceSource = null;
   let shake = 0, steerVisual = 0, distance = 0, bestLap = 0, previousTime = 0, muted = false, beat = 0;
   let audioContext, analyser, frequency, engineGain, engineOsc, musicSource, musicGain, sfxBus;
   let particles = [], explosions = [], laserShots = [], enemyShots = [], hitHazards = new Set(), hitRamps = new Set(), rank = 20, lastPad = -1, launchGoTime = 0, boostLocked = false;
@@ -137,7 +143,7 @@
       const filter = audioContext.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 220;
       engineGain = audioContext.createGain(); engineGain.gain.value = 0;
       engineOsc.connect(filter); filter.connect(engineGain); engineGain.connect(sfxBus); engineOsc.start();
-      setupJet();
+      setupJet(); loadVoices();
     } catch { /* The soundtrack still plays if Web Audio is unavailable. */ }
   }
   function playMusic() {
@@ -212,8 +218,28 @@
     return { slot, seed, distance: 0, lane: 0, dropCooldown: .8 + slot * 1.25 + (spawnedAt > 0 ? 1.6 : 0), color: UFO_COLORS[seed % 4], spawnedAt, screen: null };
   }
   // Robot announcer: Web Speech with a low, flat pitch. Silently skipped where unsupported.
-  function robotSay(text, pitch = .05) {
-    if (muted || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+  function loadVoices() {
+    if (!audioContext || loadVoices.started || typeof fetch !== 'function') return;
+    loadVoices.started = true;
+    for (const clip of VOICE_CLIPS) fetch(`voice/${clip}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject())
+      .then(data => new Promise((ok, fail) => audioContext.decodeAudioData(data, ok, fail))).then(buffer => voiceBuffers.set(clip, buffer)).catch(() => {});
+  }
+  // Retro robot announcer: plays the pre-rendered clip; falls back to the system voice if it is not loaded.
+  function robotSay(text, clip) {
+    if (muted) return;
+    const buffer = clip && voiceBuffers.get(clip);
+    if (buffer && audioContext) {
+      try {
+        if (voiceSource) try { voiceSource.stop(); } catch { /* already ended */ }
+        const source = audioContext.createBufferSource(), gain = audioContext.createGain();
+        source.buffer = buffer; gain.gain.value = 1.15; source.connect(gain); gain.connect(sfxBus || audioContext.destination);
+        source.onended = () => { source.disconnect(); gain.disconnect(); if (voiceSource === source) voiceSource = null; };
+        source.start(); voiceSource = source;
+        for (let i = 0; i < 4; i++) setTimeout(() => playToneSweep(900 + Math.random() * 1600, 400 + Math.random() * 2000, .04, 'square', .014), i * 40);
+        return;
+      } catch { /* fall through to speech */ }
+    }
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
     try {
       speechSynthesis.cancel();
       // Staccato word-by-word delivery, the lowest pitch and a novelty robot voice where the OS has one.
@@ -258,8 +284,8 @@
     points.push([W * (.35 + random(seed + 40) * .3), H * (.3 + random(seed + 41) * .2)]);
     crashingUfos.push({ ...ufo, started: time, points, startSize: start.size, spinDir: random(seed + 9) > .5 ? 1 : -1, x: start.x, y: start.y, size: start.size, angle: 0 });
     ufoRespawns.push({ at: time + UFO_CRASH_TIME + 2 + random(seed + 77) * 3, slot: ufo.slot });
-    const phrase = KILL_CALLS[Math.floor(random(seed + 5) * KILL_CALLS.length)];
-    showCallout(phrase, ufo.color); robotSay(phrase.replace(/!/g, ''));
+    const [phrase, clip] = KILL_CALLS[Math.floor(random(seed + 5) * KILL_CALLS.length)];
+    showCallout(phrase, ufo.color); robotSay(phrase, clip);
     showMessage('UFO HIT  /  IT IS GOING DOWN!', 1.2);
     playImpactSound(1.1); playNoiseBurst(1.6, .14, 5200, 300); playToneSweep(1400, 90, 2.4, 'sawtooth', .05);
   }
@@ -461,7 +487,7 @@
     hyperTime = HYPER_TIME; if (fresh) hyperStarted = time;
     energy = 100; boostLocked = false; screenFlash = Math.max(screenFlash, 1); shake = Math.max(shake, 1.2);
     showCallout('HYPERDRIVE!', '#7dfcff'); showMessage('LIGHT SPEED  /  INVINCIBLE  /  MEGA LASER  /  ∞ BOOST', 2.4);
-    robotSay('Hyperdrive engaged');
+    robotSay('Hyperdrive engaged', 'hyperdrive');
     playNoiseBurst(2.2, .25, 120, 9000); playToneSweep(80, 1800, 1.6, 'sawtooth', .07); playToneSweep(1200, 4200, 1.2, 'sine', .035);
     [392, 523, 659, 784, 1047].forEach((f, i) => playToneSweepAt(f, i * .07));
   }
@@ -478,7 +504,7 @@
     laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = LASER_CAPACITY; laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
     const track = tracks[trackIndex];
     const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
-    rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 880, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 135) * track.rivalPace, color: colors[i], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
+    rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set();
     keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
@@ -622,7 +648,7 @@
     $('result-record').textContent = record ? '✦ NEW CIRCUIT LAP RECORD' : 'Chase the perfect line. The next podium is yours.';
     if (record) { bestLap = fastest; try { localStorage.setItem(`chroma-best-${trackIndex}`, String(bestLap)); } catch {} }
     soundEffect(880, .6);
-    if (rank === 1) { launchConfetti(); playFanfare(); robotSay('First place. Flawless victory', .3); }
+    if (rank === 1) { launchConfetti(); playFanfare(); robotSay('First place. Flawless victory', 'first-place'); }
   }
   function update(dt) {
     time += dt; screenFlash = Math.max(0, screenFlash - dt * 2.4);
@@ -798,7 +824,7 @@
       r.x = r.lane + .13 * Math.sin(time * .8 + r.seed * 2);
       r.laserCooldown -= dt;
       if (r.laserCooldown <= 0) {
-        r.laserCooldown = 3.2 + random(Math.floor(time * 5) + r.seed * 31) * 2.5;
+        r.laserCooldown = 4.4 + random(Math.floor(time * 5) + r.seed * 31) * 3.2;
         if (r.distance > distance + 1700 && r.distance < distance + 17000 && Math.abs(r.x * track.width - playerX) < track.width * .48) {
           enemyShots.push({ sourceDistance: r.distance, sourceLane: r.x, targetLane: clamp(playerX / track.width, -.85, .85), color: r.color,
             started: time, impactAt: time + .46, expires: time + .76, resolved: false, x: W * .5, y: H * .5 });
