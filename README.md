@@ -2,6 +2,8 @@
 
 A colorful, F-Zero-inspired anti-gravity racer. Eight increasingly difficult neon circuits, three machines, twenty-nine rival pilots, self-recharging 10-cell laser cannons, enemy lasers and boost bursts, UFO bombing runs, jump-and-boost trampolines, shield damage, six-lap races, boost pads, crossing cyber-cats, animated hazards, persistent lap records, and the local **Morbid Fingers — Redemption (Live, 2003)** soundtrack. Later circuits add narrower tracks, sharper turns, low-grip ice, laser gates, and faster rivals. Canvas graphics are generated entirely in code; engine, laser, impact, and explosion sounds are synthesized in the browser.
 
+> **Health warning:** the game contains flashing lights and fast-moving patterns. A photosensitive-seizure and motion-sickness warning pops up on the home screen on every visit and must be acknowledged before playing.
+
 ## Play online
 
 https://jan-frederic.github.io/Zero/ (deployed automatically via GitHub Actions, see `.github/workflows/pages.yml`).

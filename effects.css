@@ -146,3 +146,12 @@ body.hyper .hyper-meter{display:flex;flex-wrap:wrap;align-items:center;gap:0 10p
 body.racing .home-actions{display:none}
 @media(max-width:600px){.home-actions{margin-top:8px;padding-top:8px}.home-action{min-height:36px;font-size:9px}.dialog-card h2{font-size:34px}}
 @media(max-height:520px) and (orientation:landscape){.home-actions{margin-top:6px;padding-top:6px}.home-action{min-height:30px;font-size:9px}.dialog-card{padding:14px 20px}.dialog-card h2{font-size:28px;margin:6px 0 8px}.changelog{max-height:42vh}.dialog-card .start-button{margin-top:10px}}
+
+/* Health warning on every visit. */
+.health-card{border-top-color:#ffb347}
+.health-card .eyebrow{color:#ffb347}
+.health-text{font-size:14px;line-height:1.6;color:#d7cfe6;max-height:46vh;overflow:auto;padding-right:6px}
+.health-text p{margin:0 0 12px}.health-text b{color:#fff}
+body.health-open .update-banner{display:none}
+@media(max-width:600px){.health-text{font-size:13px;max-height:50vh}}
+@media(max-height:520px) and (orientation:landscape){#health-screen{inset:0;z-index:55}.health-card{max-height:calc(100% - 16px);padding:12px 22px}.health-card .eyebrow{display:none}.health-card h2{font-size:24px;margin:2px 0 6px}.health-text{font-size:12px;line-height:1.45;max-height:calc(100vh - 140px)}.health-card .start-button{margin-top:8px;padding:10px 20px}}

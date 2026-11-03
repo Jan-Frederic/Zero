@@ -1583,7 +1583,7 @@
   window.addEventListener('keydown', event => {
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code) && event.target.tagName !== 'BUTTON') event.preventDefault();
     if (!event.repeat) {
-      if (event.code === 'Enter' && !['BUTTON', 'A'].includes(event.target.tagName)) { if (mode === 'menu' || mode === 'finished') startRace(); else if (mode === 'paused') pauseRace(); }
+      if (event.code === 'Enter' && !['BUTTON', 'A'].includes(event.target.tagName) && !document.body.classList.contains('dialog-open')) { if (mode === 'menu' || mode === 'finished') startRace(); else if (mode === 'paused') pauseRace(); }
       if (event.code === 'Escape' || event.code === 'KeyP') pauseRace();
       if (event.code === 'KeyM') toggleMute();
     }
@@ -1650,7 +1650,15 @@
   renderSettings();
   // ---- Home screen dialogs: settings and changelog.
   function openDialog(id) { $(id).classList.remove('hidden'); document.body.classList.add('dialog-open'); }
-  function closeDialogs() { ['settings-screen', 'changelog-screen'].forEach(id => $(id).classList.add('hidden')); document.body.classList.remove('dialog-open'); }
+  function closeDialogs() { ['settings-screen', 'changelog-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
+  // Health warning: shown on every visit (not again after an in-app update reload within the same session).
+  let healthSeen = false;
+  try { healthSeen = sessionStorage.getItem('morbid-health-ok') === '1'; } catch { /* show it */ }
+  if (!healthSeen) { $('health-screen').classList.remove('hidden'); document.body.classList.add('dialog-open', 'health-open'); }
+  $('health-accept').addEventListener('click', () => {
+    $('health-screen').classList.add('hidden'); document.body.classList.remove('dialog-open', 'health-open');
+    try { sessionStorage.setItem('morbid-health-ok', '1'); } catch { /* ignore */ }
+  });
   const escapeHtml = text => text.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   // Minimal renderer for the semantic-release CHANGELOG.md (headings, bullet lists, links reduced to text).
   function renderChangelog(markdown) {

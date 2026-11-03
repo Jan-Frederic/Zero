@@ -323,3 +323,11 @@ test('stylesheets have balanced braces (a broken rule silently drops everything 
     assert.doesNotMatch(css, /[^{};\s][^{};]*@media/, `${file}: @media inside a selector`);
   }
 });
+
+test('a health warning greets every visit on the home screen', () => {
+  const { element: el } = harness();
+  assert.equal(el('health-screen').classList.contains('hidden'), false, 'warning is shown on load');
+  el('health-accept').fire('click');
+  assert.equal(el('health-screen').classList.contains('hidden'), true, 'acknowledging closes it');
+  assert.equal(el('body').classList.contains('dialog-open'), false);
+});
