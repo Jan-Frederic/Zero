@@ -4,7 +4,7 @@ const VERSION = 'dev';
 const CACHE = `morbid-racers-${VERSION}`;
 const FONT_CACHE = 'morbid-racers-fonts';
 const SOUNDTRACK = 'Morbid_Fingers%20-%20live-%20Emmerich_Juli_2003%20-%2003%20Redemption.mp3';
-const ASSETS = ['./', 'index.html', 'style.css', 'effects.css', 'game.js', 'pwa.js', 'manifest.webmanifest',
+const ASSETS = ['./', 'index.html', 'CHANGELOG.md', 'style.css', 'effects.css', 'game.js', 'pwa.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', SOUNDTRACK,
   ...['alien-killer', 'fatality', 'ufo-obliterated', 'abduct-this', 'invasion-cancelled', 'close-encounter', 'saucer-smashed', 'green-men-down', 'probe-denied',
     'area-51', 'toasted-saucer', 'mothership', 'ultra-kill', 'galactic-humiliation', 'no-parking', 'return-to-sender', 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down'].map(clip => `voice/${clip}.mp3`)];

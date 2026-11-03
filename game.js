@@ -301,15 +301,20 @@
       const i = Math.min(pts.length - 2, Math.floor(span)), t = span - i;
       const p = j => pts[clamp(j, 0, pts.length - 1)];
       u.x = catmull(p(i - 1)[0], p(i)[0], p(i + 1)[0], p(i + 2)[0], t); u.y = catmull(p(i - 1)[1], p(i)[1], p(i + 1)[1], p(i + 2)[1], t);
-      u.size = lerp(u.startSize, Math.min(W, H) * .11, Math.pow(k, .7)); u.angle += u.spinDir * dt * (2 + k * 16);
+      u.size = lerp(u.startSize, Math.min(W, H) * (u.kind === 'racer' ? .16 : .11), Math.pow(k, .7)); u.angle += u.spinDir * dt * (2 + k * 16);
       for (let n = 0; n < 3; n++) smoke.push({ x: u.x + (Math.random() - .5) * u.size * .6, y: u.y + (Math.random() - .3) * u.size * .3, r: u.size * (.18 + Math.random() * .2),
         vx: (Math.random() - .5) * 40, vy: -30 - Math.random() * 50, life: 1.1 + Math.random() * .6, max: 1.7, fire: n === 0 && Math.random() < .6 });
       if (k >= 1) {
         u.done = true;
-        megaBlasts.push({ x: u.x, y: u.y, started: time, duration: 1.6, color: u.color, seed: Math.floor(time * 1000) });
-        shake = Math.max(shake, 2.6); screenFlash = Math.max(screenFlash, 1);
-        playExplosionSound(2.6); playToneSweep(70, 18, 1.6, 'sawtooth', .2); playNoiseBurst(1.8, .3, 1800, 40);
-        showMessage('MEGA BLAST!', 1);
+        if (u.kind === 'racer') {
+          megaBlasts.push({ x: u.x, y: u.y, started: time, duration: 1.2, color: u.color, seed: Math.floor(time * 1000), scale: .55 });
+          shake = Math.max(shake, 1.4); screenFlash = Math.max(screenFlash, .6); playExplosionSound(1.6);
+        } else {
+          megaBlasts.push({ x: u.x, y: u.y, started: time, duration: 1.6, color: u.color, seed: Math.floor(time * 1000) });
+          shake = Math.max(shake, 2.6); screenFlash = Math.max(screenFlash, 1);
+          playExplosionSound(2.6); playToneSweep(70, 18, 1.6, 'sawtooth', .2); playNoiseBurst(1.8, .3, 1800, 40);
+          showMessage('MEGA BLAST!', 1);
+        }
       }
     }
     crashingUfos = crashingUfos.filter(u => !u.done);
@@ -495,8 +500,8 @@
     }
     ctx.globalAlpha = 1;
     for (const u of crashingUfos) {
-      ctx.save(); ctx.translate(u.x, u.y); ctx.rotate(u.angle); ctx.shadowColor = u.color; ctx.shadowBlur = 20;
-      drawUfoShape(u.size, Math.sin(time * 38) > 0 ? '#ffffff' : u.color); ctx.restore();
+      if (u.kind === 'racer') drawShip(u.x, u.y, u.size, Math.sin(time * 38) > 0 ? '#ffffff' : u.color, '#1d1828', 0, false, false, false, u.angle);
+      else { ctx.save(); ctx.translate(u.x, u.y); ctx.rotate(u.angle); ctx.shadowColor = u.color; ctx.shadowBlur = 20; drawUfoShape(u.size, Math.sin(time * 38) > 0 ? '#ffffff' : u.color); ctx.restore(); }
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < 6; i++) { ctx.globalAlpha = .8; ctx.fillStyle = i % 2 ? '#ffd35a' : '#ff6b2e'; ctx.beginPath(); ctx.arc(u.x + (Math.random() - .5) * u.size, u.y + (Math.random() - .5) * u.size * .4, u.size * .06, 0, TAU); ctx.fill(); }
       ctx.restore();
@@ -578,7 +583,7 @@
   }
   function playJetBlast(power = 1) {
     // Ignition: a roaring whoosh that tears upward, a deep rumble and a screaming turbine.
-    const v = power * .6;
+    const v = power * .38;
     playNoiseBurst(1.1 * power, .32 * v, 300, 6500);
     playNoiseBurst(1.4 * power, .22 * v, 5200, 140);
     playToneSweep(48, 160, .9 * power, 'sawtooth', .16 * v);
@@ -587,7 +592,7 @@
   // ---- Setup: steering (touch or gyro) and screen orientation, chosen on the start screen and remembered.
   // Defaults: gyro steering in landscape. (v2 key: earlier builds saved touch/portrait implicitly.)
   const SETTINGS_KEY = 'morbid-settings-v2';
-  const settings = { steering: 'gyro', screen: 'landscape' };
+  const settings = { steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch { /* defaults */ }
   const tilt = { x: 0, neutral: 0, live: false };
   function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ } }
@@ -737,9 +742,15 @@
   }
   // A beaten rival does not vanish at once: it trails smoke, spins out of control and only then explodes.
   const WRECK_TIME = 1.5;
+  // A beaten rival is flung off the track: it careens across the whole screen, smoking and spinning, then explodes.
   function knockOut(rival) {
-    rival.alive = false; rival.boosting = false;
-    rival.dying = { started: time, spin: random(rival.seed + time) > .5 ? 1 : -1 };
+    rival.alive = false; rival.boosting = false; rival.dying = null;
+    const start = rival.screen && time - rival.screen.at < .3 ? rival.screen : { x: W * .5, y: H * .5, size: Math.min(W, H) * .04 };
+    const seed = Math.floor(time * 991) + rival.seed * 17;
+    const points = [[start.x, start.y]];
+    for (let i = 0; i < 4; i++) points.push([W * (.08 + random(seed + i * 3) * .84), H * (.14 + random(seed + i * 3 + 1) * .6)]);
+    points.push([W * (.3 + random(seed + 40) * .4), H * (.3 + random(seed + 41) * .25)]);
+    crashingUfos.push({ kind: 'racer', color: rival.color, seed: rival.seed, started: time, points, startSize: start.size, spinDir: random(seed + 9) > .5 ? 1 : -1, x: start.x, y: start.y, size: start.size, angle: 0 });
     playImpactSound(.7); playNoiseBurst(.9, .1, 2600, 260);
   }
   function updateWreck(rival, dt, track) {
@@ -831,9 +842,9 @@
     }
     if (jetGain) {
       const jet = mode === 'racing' && !muted ? (jumpBoostTimer > 0 ? 1 : boosting ? .8 : 0) : 0, now = audioContext.currentTime;
-      jetGain.gain.setTargetAtTime(jet * .28, now, jet ? .05 : .25);
+      jetGain.gain.setTargetAtTime(jet * .16, now, jet ? .05 : .25);
       jetFilter.frequency.setTargetAtTime(500 + speed / 9 + (jumpBoostTimer > 0 ? 900 : 0), now, .1);
-      jetWhineGain.gain.setTargetAtTime(jet * .012, now, jet ? .08 : .3);
+      jetWhineGain.gain.setTargetAtTime(jet * .007, now, jet ? .08 : .3);
       jetWhine.frequency.setTargetAtTime(700 + speed / 8 + (jumpBoostTimer > 0 ? 600 : 0), now, .15);
     }
     if (mode === 'menu') { position = mod(position + dt * 2900, LENGTH); playerX = Math.sin(time * .14) * .18; return; }
@@ -1370,6 +1381,7 @@
           if (Math.floor(rz / SEG) === s.index && s.depth > 5) {
             const f = rz % SEG / SEG, rw = lerp(a.w, b.w, f);
             const rx = lerp(a.x, b.x, f) + rw * r.x, ry = lerp(a.y, b.y, f) - rw * .035;
+            r.screen = { x: rx, y: ry, size: rw * .115, at: time };
             if (r.dying) {
               // Spin accelerates and the ship sags as its anti-gravity fails.
               const t = clamp((time - r.dying.started) / WRECK_TIME, 0, 1);
@@ -1636,6 +1648,39 @@
   // A remembered gyro choice needs the sensor again; iOS will re-ask on the next tap of GYRO.
   if (settings.steering === 'gyro') enableGyro().then(ok => { if (!ok && typeof window.DeviceOrientationEvent?.requestPermission !== 'function') { settings.steering = 'touch'; renderSettings(); } });
   renderSettings();
+  // ---- Home screen dialogs: settings and changelog.
+  function openDialog(id) { $(id).classList.remove('hidden'); document.body.classList.add('dialog-open'); }
+  function closeDialogs() { ['settings-screen', 'changelog-screen'].forEach(id => $(id).classList.add('hidden')); document.body.classList.remove('dialog-open'); }
+  const escapeHtml = text => text.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  // Minimal renderer for the semantic-release CHANGELOG.md (headings, bullet lists, links reduced to text).
+  function renderChangelog(markdown) {
+    const html = [];
+    let list = false;
+    for (const raw of markdown.split('\n')) {
+      const line = raw.replace(/\s*\(\[[0-9a-f]{7,}\]\([^)]*\)\)/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').trim();
+      const item = /^[*-]\s+(.*)/.exec(line), heading = /^(#{1,3})\s+(.*)/.exec(line);
+      if (!item && list) { html.push('</ul>'); list = false; }
+      if (heading) {
+        if (heading[2] === 'Changelog') continue;
+        const level = heading[1].length < 3 ? 'h3' : 'h4';
+        html.push(`<${level}>${escapeHtml(heading[2])}</${level}>`);
+      } else if (item) { if (!list) { html.push('<ul>'); list = true; } html.push(`<li>${escapeHtml(item[1])}</li>`); }
+    }
+    if (list) html.push('</ul>');
+    return html.join('') || '<p>No changes recorded yet.</p>';
+  }
+  async function showChangelog() {
+    openDialog('changelog-screen'); $('changelog-body').innerHTML = '<p>LOADING…</p>';
+    try {
+      const response = await fetch('CHANGELOG.md', { cache: 'no-cache' });
+      if (!response.ok) throw new Error(response.status);
+      $('changelog-body').innerHTML = renderChangelog(await response.text());
+    } catch { $('changelog-body').innerHTML = '<p>The changelog is not available offline yet.</p>'; }
+  }
+  $('open-settings').addEventListener('click', () => openDialog('settings-screen'));
+  $('open-changelog').addEventListener('click', showChangelog);
+  document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', closeDialogs));
+  window.addEventListener('keydown', event => { if (event.code === 'Escape' && document.body.classList.contains('dialog-open')) closeDialogs(); });
   // Lets the update job wait until no race is in progress.
   window.morbidBusy = () => ['countdown', 'racing', 'paused', 'wrecked'].includes(mode);
   window.addEventListener('resize', resize);

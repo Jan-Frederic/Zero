@@ -63,6 +63,9 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Include the release commit (CHANGELOG.md) made by the release job.
+          ref: ${{ github.ref_name }}
       - name: Prepare site
         env:
           APP_VERSION: ${{ needs.release.outputs.version }}
@@ -70,7 +73,7 @@ jobs:
           test -n "$APP_VERSION"
           BUILD="${APP_VERSION}+${GITHUB_SHA::7}"
           mkdir _site
-          cp index.html game.js pwa.js sw.js manifest.webmanifest og-image.jpg style.css effects.css .nojekyll *.mp3 _site/
+          cp index.html game.js pwa.js sw.js manifest.webmanifest og-image.jpg CHANGELOG.md style.css effects.css .nojekyll *.mp3 _site/
           cp -r icons voice _site/
           sed -i "s/const VERSION = 'dev';/const VERSION = '${BUILD}';/" _site/sw.js
           sed -i "s/id=\"app-version\">dev</id=\"app-version\">${APP_VERSION}</" _site/index.html
