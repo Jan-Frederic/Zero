@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.4.0](https://github.com/Jan-Frederic/Zero/compare/v1.3.0...v1.4.0) (2026-11-03)
+
+
+### Features
+
+* alien invasion finale after a first-place finish ([4f724bd](https://github.com/Jan-Frederic/Zero/commit/4f724bda9fe111772717c1741aba07075870bb02))
+
 # [1.3.0](https://github.com/Jan-Frederic/Zero/compare/v1.2.0...v1.3.0) (2026-11-03)
 
 
