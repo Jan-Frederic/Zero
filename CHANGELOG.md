@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.3.0](https://github.com/Jan-Frederic/Zero/compare/v1.2.0...v1.3.0) (2026-11-03)
+
+
+### Features
+
+* health warning pops up on the home screen on every visit ([463df7b](https://github.com/Jan-Frederic/Zero/commit/463df7b5f3a0a8c85d151a2e91d3dd15dbfcbacc))
+
 # [1.2.0](https://github.com/Jan-Frederic/Zero/compare/v1.1.0...v1.2.0) (2026-11-03)
 
 
