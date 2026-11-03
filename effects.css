@@ -104,7 +104,7 @@ body.lasers-empty .laser-label b{color:#ff8fd0}
 /* Hyperdrive: 15 s of light speed — cycling colours over the whole scene and a countdown meter. */
 @keyframes hyperHue{from{filter:hue-rotate(0deg) saturate(1.5)}to{filter:hue-rotate(360deg) saturate(1.5)}}
 body.hyper #game{animation:hyperHue 2.2s linear infinite}
-.hyper-meter{display:none;position:absolute;right:0;top:62px;min-width:200px;text-align:center;padding:8px 14px;background:#09091acc;border:1px solid #7dfcff;box-shadow:0 0 24px #7dfcff66}
+.hyper-meter{display:none;position:static;margin:0 0 10px;min-width:0;text-align:center;padding:8px 14px;background:#09091acc;border:1px solid #7dfcff;box-shadow:0 0 24px #7dfcff66}
 .hyper-meter span{font:10px var(--mono);letter-spacing:2px;color:#7dfcff}.hyper-meter b{display:block;font:italic 800 26px var(--display);color:#fff;text-shadow:0 0 14px #ff4eb8}
 .hyper-meter i{display:block;height:5px;background:#ffffff22;margin-top:4px}.hyper-meter em{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ff4eb8,#ddff46,#4df8ff,#a88aff);transition:width .1s linear}
 body.hyper .hyper-meter{display:block}
@@ -112,14 +112,21 @@ body.hyper-ending .hyper-meter{animation:criticalShield .25s alternate infinite}
 body.hyper #energy-fill{background:linear-gradient(90deg,#ff4eb8,#ddff46,#4df8ff,#a88aff)!important}
 body.hyper #shield-fill{background:linear-gradient(90deg,#fff,#7dfcff,#fff)!important}
 body.hyper .shield-readout b::after{content:' ∞'}
-@media(max-width:600px){.hyper-meter{right:auto;left:50%;transform:translateX(-50%);top:92px;min-width:150px;padding:5px 10px}.hyper-meter b{font-size:18px}}
-@media(max-height:520px) and (orientation:landscape){.hyper-meter{top:46px;min-width:130px;padding:4px 10px}.hyper-meter b{font-size:16px}}
+@media(max-width:600px){.hyper-meter{padding:4px 8px;margin-bottom:6px}.hyper-meter b{font-size:16px}}
+@media(max-height:520px) and (orientation:landscape){.hyper-meter{padding:2px 8px;margin-bottom:4px}.hyper-meter span{font-size:8px}.hyper-meter b{font-size:13px;display:inline;margin-left:8px}.hyper-meter i{height:3px;margin-top:2px}}
 
 /* Mothership boss: health bar and UFO kill counter. */
 .ufo-label{display:flex;justify-content:space-between;margin-top:7px;font:9px var(--mono);letter-spacing:1px;color:#c3b6d3}.ufo-label b{color:#a7ff4f;font-weight:400}
-body.boss @media(max-width:600px){@media(max-height:520px) and (orientation:landscape){
+@media(max-width:600px){.ufo-label{font-size:8px;letter-spacing:0}}
+@media(max-height:520px) and (orientation:landscape){.ufo-label{margin-top:4px}}
 /* Version in the footer (all screen sizes) and the update banner. */
 .version{display:inline!important;white-space:nowrap}
 @media(max-width:600px),(max-height:520px){.version{font-size:8px}.version b{display:none}}
 .update-banner{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));transform:translate(-50%,-140%);z-index:60;max-width:calc(100% - 24px);background:#09091af2;border:1px solid var(--acid);color:var(--acid);font:10px var(--mono);letter-spacing:1px;padding:10px 14px;transition:transform .35s;box-shadow:0 0 24px #ddff4633}
 .update-banner.visible{transform:translate(-50%,0)}
+
+/* Compact one-line hyperdrive meter inside the speed panel, so it never covers the mothership. */
+.hyper-meter{padding:3px 10px!important;margin-bottom:6px!important;text-align:left;display:none}
+body.hyper .hyper-meter{display:flex;flex-wrap:wrap;align-items:center;gap:0 10px}
+.hyper-meter span{font-size:9px}.hyper-meter b{display:inline!important;font-size:16px!important;margin-left:auto}
+.hyper-meter i{flex-basis:100%;height:3px!important;margin-top:2px!important}

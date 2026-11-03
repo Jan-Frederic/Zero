@@ -392,7 +392,7 @@
   }
   function hitBoss(power) {
     boss.hp = Math.max(0, boss.hp - power); boss.hitFlash = 1; playImpactSound(.8);
-    megaBlasts.push({ x: boss.x + (Math.random() - .5) * boss.size * .8, y: boss.y + boss.size * .05, started: time, duration: .5, color: '#ffd35a', seed: Math.floor(Math.random() * 999) });
+    megaBlasts.push({ x: boss.x + (Math.random() - .5) * boss.size * .8, y: boss.y + boss.size * .05, started: time, duration: .45, color: '#ffd35a', seed: Math.floor(Math.random() * 999), scale: .16 });
     if (boss.hp <= 0) {
       boss.dying = time; bossAttacks = [];
       showCallout('MOTHERSHIP DESTROYED!', '#ddff46'); showMessage('LEGENDARY!  SHIELD + LASER RESTORED', 2.4);
@@ -467,6 +467,25 @@
       ctx.fillText(`☠ MOTHERSHIP  ${Math.ceil(boss.hp / BOSS_HP * 100)}%`, boss.x, by - 4); ctx.restore();
     }
   }
+  // Lasers fired at the mothership: from the racer's nose (also mid-jump) onto the hull, with an impact flare.
+  function drawBossBeams() {
+    const shots = laserShots.filter(shot => shot.screen);
+    if (!shots.length || !boss) return;
+    const shipWidth = Math.min(W * .074, 110), startX = W * .5 + steerVisual * 12, startY = H * .79 - jumpHeight - shipWidth * .76;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (const shot of shots) {
+      const x = boss.x + shot.offset * boss.size, y = boss.y + boss.size * .08, alpha = clamp(1 - (time - shot.started) / shot.duration, 0, 1);
+      ctx.globalAlpha = alpha;
+      if (shot.mega) { const hue = (time * 720) % 360; line(startX, startY, x, y, `hsl(${hue},100%,60%)`, 24); line(startX, startY, x, y, `hsl(${(hue + 120) % 360},100%,65%)`, 11); }
+      else { line(startX, startY, x, y, shot.color, 10); line(startX, startY, x, y, shot.color, 5); }
+      line(startX, startY, x, y, '#ffffff', shot.mega ? 5 : 2.4);
+      const flare = ctx.createRadialGradient(x, y, 1, x, y, boss.size * .22);
+      flare.addColorStop(0, '#ffffff'); flare.addColorStop(.3, shot.color); flare.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = flare; ctx.beginPath(); ctx.arc(x, y, boss.size * .22, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(startX, startY, 5 + alpha * 4, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
   function drawCrashLayer() {
     ctx.save();
     for (const p of smoke) {
@@ -483,7 +502,7 @@
       ctx.restore();
     }
     for (const b of megaBlasts) {
-      const k = clamp((time - b.started) / b.duration, 0, 1), R = Math.max(W, H) * (.15 + Math.pow(k, .45) * .75);
+      const k = clamp((time - b.started) / b.duration, 0, 1), R = Math.max(W, H) * (.15 + Math.pow(k, .45) * .75) * (b.scale || 1);
       ctx.save(); ctx.translate(b.x, b.y); ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = 1 - k;
       const core = ctx.createRadialGradient(0, 0, 1, 0, 0, R * .7);
@@ -500,7 +519,7 @@
       }
       ctx.restore();
     }
-    drawBoss();
+    drawBoss(); drawBossBeams();
     if (callout) {
       const k = (time - callout.started) / 1.9;
       if (k >= 1) callout = null;
@@ -687,9 +706,11 @@
     const reach = hyper() ? .6 : .32;
     const target = rivals.filter(r => r.alive && r.distance > distance + 1350 && r.distance < distance + (hyper() ? 26000 : 19000) && Math.abs(r.x * track.width - playerX) < track.width * reach)
       .sort((a, b) => a.distance - b.distance)[0];
-    if (boss && !boss.dying && time > boss.arrived - .6 && Math.abs(boss.lane * track.width - playerX) < track.width * (hyper() ? .7 : .45)) {
+    const shipScreenX = W * .5 + steerVisual * 12;
+    if (boss && !boss.dying && time > boss.arrived - .6 && Math.abs(boss.x - shipScreenX) < boss.size * (hyper() ? 1.2 : .85)) {
       if (!hyper()) laserAmmo--; laserCooldown = hyper() ? .1 : .24;
-      laserShots.push({ screen: true, color: track.second, mega: hyper(), started: time, duration: .2, x: boss.x, y: boss.y + boss.size * .05 });
+      const offset = clamp((shipScreenX - boss.x) / boss.size, -.6, .6) * .5;
+      laserShots.push({ screen: true, offset, color: track.second, mega: hyper(), started: time, duration: .32, x: boss.x + offset * boss.size, y: boss.y + boss.size * .08 });
       playLaserSound(); hitBoss(hyper() ? 3 : 1); return;
     }
     const ufoTarget = ufos.filter(u => time - u.spawnedAt > 1 && u.distance < distance + 19000 && Math.abs(u.lane * track.width - playerX) < track.width * (hyper() ? .62 : .34))
@@ -1443,9 +1464,11 @@
   }
   function drawLaserBeams() {
     if (!laserShots.length && !enemyShots.length) return;
-    const shipWidth = Math.min(W * .074, 110), startX = W * .5 + steerVisual * 12, startY = H * .79 - shipWidth * .76;
+    // Beams always leave the racer's nose, wherever it is (including mid-jump).
+    const shipWidth = Math.min(W * .074, 110), startX = W * .5 + steerVisual * 12, startY = H * .79 - jumpHeight - shipWidth * .76;
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (const shot of laserShots) {
+      if (shot.screen) continue; // drawn on top of the mothership in drawBossBeams()
       const alpha = clamp(1 - (time - shot.started) / shot.duration, 0, 1);
       ctx.globalAlpha = alpha;
       if (shot.mega) {

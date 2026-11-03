@@ -31,6 +31,7 @@
     window.addEventListener('load', async () => {
       let registration;
       try { registration = await navigator.serviceWorker.register('sw.js'); } catch { return; /* Offline support is optional. */ }
+      if (!registration) return;
       const hadController = !!navigator.serviceWorker.controller;
       navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloading) { reloading = true; location.reload(); } });
       const watch = worker => worker && worker.addEventListener('statechange', () => { if (worker.state === 'installed' && navigator.serviceWorker.controller) offerUpdate(worker); });

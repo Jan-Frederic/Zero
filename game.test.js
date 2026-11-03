@@ -313,3 +313,13 @@ test('the 10th UFO kill summons the mothership, which attacks and can be destroy
   for (let i = 0; i < 80 && inspect().ufos === 0; i++) step(.1);
   assert.ok(inspect().ufos > 0, 'regular UFOs return afterwards');
 });
+
+test('stylesheets have balanced braces (a broken rule silently drops everything after it)', () => {
+  for (const file of ['style.css', 'effects.css']) {
+    const css = fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    let depth = 0;
+    for (const ch of css) { if (ch === '{') depth++; if (ch === '}') depth--; assert.ok(depth >= 0, `${file}: unexpected }`); }
+    assert.equal(depth, 0, `${file}: unclosed {`);
+    assert.doesNotMatch(css, /[^{};\s][^{};]*@media/, `${file}: @media inside a selector`);
+  }
+});
