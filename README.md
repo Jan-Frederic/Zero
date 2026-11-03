@@ -57,3 +57,18 @@ The machine cruises automatically; hold accelerate for race speed. Boost spends 
 Music starts on your first click or race launch. The bottom-left music button independently pauses the soundtrack. The top-right sound button mutes both music and synthesized engine effects.
 
 `npm run check` performs JavaScript syntax checks. `npm test` simulates a complete race and verifies controls, boost, collisions, pause/resume, lap records, restart, and the final circuit's hazards.
+
+## Versioning & releases
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/) and releases are cut automatically by [semantic-release](https://semantic-release.gitbook.io/) on every push to the release branch:
+
+| Commit | Release |
+| --- | --- |
+| `fix: …` / `perf: …` | patch (1.0.**1**) |
+| `feat: …` | minor (1.**1**.0) |
+| `feat!: …` or a `BREAKING CHANGE:` footer | major (**2**.0.0) |
+| `docs:`, `chore:`, `style:`, `refactor:`, `test:`, `ci:` | no release |
+
+The workflow (`.github/workflows/pages.yml`) tests, runs semantic-release (git tag, GitHub release, `CHANGELOG.md`, version in `package.json`), then deploys the site stamped with that version. The version is shown in the footer (`V1.2.3`) and published as `version.json`.
+
+**In-app updates:** the app checks for a new release every 5 minutes, when it comes back to the foreground and when the device goes online. A new version is downloaded in the background; it installs immediately in the garage or on the results screen, and during a race a banner announces it and installs it after the race (or right away on tap).

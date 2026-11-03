@@ -1613,6 +1613,8 @@
   // A remembered gyro choice needs the sensor again; iOS will re-ask on the next tap of GYRO.
   if (settings.steering === 'gyro') enableGyro().then(ok => { if (!ok && typeof window.DeviceOrientationEvent?.requestPermission !== 'function') { settings.steering = 'touch'; renderSettings(); } });
   renderSettings();
+  // Lets the update job wait until no race is in progress.
+  window.morbidBusy = () => ['countdown', 'racing', 'paused', 'wrecked'].includes(mode);
   window.addEventListener('resize', resize);
   resize(); buildTrack(); requestAnimationFrame(frame);
 })();

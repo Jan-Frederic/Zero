@@ -1,18 +1,20 @@
-name: Deploy to GitHub Pages
+name: Release and deploy to GitHub Pages
+
+# Conventional commits drive the version: fix → patch, feat → minor, BREAKING CHANGE → major.
+# Every push is tested; semantic-release tags/publishes a release when commits warrant one,
+# and the site is deployed stamped with the current version so installed apps update.
 
 on:
   push:
-    branches: [main, ccr-289fa066-n0frla]
+    branches: [ccr-289fa066-n0frla]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -21,25 +23,60 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - run: npm run check
       - run: npm test
 
-  deploy:
+  release:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Semantic release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+      - id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Prepare site
+        env:
+          APP_VERSION: ${{ needs.release.outputs.version }}
         run: |
+          test -n "$APP_VERSION"
+          BUILD="${APP_VERSION}+${GITHUB_SHA::7}"
           mkdir _site
           cp index.html game.js pwa.js sw.js manifest.webmanifest og-image.jpg style.css effects.css .nojekyll *.mp3 _site/
           cp -r icons voice _site/
-          sed -i "s/const VERSION = 'dev';/const VERSION = '${GITHUB_SHA::12}';/" _site/sw.js
-          grep -q "${GITHUB_SHA::12}" _site/sw.js
+          sed -i "s/const VERSION = 'dev';/const VERSION = '${BUILD}';/" _site/sw.js
+          sed -i "s/id=\"app-version\">dev</id=\"app-version\">${APP_VERSION}</" _site/index.html
+          printf '{"version":"%s","build":"%s","commit":"%s"}\n' "$APP_VERSION" "$BUILD" "$GITHUB_SHA" > _site/version.json
+          grep -q "${BUILD}" _site/sw.js
+          grep -q "id=\"app-version\">${APP_VERSION}<" _site/index.html
       - uses: actions/configure-pages@v5
         with:
           enablement: true

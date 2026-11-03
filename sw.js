@@ -29,8 +29,10 @@ self.addEventListener('install', event => {
     caches.open(CACHE).then(cache => cache.addAll(ASSETS.map(path => new Request(path, { cache: 'reload' })))),
     cacheFonts(),
   ]));
-  self.skipWaiting();
+  // A first install activates at once; an update waits until the page says the player is not mid-race.
+  if (!self.registration.active) self.skipWaiting();
 });
+self.addEventListener('message', event => { if (event.data === 'SKIP_WAITING') self.skipWaiting(); });
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {

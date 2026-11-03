@@ -118,3 +118,8 @@ body.hyper .shield-readout b::after{content:' ∞'}
 /* Mothership boss: health bar and UFO kill counter. */
 .ufo-label{display:flex;justify-content:space-between;margin-top:7px;font:9px var(--mono);letter-spacing:1px;color:#c3b6d3}.ufo-label b{color:#a7ff4f;font-weight:400}
 body.boss @media(max-width:600px){@media(max-height:520px) and (orientation:landscape){
+/* Version in the footer (all screen sizes) and the update banner. */
+.version{display:inline!important;white-space:nowrap}
+@media(max-width:600px),(max-height:520px){.version{font-size:8px}.version b{display:none}}
+.update-banner{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));transform:translate(-50%,-140%);z-index:60;max-width:calc(100% - 24px);background:#09091af2;border:1px solid var(--acid);color:var(--acid);font:10px var(--mono);letter-spacing:1px;padding:10px 14px;transition:transform .35s;box-shadow:0 0 24px #ddff4633}
+.update-banner.visible{transform:translate(-50%,0)}
