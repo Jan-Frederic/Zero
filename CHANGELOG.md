@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.2.0](https://github.com/Jan-Frederic/Zero/compare/v1.1.0...v1.2.0) (2026-11-03)
+
+
+### Features
+
+* settings and changelog on the home screen, racers crash across the screen ([33d9ed6](https://github.com/Jan-Frederic/Zero/commit/33d9ed6c21ecef2097e3bb76efb14ef6331ec984))
+
 # [1.1.0](https://github.com/Jan-Frederic/Zero/compare/v1.0.0...v1.1.0) (2026-11-03)
 
 
