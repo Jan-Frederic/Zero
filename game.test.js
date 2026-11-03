@@ -34,11 +34,11 @@ function harness() {
   };
   sandbox.window = sandbox;
   const source = fs.readFileSync('game.js', 'utf8').replace('  resize(); buildTrack(); requestAnimationFrame(frame);\n})();',
-    '  resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ racerCrashes: crashingUfos.filter(c => c.kind === \'racer\').length, blasts2: megaBlasts.length, ufoKills, boss: boss && { hp: boss.hp, lane: boss.lane, dying: !!boss.dying }, bossAttacks: bossAttacks.length, hyperTime, stargates: segments.filter(s => s.stargate).map(s => ({ index: s.index, lane: s.stargate.lane })), energy, ufoList: ufos.map(u => ({ lane: u.lane, slot: u.slot })), crashing: crashingUfos.length, blasts: megaBlasts.length, confetti: confetti.length, callout: callout && callout.text, dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__setUfoKills = n => { ufoKills = n; };\n  window.__setBossHp = n => { if (boss) boss.hp = n; };\n  window.__eliminateRivals = () => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
+    '  resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ racerCrashes: crashingUfos.filter(c => c.kind === \'racer\').length, blasts2: megaBlasts.length, ufoKills, boss: boss && { hp: boss.hp, lane: boss.lane, dying: !!boss.dying }, bossAttacks: bossAttacks.length, hyperTime, stargates: segments.filter(s => s.stargate).map(s => ({ index: s.index, lane: s.stargate.lane })), energy, ufoList: ufos.map(u => ({ lane: u.lane, slot: u.slot })), crashing: crashingUfos.length, blasts: megaBlasts.length, confetti: confetti.length, callout: callout && callout.text, dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__setUfoKills = n => { ufoKills = n; };\n  window.__setBossHp = n => { if (boss) boss.hp = n; };\n  window.__finaleAim = col => { const L = finaleLayout(); finale.formVx = 0; finale.boss.v = 0; finale.boss.off = 0; finale.cool = 0; finale.shipX = (L.left + (col + .5) * L.cw) / W; };\n  window.__finale = () => finale && { phase: finale.phase, wall: finale.invaders.filter(v => v.alive).length, hp: finale.boss.hp };\n  window.__eliminateRivals = () => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
   vm.runInNewContext(source, sandbox);
   const step = seconds => { for (let i = 0; i < Math.ceil(seconds * 20); i++) { now += 50; frame(now); } };
   const key = (code, type = 'keydown') => (windowEvents[type] || []).forEach(fn => fn({ code, repeat: false, target: element('body'), preventDefault() {} }));
-  return { element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b), eliminateRivals: () => sandbox.__eliminateRivals(), setUfoKills: n => sandbox.__setUfoKills(n), setBossHp: n => sandbox.__setBossHp(n) };
+  return { element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b), eliminateRivals: () => sandbox.__eliminateRivals(), finaleAim: c => sandbox.__finaleAim(c), finaleState: () => sandbox.__finale(), setUfoKills: n => sandbox.__setUfoKills(n), setBossHp: n => sandbox.__setBossHp(n) };
 }
 
 test('circuit selection, driving, boost, pause, full race, records and restart', () => {
@@ -330,4 +330,40 @@ test('a health warning greets every visit on the home screen', () => {
   el('health-accept').fire('click');
   assert.equal(el('health-screen').classList.contains('hidden'), true, 'acknowledging closes it');
   assert.equal(el('body').classList.contains('dialog-open'), false);
+});
+
+test('winning first place, then RACE AGAIN, starts the alien invasion finale', () => {
+  const { element: el, step, key, inspect, setRacePosition, disableAirRaid, eliminateRivals, finaleAim, finaleState } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  disableAirRaid(); eliminateRivals();
+  for (let lap = 0; lap < 6 && inspect().mode === 'racing'; lap++) { setRacePosition((lap + 1) * 240000 - 60, 0); step(.5); }
+  key('ArrowUp', 'keyup');
+  assert.equal(inspect().mode, 'finished'); assert.equal(el('result-position').textContent, '01');
+  el('again').fire('click');
+  assert.equal(inspect().mode, 'invasion', 'no new race: the invasion alarm goes off');
+  assert.equal(el('soundtrack').paused, true, 'music stops');
+  assert.equal(el('again').classList.contains('alarm'), true, 'the button turns red');
+  step(1.2);
+  assert.equal(el('results').classList.contains('hidden'), true, 'results give way to the alarm');
+  step(9.5); assert.equal(inspect().mode, 'invasion', 'countdown still running');
+  step(.6); assert.equal(inspect().mode, 'final', 'at zero the screen shatters into space');
+  assert.equal(el('soundtrack').paused, false, 'the music returns for the final fight');
+  assert.equal(finaleState().wall, 44);
+  const shoot = col => { finaleAim(col); key('KeyX'); step(.05); key('KeyX', 'keyup'); step(.3); };
+  shoot(5);
+  assert.equal(finaleState().wall, 43, 'one shot destroys exactly one alien');
+  assert.equal(finaleState().hp, 10, 'the wall protects the overlord');
+  for (let i = 0; i < 3; i++) shoot(5);
+  assert.equal(finaleState().wall, 40, 'the column is open');
+  shoot(5);
+  assert.equal(finaleState().hp, 9, 'through the hole the laser hits the overlord');
+  for (let i = 0; i < 9 && finaleState().phase === 'fight'; i++) shoot(5);
+  assert.equal(finaleState().phase, 'won', 'ten hits finish the overlord');
+  step(3.6);
+  assert.equal(inspect().mode, 'disco', 'welcome to the disco');
+  step(3.6);
+  assert.equal(el('results').classList.contains('hidden'), false, 'the new-race button is back');
+  assert.equal(el('result-title').textContent, 'GALAXY SAVED.');
+  el('again').fire('click');
+  assert.equal(inspect().mode, 'countdown', 'then a normal new race starts');
 });

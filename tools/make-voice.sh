@@ -5,6 +5,13 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p voice
+# Alien: croaky voice pitched up, wobbling ring modulation and a thick chorus.
+say_alien() { # slug, text
+  local tmp; tmp=$(mktemp --suffix=.wav)
+  espeak-ng -v en-us+croak -s 92 -p 30 -a 190 -g 6 -w "$tmp" "$2"
+  ffmpeg -loglevel error -y -i "$tmp" -af "asetrate=22050*1.18,aresample=22050,aeval='val(0)*(0.35+0.65*sin(2*PI*(90+40*sin(2*PI*3*t))*t))':c=same,chorus=0.6:0.9:40|55|70:0.5|0.4|0.35:0.3|0.25|0.4:2|1.5|2.5,aecho=0.8:0.6:60|120:0.4|0.25,highpass=f=150,lowpass=f=5000,volume=2.4,alimiter=limit=0.95" -ac 1 -ar 22050 -b:a 48k "voice/$1.mp3"
+  rm -f "$tmp"
+}
 say() { # slug, text [voice] [pitch]
   local tmp; tmp=$(mktemp --suffix=.wav)
   espeak-ng -v "${3:-en-us+UniversalRobot}" -s 118 -p "${4:-18}" -a 190 -g 4 -w "$tmp" "$2"
@@ -32,3 +39,5 @@ say hyperdrive-initiated "Hyperdrive initiated!" en-us+anikaRobot 62
 say first-place "First place. Flawless victory!"
 say mothership-warning "Warning! Mothership approaching!"
 say mothership-down "Mothership destroyed. You are a legend!"
+say invasion-incoming "Warning! Invasion incoming!"
+say_alien congratulations "Congratulations, earthling!"
