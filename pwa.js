@@ -1,6 +1,23 @@
 // Progressive Web App glue: service worker registration and the install button.
 (() => {
   'use strict';
+  // ---- No zooming: iOS Safari ignores user-scalable=no, so block its pinch gestures and fast double taps.
+  for (const type of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(type, event => event.preventDefault(), { passive: false });
+  document.addEventListener('touchmove', event => { if (event.touches && event.touches.length > 1) event.preventDefault(); }, { passive: false });
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', event => {
+    const now = Date.now();
+    // A second tap within 350 ms would zoom; cancel the zoom but still deliver the tap as a click.
+    if (now - lastTouchEnd < 350 && event.changedTouches && event.changedTouches.length === 1) {
+      const target = event.target;
+      if (!(target instanceof Element) || !target.closest('input, textarea, select, #game')) {
+        event.preventDefault();
+        if (target instanceof HTMLElement) target.click();
+      }
+    }
+    lastTouchEnd = now;
+  }, { passive: false });
+  document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
   // ---- Update job: checks for a new release in the background and applies it when no race is running.
   const UPDATE_EVERY = 5 * 60 * 1000;
   const busy = () => typeof window.morbidBusy === 'function' && window.morbidBusy();

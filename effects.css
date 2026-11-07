@@ -7,7 +7,10 @@ body.air-raid #boost-label{color:#ff4d79;text-shadow:0 0 12px #ff315f;animation:
 html,body{overscroll-behavior:none}
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #game{touch-action:none}
-button{touch-action:manipulation}
+/* No double-tap or pinch zoom anywhere: the game is a full-screen app, and the title easter egg is tapped repeatedly. */
+html,body,*{touch-action:manipulation}
+#game{touch-action:none}
+.changelog,.health-text,.dialog-card{touch-action:pan-y}
 .launch-key,.launch-touch{font-weight:400}.launch-touch{display:none;color:#cfc9e0}
 .touch-controls button[data-key="ArrowDown"]{margin-left:8px;border-color:#ff4eb888;color:#ff7ccc}
 .touch-controls button[data-key="ArrowUp"]{margin-left:auto}
