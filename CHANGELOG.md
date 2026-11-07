@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.6.0](https://github.com/Jan-Frederic/Zero/compare/v1.5.0...v1.6.0) (2026-11-07)
+
+
+### Features
+
+* boss death screams, extra lives, bigger player explosions and a secret boss rush ([d5d7120](https://github.com/Jan-Frederic/Zero/commit/d5d7120398bcdc8c490cca4d8b3f80082e4b9e91))
+
 # [1.5.0](https://github.com/Jan-Frederic/Zero/compare/v1.4.0...v1.5.0) (2026-11-07)
 
 
