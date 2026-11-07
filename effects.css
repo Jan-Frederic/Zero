@@ -162,3 +162,8 @@ body.health-open .update-banner{display:none}
 body.alarm .vignette,body.final .vignette,body.disco .vignette{opacity:0}
 body.final .touch-controls button:not([data-key="KeyX"]){display:none}
 body.final .touch-hint{display:none}
+
+/* Easter egg feedback: the title glitches a little on each tap. */
+@keyframes eggTap{0%{transform:translate(0) skewX(0);filter:none}30%{transform:translate(-4px,1px) skewX(-6deg);filter:hue-rotate(90deg)}60%{transform:translate(3px,-1px) skewX(4deg)}100%{transform:none;filter:none}}
+#title-egg{cursor:default;-webkit-tap-highlight-color:transparent;user-select:none}
+#title-egg.egg-tap{animation:eggTap .22s steps(3) 1}

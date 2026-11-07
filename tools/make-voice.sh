@@ -42,3 +42,14 @@ say mothership-down "Mothership destroyed. You are a legend!"
 say invasion-incoming "Warning! Invasion incoming!"
 say_alien congratulations "Congratulations, earthling!"
 say next-boss "Warning! Next boss approaching!"
+# Boss death screams: a raw espeak cry bent into something inhuman for each boss.
+scream() { # slug, text, voice, pitch, speed, ffmpeg filter chain
+  local tmp; tmp=$(mktemp --suffix=.wav)
+  espeak-ng -v "$3" -s "$5" -p "$4" -a 200 -w "$tmp" "$2"
+  ffmpeg -loglevel error -y -i "$tmp" -af "$6,highpass=f=90,lowpass=f=7000,volume=2.6,alimiter=limit=0.95" -ac 1 -ar 22050 -b:a 48k "voice/$1.mp3"
+  rm -f "$tmp"
+}
+scream scream-overlord "Aaaaaaarrrrrrrgggghhhhhh" en-us+croak 5 70 "asetrate=22050*0.72,aresample=22050,vibrato=f=6:d=0.6,aeval='val(0)*(0.4+0.6*sin(2*PI*28*t))':c=same,aecho=0.8:0.7:90|180:0.45|0.3"
+scream scream-cyclops "Noooooooooooooooo" en-us+klatt3 95 75 "asetrate=22050*1.35,aresample=22050,vibrato=f=9:d=0.8,flanger=delay=4:depth=6:speed=1.5,aecho=0.8:0.6:120:0.4"
+scream scream-maggot "Eeeeeeeeeeeeeeeeeeek" en-us+female5 99 90 "asetrate=22050*1.6,aresample=22050,vibrato=f=14:d=0.9,chorus=0.6:0.9:20|30:0.6|0.5:0.6|0.9:3|5,aecho=0.7:0.5:40:0.5"
+scream scream-robot "Error. Error. System failure. Shutting dowwwn" en-us+UniversalRobot 25 115 "aeval='val(0)*(0.45+0.55*sin(2*PI*70*t))':c=same,aresample=8000,acrusher=bits=5:mode=lin:mix=0.9,aresample=22050,aecho=0.85:0.5:15|30:0.5|0.3"

@@ -50,7 +50,7 @@
     ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
     ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
     ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
-  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss'];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot'];
   const voiceBuffers = new Map();
   let voiceSource = null;
   let shake = 0, steerVisual = 0, distance = 0, bestLap = 0, previousTime = 0, muted = false, beat = 0;
@@ -755,6 +755,13 @@
       playToneSweep(300, 900, .5, 'square', .05); playToneSweep(40, 30, 1.6, 'sawtooth', .12);
     } else showCallout(f.waves > 1 ? `FINAL BOSS 1/${f.waves}!` : 'FINAL BOSS!', cfg.type.color);
   }
+  function playDeathScream(kind) {
+    robotSay('', `scream-${kind}`);
+    if (kind === 'overlord') { playToneSweep(220, 40, 2.4, 'sawtooth', .09); playNoiseBurst(1.6, .14, 900, 60); }
+    else if (kind === 'cyclops') { playToneSweep(1400, 300, 1.8, 'triangle', .07); playToneSweep(1700, 420, 1.6, 'sawtooth', .03); }
+    else if (kind === 'maggot') { playToneSweep(2200, 900, 1.2, 'square', .03); playNoiseBurst(1.1, .18, 500, 120); playToneSweep(120, 30, 1.2, 'sine', .14); }
+    else { playToneSweep(880, 40, 2.6, 'square', .06); playToneSweep(660, 25, 2.8, 'sawtooth', .05); playNoiseBurst(.6, .1, 9000, 2000); }
+  }
   function drawJets(s, jx, jy, color, scale = 1) {
     for (const side of [-1, 1]) {
       const x = side * jx, flame = s * (.45 + Math.random() * .3) * scale;
@@ -899,7 +906,7 @@
   function startFinalFight(shatter) {
     mode = 'final'; shield = 100; keys.clear(); resetGesture(); calibrateTilt();
     ufos = []; ufoRespawns = []; bombs = []; crashingUfos = []; smoke = []; boss = null; bossAttacks = []; enemyShots = []; laserShots = []; callout = null;
-    finale = { phase: 'fight', started: time, shatter, shipX: .5, cool: 0, wave: 0, waves: finaleWaveCount(), beams: [], bolts: [], gore: [], splats: [], bursts: [], msg: null };
+    finale = { phase: 'fight', started: time, shatter, shipX: .5, cool: 0, wave: 0, waves: finaleWaveCount(), lives: finaleWaveCount(), invulnUntil: 0, beams: [], bolts: [], gore: [], splats: [], bursts: [], msg: null };
     startWave(0);
     $('results').classList.add('hidden'); $('hud').classList.add('hidden');
     document.body.classList.remove('paused', 'alarm', 'critical', 'boosting', 'hyper', 'boss', 'hinting');
@@ -919,6 +926,20 @@
     return { cw, ch, width, left, rowLeft, top, bs, bossX, bossY: top - bs * .55 - descend, ship, shipY: H - (H < 520 ? 70 : 112) };
   }
   function finaleMsg(text) { finale.msg = { text, at: time }; }
+  // The player's ship goes out with a huge, layered blast and flying hull debris.
+  function explodeShip(x, y, size) {
+    const m = machines[shipIndex];
+    megaBlasts.push({ x, y, started: time, duration: 2, color: '#ffec87', seed: 5, scale: 1.1 });
+    megaBlasts.push({ x: x - size, y: y - size * .6, started: time + .15, duration: 1.6, color: m.color, seed: 9, scale: .7 });
+    megaBlasts.push({ x: x + size, y: y - size * .3, started: time + .3, duration: 1.6, color: '#ff4eb8', seed: 21, scale: .7 });
+    megaBlasts.push({ x, y: y - size * 1.4, started: time + .45, duration: 1.4, color: '#ff8a2e', seed: 33, scale: .5 });
+    if (finale && finale.gore) for (let i = 0; i < 70; i++) {
+      const a = Math.random() * TAU, sp = 300 + Math.random() * 900;
+      finale.gore.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 400, rot: Math.random() * TAU, vr: (Math.random() - .5) * 16, kind: 'gut', r: 3 + Math.random() * 6, color: i % 3 ? m.color : '#c8ced8', life: 2 + Math.random() * 1.5 });
+    }
+    shake = 3.6; screenFlash = 1;
+    playExplosionSound(3); playToneSweep(90, 18, 2.2, 'sawtooth', .2); playNoiseBurst(2.4, .32, 2400, 40);
+  }
   function frontInvader(c) { return finale.invaders.filter(v => v.alive && v.c === c).sort((a, b) => b.r - a.r)[0]; }
   const invaderX = (L, v) => L.rowLeft(v.r) + (v.c + .5) * L.cw;
   function finaleFire(L) {
@@ -961,7 +982,7 @@
     for (const v of f.invaders) if (v.alive) { v.alive = false; f.bursts.push({ x: invaderX(L, v), y: L.top + (v.r + .5) * L.ch, at: time + Math.random() * .4, color: CRITTER_COLORS[v.r % 4], s: L.cw }); }
     shake = 3.2; screenFlash = 1;
     playExplosionSound(3); playToneSweep(70, 14, 2.2, 'sawtooth', .22); playNoiseBurst(2.4, .32, 700, 40); playToneSweep(260, 40, .9, 'sine', .16);
-    showCallout(f.cfg.type.down, f.cfg.type.color);
+    showCallout(f.cfg.type.down, f.cfg.type.color); playDeathScream(f.cfg.type.kind);
     if (f.wave + 1 < f.waves) finaleMsg(`BOSS ${f.wave + 1}/${f.waves} DOWN  /  NEXT ONE INCOMING`);
   }
   function enterDisco() {
@@ -1001,7 +1022,16 @@
     f.gore = f.gore.filter(g => g.life > 0);
     if (f.phase === 'disco') { if (!f.resultsShown && time - f.discoAt > 3.4) showFinaleResults(true); return; }
     if (f.phase === 'won') { if (time - f.wonAt > 3.4) { if (f.wave + 1 < f.waves) startWave(f.wave + 1); else enterDisco(); } return; }
-    if (f.phase === 'lost') { if (!f.resultsShown && time - f.lostAt > 2.2) showFinaleResults(false); return; }
+    if (f.phase === 'lost') { if (!f.resultsShown && time - f.lostAt > 2.6) showFinaleResults(false); return; }
+    if (f.phase === 'respawn') {
+      // Continue exactly where the ship blew up: same wave, same wall, same boss health.
+      if (time - f.lostAt > 2.6) {
+        f.phase = 'fight'; shield = 100; f.invulnUntil = time + 2.5; f.shipX = .5; f.cool = 0;
+        f.nextBossShot = Math.max(f.nextBossShot, time + 2); f.nextInvaderShot = Math.max(f.nextInvaderShot, time + 1.2);
+        finaleMsg('BACK IN THE FIGHT!'); playToneSweep(300, 1200, .5, 'sine', .07);
+      }
+      return;
+    }
     // --- fight
     const keySteer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA'));
     const steer = keySteer || (gyroActive() ? tiltSteer() : gesture.steer);
@@ -1030,22 +1060,22 @@
       bolt.x += bolt.vx * dt; bolt.y += bolt.vy * dt;
       if (bolt.kind === 'eyebeam') {
         if (time >= bolt.warnUntil && !bolt.fired) { bolt.fired = true; playToneSweep(1800, 300, .5, 'sawtooth', .07); playNoiseBurst(.5, .12, 6000, 600); }
-        if (bolt.fired && time < bolt.until && Math.abs(bolt.x - shipPx) < L.ship * .75) {
+        if (bolt.fired && time < bolt.until && time > f.invulnUntil && Math.abs(bolt.x - shipPx) < L.ship * .75) {
           bolt.hit = true; shield = Math.max(0, shield - bolt.dmg); shake = Math.max(shake, 1); screenFlash = Math.max(screenFlash, .35);
           playImpactSound(1); finaleMsg(`DEATH RAY!  SHIELD -${bolt.dmg}`);
         }
         continue;
       }
-      if (Math.abs(bolt.x - shipPx) < L.ship * .9 && Math.abs(bolt.y - L.shipY) < L.ship * .5) {
+      if (time > f.invulnUntil && Math.abs(bolt.x - shipPx) < L.ship * .9 && Math.abs(bolt.y - L.shipY) < L.ship * .5) {
         bolt.hit = true; shield = Math.max(0, shield - bolt.dmg); shake = Math.max(shake, .8); screenFlash = Math.max(screenFlash, .25);
         playImpactSound(.8); finaleMsg(`${{ slime: 'SLIMED!', acid: 'ACID BURN!', missile: 'MISSILE HIT!' }[bolt.kind] || 'ZAPPED!'}  SHIELD -${bolt.dmg}`);
       }
     }
     f.bolts = f.bolts.filter(bolt => bolt.kind === 'eyebeam' ? !bolt.hit && time < bolt.until : !bolt.hit && bolt.y < H + 40 && bolt.x > -40 && bolt.x < W + 40);
     if (shield <= 0) {
-      f.phase = 'lost'; f.lostAt = time; f.bolts = [];
-      megaBlasts.push({ x: shipPx, y: L.shipY, started: time, duration: 1.4, color: '#ffec87', seed: 5, scale: .6 });
-      shake = 2.4; screenFlash = 1; playExplosionSound(2.2); showCallout('SHIP DESTROYED!', '#ff3b6b');
+      f.bolts = []; f.lostAt = time; explodeShip(shipPx, L.shipY, L.ship);
+      if (f.lives > 0) { f.phase = 'respawn'; f.lives--; showCallout(`SHIP DESTROYED!  ${f.lives + 1} ${f.lives ? 'LIVES' : 'LIFE'} LEFT`, '#ff3b6b'); }
+      else { f.phase = 'lost'; showCallout('SHIP DESTROYED!', '#ff3b6b'); }
     }
   }
   // ---------- finale drawing
@@ -1168,6 +1198,7 @@
     for (let i = 0; i < f.boss.maxHp; i++) { const sw = bw / f.boss.maxHp; ctx.fillStyle = i < f.boss.hp ? f.cfg.type.color : 'rgba(255,255,255,.14)'; ctx.fillRect(bx + i * sw + (sw > 6 ? 1 : 0), by, sw - (sw > 6 ? 2 : 0), 7); }
     const sw = Math.min(W * .32, 220), sx = Math.max(16, W * .03), sy = H - (small ? 58 : 92), alive = f.invaders.filter(v => v.alive).length;
     ctx.textAlign = 'left'; ctx.fillStyle = '#c3b6d3'; ctx.fillText('HULL SHIELD', sx, sy - 9);
+    ctx.fillStyle = '#ff6a8a'; ctx.fillText(`LIVES ${'♥'.repeat(f.lives + (f.phase === 'respawn' || f.phase === 'lost' ? 0 : 1)) || '—'}`, sx, sy + 18);
     ctx.textAlign = 'right'; ctx.fillText(Math.max(0, Math.round(shield)) + '%', sx + sw, sy - 9);
     ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(sx, sy, sw, 6); ctx.fillStyle = shield < 26 ? '#ff426e' : '#4df8ff'; ctx.fillRect(sx, sy, sw * clamp(shield / 100, 0, 1), 6);
     ctx.fillStyle = '#ff8fd0'; ctx.fillText(`ALIEN WALL ${alive}/${f.invaders.length}`, W - Math.max(16, W * .03), sy - 9);
@@ -1303,7 +1334,7 @@
       if (b.kind === 'zap') { ctx.strokeStyle = b.color; ctx.lineWidth = 3; ctx.beginPath(); for (let i = 0; i < 5; i++) { const yy = b.y - i * 6, xx = b.x + (i % 2 ? 4 : -4); if (i) ctx.lineTo(xx, yy); else ctx.moveTo(xx, yy); } ctx.stroke(); }
       else { ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 14; ctx.beginPath(); ctx.arc(b.x, b.y, L.ship * .22, 0, TAU); ctx.fill(); ctx.shadowBlur = 0; ctx.globalAlpha = .45; ctx.beginPath(); ctx.arc(b.x - b.vx * .04, b.y - b.vy * .04, L.ship * .14, 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }
     }
-    if (f.phase !== 'lost') { const m = machines[shipIndex]; drawShip(shipPx, L.shipY, L.ship, m.color, m.dark, clamp(gesture.steer || 0, -1, 1) * -.5, true); }
+    if (f.phase !== 'lost' && f.phase !== 'respawn' && (time > f.invulnUntil || Math.sin(time * 40) > 0)) { const m = machines[shipIndex]; drawShip(shipPx, L.shipY, L.ship, m.color, m.dark, clamp(gesture.steer || 0, -1, 1) * -.5, true); }
     drawGoreAndSplats();
     drawCrashLayer();
     drawShards();
@@ -1432,7 +1463,11 @@
     mode = 'wrecked'; wreckedAt = time;
     wreckRank = 1 + rivals.filter(r => r.alive && r.distance > distance + 1050).length;
     boosting = false; document.body.classList.remove('boosting'); document.body.classList.add('paused', 'destroyed');
-    laserShots = []; enemyShots = []; wreckBurst = { started: time, duration: 1.15, color: '#ffec87', size: 2.9, seed: Math.floor(time * 1000), cartoon: false };
+    laserShots = []; enemyShots = []; wreckBurst = { started: time, duration: 1.6, color: '#ffec87', size: 5, seed: Math.floor(time * 1000), cartoon: false };
+    const shipSize = Math.min(W * .074, 110);
+    megaBlasts.push({ x: W * .5, y: H * .79, started: time, duration: 2, color: '#ffec87', seed: 5, scale: 1 });
+    megaBlasts.push({ x: W * .5 - shipSize, y: H * .72, started: time + .2, duration: 1.6, color: machines[shipIndex].color, seed: 9, scale: .65 });
+    megaBlasts.push({ x: W * .5 + shipSize, y: H * .75, started: time + .35, duration: 1.6, color: '#ff4eb8', seed: 21, scale: .65 });
     for (const rival of rivals) {
       if (!rival.alive && !rival.dying) continue;
       rival.alive = false; rival.dying = null; createExplosion(rival.distance, rival.x * tracks[trackIndex].width, rival.color, .85 + random(rival.seed + time) * .45);
@@ -2336,6 +2371,29 @@
   $('open-changelog').addEventListener('click', showChangelog);
   document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', closeDialogs));
   window.addEventListener('keydown', event => { if (event.code === 'Escape' && document.body.classList.contains('dialog-open')) closeDialogs(); });
+  // Easter egg: tap the big MORBID RACERS title 5 times quickly (or type B-O-S-S on the start screen)
+  // to skip the race and go straight to the invasion; the number of bosses follows the selected circuit.
+  let eggTaps = [], eggTyped = '';
+  function bossRush() {
+    eggTaps = []; eggTyped = '';
+    setupAudio(); primeSpeech();
+    $('menu').classList.add('hidden'); $('hud').classList.add('hidden');
+    document.body.classList.add('racing'); document.body.classList.remove('paused');
+    rivals = []; ufos = []; bombs = []; shield = 100;
+    startInvasion();
+  }
+  $('title-egg').addEventListener('click', () => {
+    if (mode !== 'menu' || document.body.classList.contains('dialog-open')) return;
+    eggTaps = eggTaps.filter(t => Date.now() - t < 2500); eggTaps.push(Date.now());
+    const title = $('title-egg'); title.classList.remove('egg-tap'); void title.offsetWidth; title.classList.add('egg-tap');
+    playToneSweep(300 + eggTaps.length * 180, 400 + eggTaps.length * 220, .08, 'square', .03);
+    if (eggTaps.length >= 5) bossRush();
+  });
+  window.addEventListener('keydown', event => {
+    if (mode !== 'menu' || !/^Key[A-Z]$/.test(event.code)) return;
+    eggTyped = (eggTyped + event.code.slice(3)).slice(-4);
+    if (eggTyped === 'BOSS') bossRush();
+  });
   // Lets the update job wait until no race is in progress.
   window.morbidBusy = () => ['countdown', 'racing', 'paused', 'wrecked', 'invasion', 'final'].includes(mode) || (mode === 'disco' && !(finale && finale.resultsShown));
   window.addEventListener('resize', resize);
