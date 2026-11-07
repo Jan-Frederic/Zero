@@ -170,3 +170,46 @@ body.final .touch-hint{display:none}
 @keyframes eggTap{0%{transform:translate(0) skewX(0);filter:none}30%{transform:translate(-4px,1px) skewX(-6deg);filter:hue-rotate(90deg)}60%{transform:translate(3px,-1px) skewX(4deg)}100%{transform:none;filter:none}}
 #title-egg{cursor:default;-webkit-tap-highlight-color:transparent;user-select:none}
 #title-egg.egg-tap{animation:eggTap .22s steps(3) 1}
+
+/* ---- Phone legibility: zoom is disabled, so no text may be smaller than 11px on phones (Apple's minimum),
+   running text at least 12px. Letter-spacing is reduced where needed so the bigger text still fits. ---- */
+@media (max-width:600px),(max-height:520px){
+  .wordmark-light,.eyebrow,.hero-rule span,.start-note,.start-note b,.start-note span,.small-label,.pink,.pill,.map-caption,
+  .ship-option,.setup-option,.home-action,.setup-note,.text-button,.version,#app-version,.music>div>span,#music-status,
+  .track-stats span,.track-stats strong,.track-stats small,.scene-label,
+  #best-label,#lap,#boost-label,.shield-readout,.energy-label,.laser-label,.ufo-label,.energy-label span,.laser-label span,.ufo-label span,
+  .shield-readout span,.shield-readout b,.energy-label b,.laser-label b,.ufo-label b,.speed-value>span,#hud-track,
+  .touch-hint,.touch-hint span,.touch-hint b,.hyper-meter span,.result-stats span,.result-position span,
+  .changelog h4,.update-banner,.pwa-toast,kbd,.boost-hint,.boost-hint span,.pause-button span{font-size:11px!important;letter-spacing:.4px!important}
+  #ship-info,.music strong,.music em,.rotate-overlay p,.modal-card p,#result-record,.changelog,.health-text{font-size:12px!important}
+  .health-text{font-size:13px!important}
+  .hero-rule{width:100%!important}
+  .ship-options{flex-wrap:wrap}.ship-option{padding:9px 10px}
+  .start-note{flex-wrap:wrap;row-gap:4px}
+  .music strong{letter-spacing:0!important}.music em{display:block}
+  .shield-readout,.energy-label,.laser-label,.ufo-label{margin-top:5px}
+  .speedometer{width:min(250px,64vw)!important}
+}
+@media (max-height:520px) and (orientation:landscape){
+  .music em{display:none}
+  .speedometer{width:230px!important;padding:6px 10px!important}
+  .shield-readout,.energy-label,.laser-label,.ufo-label{margin-top:2px}
+  .shield-track,.energy-track,.laser-track{margin-top:2px!important}
+  #boost-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
+/* Phones in portrait: the bigger instrument panel moves up under the lap timer so it never covers the ship;
+   faint grey texts get more contrast. */
+@media (max-width:600px) and (orientation:portrait){
+  .race-bottom{top:112px!important;bottom:auto!important;justify-content:flex-end}
+  .speedometer{width:min(220px,58vw)!important;padding:8px 10px!important;background:linear-gradient(90deg,transparent,#09091ad0 18%)!important}
+  .speed-value b{font-size:48px!important}
+}
+@media (max-width:600px),(max-height:520px){
+  .start-note>span,#ship-info,.version,.version b,.hero-rule,.track-stats span,.music em,.text-button{color:#c9c2dc!important}
+  .small-label{color:#cfc8e0!important}
+}
+@media (max-width:600px) and (orientation:portrait){
+  .race-message{top:50%!important}
+  body.racing .touch-controls{flex-direction:column;align-items:flex-end;left:auto;right:12px;bottom:84px;gap:8px}
+  .touch-controls button{width:50px;height:50px}
+}

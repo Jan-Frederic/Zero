@@ -468,7 +468,7 @@
       ctx.fillStyle = '#ffffff22'; ctx.fillRect(bx, by, bw, 6);
       const hp = ctx.createLinearGradient(bx, 0, bx + bw, 0); hp.addColorStop(0, '#ff2d55'); hp.addColorStop(.6, '#ff4eb8'); hp.addColorStop(1, '#ffb347');
       ctx.fillStyle = hp; ctx.shadowColor = '#ff2d55'; ctx.shadowBlur = 12; ctx.fillRect(bx, by, bw * boss.hp / BOSS_HP, 6);
-      ctx.shadowBlur = 0; ctx.fillStyle = '#ff8aa2'; ctx.font = `${Math.max(9, s * .055)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center';
+      ctx.shadowBlur = 0; ctx.fillStyle = '#ff8aa2'; ctx.font = `${Math.max(11, s * .055)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center';
       ctx.fillText(`☠ MOTHERSHIP  ${Math.ceil(boss.hp / BOSS_HP * 100)}%`, boss.x, by - 4); ctx.restore();
     }
   }
@@ -1192,7 +1192,7 @@
     const f = finale, small = H < 520, mono = `'Share Tech Mono', monospace`;
     ctx.save(); ctx.textBaseline = 'middle';
     const bw = Math.min(W * .5, 420), bx = W / 2 - bw / 2, by = small ? 60 : 96;
-    ctx.font = `${small ? 9 : 11}px ${mono}`; ctx.textAlign = 'center'; ctx.fillStyle = '#b9ff7a';
+    ctx.font = `${small ? 11 : 12}px ${mono}`; ctx.textAlign = 'center'; ctx.fillStyle = '#b9ff7a';
     ctx.fillStyle = f.cfg.type.color;
     ctx.fillText(`☣ ${f.cfg.name}  ${Math.max(0, f.boss.hp)}/${f.boss.maxHp}${f.waves > 1 ? `   ·   BOSS ${f.wave + 1}/${f.waves}` : ''}`, W / 2, by - 9, W * .94);
     for (let i = 0; i < f.boss.maxHp; i++) { const sw = bw / f.boss.maxHp; ctx.fillStyle = i < f.boss.hp ? f.cfg.type.color : 'rgba(255,255,255,.14)'; ctx.fillRect(bx + i * sw + (sw > 6 ? 1 : 0), by, sw - (sw > 6 ? 2 : 0), 7); }
@@ -1203,7 +1203,7 @@
     ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(sx, sy, sw, 6); ctx.fillStyle = shield < 26 ? '#ff426e' : '#4df8ff'; ctx.fillRect(sx, sy, sw * clamp(shield / 100, 0, 1), 6);
     ctx.fillStyle = '#ff8fd0'; ctx.fillText(`ALIEN WALL ${alive}/${f.invaders.length}`, W - Math.max(16, W * .03), sy - 9);
     if (f.phase === 'fight' && time - f.started < 6) {
-      ctx.globalAlpha = clamp(6 - (time - f.started), 0, 1); ctx.textAlign = 'center'; ctx.font = `${small ? 10 : 13}px ${mono}`; ctx.fillStyle = '#ddff46';
+      ctx.globalAlpha = clamp(6 - (time - f.started), 0, 1); ctx.textAlign = 'center'; ctx.font = `${small ? 11 : 13}px ${mono}`; ctx.fillStyle = '#ddff46';
       ctx.fillText('◀ ▶ MOVE  ·  FIRE: BLAST A HOLE IN THE WALL, THEN HIT THE OVERLORD', W / 2, L.top + FINALE_ROWS * L.ch + (L.shipY - L.top - FINALE_ROWS * L.ch) * .45, W * .92);
       ctx.globalAlpha = 1;
     }
