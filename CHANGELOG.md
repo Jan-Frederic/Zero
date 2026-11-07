@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.5.0](https://github.com/Jan-Frederic/Zero/compare/v1.4.0...v1.5.0) (2026-11-07)
+
+
+### Features
+
+* boss chain in the finale, one more boss per difficulty step ([eeb6692](https://github.com/Jan-Frederic/Zero/commit/eeb669235d85033ac774665f1474faa8d90d572b))
+
 # [1.4.0](https://github.com/Jan-Frederic/Zero/compare/v1.3.0...v1.4.0) (2026-11-03)
 
 
