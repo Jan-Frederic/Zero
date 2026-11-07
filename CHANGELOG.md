@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.3](https://github.com/Jan-Frederic/Zero/compare/v1.6.2...v1.6.3) (2026-11-07)
+
+
+### Bug Fixes
+
+* block pinch zoom on Android and enlarge the portrait start screen ([a86c1d4](https://github.com/Jan-Frederic/Zero/commit/a86c1d4483d86d93b7383233626db767d2a1f33c))
+
 ## [1.6.2](https://github.com/Jan-Frederic/Zero/compare/v1.6.1...v1.6.2) (2026-11-07)
 
 
