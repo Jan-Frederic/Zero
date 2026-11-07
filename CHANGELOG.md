@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.2](https://github.com/Jan-Frederic/Zero/compare/v1.6.1...v1.6.2) (2026-11-07)
+
+
+### Bug Fixes
+
+* make all text legible on phones now that zoom is disabled ([e29bfe9](https://github.com/Jan-Frederic/Zero/commit/e29bfe9c6ec3cda2d922895e3ee5e178e585469f))
+
 ## [1.6.1](https://github.com/Jan-Frederic/Zero/compare/v1.6.0...v1.6.1) (2026-11-07)
 
 
