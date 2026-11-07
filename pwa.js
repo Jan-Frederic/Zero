@@ -18,6 +18,18 @@
     lastTouchEnd = now;
   }, { passive: false });
   document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+  // Last resort (e.g. browsers with "force enable zoom"): if the page ends up zoomed anyway, snap it back to 100 %.
+  const viewportMeta = document.querySelector('meta[name="viewport"]');
+  if (window.visualViewport && viewportMeta) {
+    const base = viewportMeta.getAttribute('content');
+    let resetting = false;
+    visualViewport.addEventListener('resize', () => {
+      if (resetting || visualViewport.scale <= 1.01) return;
+      resetting = true;
+      viewportMeta.setAttribute('content', base.replace('maximum-scale=1.0', 'maximum-scale=1.01'));
+      requestAnimationFrame(() => { viewportMeta.setAttribute('content', base); resetting = false; });
+    });
+  }
   // ---- Update job: checks for a new release in the background and applies it when no race is running.
   const UPDATE_EVERY = 5 * 60 * 1000;
   const busy = () => typeof window.morbidBusy === 'function' && window.morbidBusy();

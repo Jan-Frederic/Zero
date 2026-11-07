@@ -8,7 +8,7 @@ html,body{overscroll-behavior:none}
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #game{touch-action:none}
 /* No double-tap or pinch zoom anywhere: the game is a full-screen app, and the title easter egg is tapped repeatedly. */
-html,body,*{touch-action:manipulation}
+html,body,*{touch-action:pan-x pan-y}
 #game{touch-action:none}
 .changelog,.health-text,.dialog-card{touch-action:pan-y}
 .launch-key,.launch-touch{font-weight:400}.launch-touch{display:none;color:#cfc9e0}
@@ -212,4 +212,48 @@ body.final .touch-hint{display:none}
   .race-message{top:50%!important}
   body.racing .touch-controls{flex-direction:column;align-items:flex-end;left:auto;right:12px;bottom:84px;gap:8px}
   .touch-controls button{width:50px;height:50px}
+}
+
+/* ---- Phones in portrait: a thumb-friendly start screen. The menu becomes one scrollable column with
+   large type and touch targets of at least 48px; level difficulty is visible again. ---- */
+@media (max-width:600px) and (orientation:portrait){
+  .menu{display:flex;flex-direction:column;gap:16px;overflow-y:auto;overflow-x:hidden;padding:14px 16px 24px;inset:64px 0 64px!important;-webkit-overflow-scrolling:touch}
+  .hero,.circuit-panel{position:static!important;width:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important}
+  .hero>.eyebrow{display:flex!important;font-size:12px!important}
+  h1{font-size:min(19vw,92px)!important;margin:12px 0 10px!important}
+  .hero-rule,.hero p{display:none!important}
+  .start-button{width:100%!important;max-width:none!important;min-height:60px;padding:16px 20px!important;font-size:18px!important}
+  .start-button b{font-size:28px}
+  .start-note{margin-top:10px}.start-note,.start-note b,.start-note span{font-size:12px!important}
+  .ship-picker{margin-top:18px!important}
+  .ship-picker .small-label,.panel-top .small-label{font-size:13px!important}
+  .ship-options{display:grid!important;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+  .ship-option{min-height:52px;justify-content:center;font-size:14px!important;padding:8px 6px!important}
+  .ship-option>span{width:12px;height:12px}
+  #ship-info{display:block!important;font-size:12px!important;margin-top:10px}
+  .circuit-panel{padding:16px!important}
+  .panel-top{display:flex!important}.panel-top .pill{display:inline!important;font-size:13px!important}
+  .circuit-heading{margin-top:10px!important}
+  .circuit-heading .pink{display:block!important;font-size:12px!important}
+  .circuit-heading h2{font-size:30px!important}
+  .track-arrows{gap:8px}.track-arrows button{width:52px!important;height:52px!important;font-size:22px!important}
+  .track-stats{display:flex!important;margin-top:14px;padding-top:12px;gap:18px}
+  .track-stats span{font-size:11px!important}.track-stats strong{font-size:15px!important}
+  .home-actions{margin-top:14px!important;padding-top:14px!important;gap:8px}
+  .home-action{min-height:52px!important;font-size:14px!important}
+  .scene-label{display:none}
+  .bottom-bar{height:60px}
+  .music button{width:44px;height:44px}
+  .icon-button{width:44px!important;height:44px!important;font-size:22px!important}
+  /* dialogs */
+  .modal{inset:64px 0 64px!important}
+  .modal-card{padding:24px 20px!important}
+  .setup-row{flex-direction:column;align-items:stretch;gap:8px}
+  .setup-row .small-label{font-size:13px!important}
+  .setup-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .setup-option{min-height:52px!important;font-size:14px!important;justify-content:center}
+  .setup-note{font-size:12px!important}
+  .text-button{font-size:13px!important;min-height:48px;padding:12px 18px!important}
+  .result-stats span{font-size:12px!important}.result-stats b{font-size:20px!important}
+  .pause-button{min-width:48px;min-height:48px}
 }
