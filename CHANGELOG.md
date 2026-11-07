@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/Jan-Frederic/Zero/compare/v1.6.0...v1.6.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* prevent double-tap and pinch zoom on mobile devices ([59de908](https://github.com/Jan-Frederic/Zero/commit/59de908386fbbee17a16bea78c7c9f1959b680f6))
+
 # [1.6.0](https://github.com/Jan-Frederic/Zero/compare/v1.5.0...v1.6.0) (2026-11-07)
 
 
