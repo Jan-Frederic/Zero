@@ -36,6 +36,7 @@
   let laps = [], rivals = [], ufos = [], bombs = [], segments = [], countdown = 3.6, messageTime = 0, collisionCooldown = 0, wallCooldown = 0, boosting = false;
   let jumpHeight = 0, jumpVelocity = 0, jumpBoostTimer = 0;
   // Shot-down UFOs fly wild screen-space crash paths; new UFOs warp in to replace them.
+  let musicHold = 0;
   let hyperTime = 0, hyperStarted = 0, hitGates = new Set();
   const HYPER_TIME = 10;
   // Mothership boss: appears after every 10 UFO kills. Races run LAP_COUNT laps.
@@ -149,14 +150,58 @@
       setupJet(); loadVoices();
     } catch { /* The soundtrack still plays if Web Audio is unavailable. */ }
   }
+  // ---- Soundtrack preloading: the whole MP3 is downloaded into memory as soon as the page opens and played
+  // from a local blob, so playback can never run dry mid-race. Races wait (briefly) until it is ready.
+  const SOUNDTRACK_URL = (audio.getAttribute && audio.getAttribute('src')) || audio.src;
+  let soundtrackReady = false, soundtrackProgress = 0, soundtrackPromise = null, musicWanted = false;
+  const SILENCE = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=='; // 0.1 s of silence
+
+  function preloadSoundtrack() {
+    if (soundtrackPromise) return soundtrackPromise;
+    if (typeof fetch !== 'function' || typeof URL === 'undefined' || !URL.createObjectURL || typeof Blob === 'undefined') {
+      soundtrackReady = true; audio.preload = 'auto'; return (soundtrackPromise = Promise.resolve());
+    }
+    soundtrackPromise = (async () => {
+      updateMusic();
+      try {
+        const response = await fetch(SOUNDTRACK_URL);
+        if (!response.ok) throw new Error(String(response.status));
+        const total = Number(response.headers.get('content-length')) || 0;
+        let blob;
+        if (response.body && response.body.getReader && total) {
+          const reader = response.body.getReader(), chunks = []; let received = 0;
+          for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); received += value.length; soundtrackProgress = Math.min(.99, received / total); updateMusic(); }
+          blob = new Blob(chunks, { type: 'audio/mpeg' });
+        } else blob = await response.blob();
+        const resume = !audio.paused && !String(audio.src || '').startsWith('data:'), at = String(audio.src || '').startsWith('data:') ? 0 : audio.currentTime || 0;
+        audio.src = URL.createObjectURL(blob); audio.preload = 'auto'; audio.load();
+        await new Promise(done => { audio.addEventListener('canplaythrough', done, { once: true }); audio.addEventListener('error', done, { once: true }); setTimeout(done, 4000); });
+        if (at) try { audio.currentTime = at; } catch { /* keep the start */ }
+        if (resume || musicWanted) audio.play().catch(() => {});
+      } catch {
+        // Offline without a cached copy or a failed download: fall back to normal streaming.
+        audio.src = SOUNDTRACK_URL; audio.preload = 'auto'; try { audio.load(); } catch { /* ignore */ }
+        if (musicWanted) audio.play().catch(() => {});
+      }
+      soundtrackReady = true; soundtrackProgress = 1; updateMusic();
+    })();
+    return soundtrackPromise;
+  }
   function playMusic() {
-    setupAudio(); audio.volume = .24;
+    setupAudio(); audio.volume = .24; musicWanted = true;
+    if (!soundtrackReady) {
+      // Unlock the audio element inside the user's tap (needed on iOS), but don't stream it twice:
+      // it starts for real as soon as the preloaded copy is ready.
+      if (!String(audio.src || '').startsWith('blob:')) audio.src = SILENCE;
+      const unlock = audio.play(); if (unlock && unlock.then) unlock.then(() => { if (!soundtrackReady) audio.pause(); }).catch(() => {});
+      updateMusic(); return;
+    }
     audio.play().then(updateMusic).catch(() => { $('music-status').textContent = 'SOUNDTRACK / TAP TO PLAY'; });
   }
   function updateMusic() {
     const playing = !audio.paused && !muted;
     document.body.classList.toggle('playing', playing);
-    $('music-status').textContent = muted ? 'SOUNDTRACK / MUTED' : playing ? 'NOW PLAYING / LOCAL SOUNDTRACK' : 'SOUNDTRACK / PRESS PLAY';
+    $('music-status').textContent = !soundtrackReady ? `SOUNDTRACK / LOADING ${Math.round(soundtrackProgress * 100)}%` : muted ? 'SOUNDTRACK / MUTED' : playing ? 'NOW PLAYING / LOCAL SOUNDTRACK' : 'SOUNDTRACK / PRESS PLAY';
     $('music-toggle').setAttribute('aria-label', audio.paused ? 'Play soundtrack' : 'Pause soundtrack');
     $('sound').textContent = muted ? '♪̸' : '♫';
     $('sound').setAttribute('aria-label', muted ? 'Unmute soundtrack' : 'Mute soundtrack');
@@ -1350,7 +1395,7 @@
     rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
-    clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
+    musicHold = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
     $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE';
@@ -1531,6 +1576,12 @@
     if (mode === 'paused' || mode === 'finished') return;
     if (hintTime > 0) { hintTime -= dt; if (hintTime <= 0 || gesture.moved) { hintTime = 0; document.body.classList.remove('hinting'); } }
     if (mode === 'countdown') {
+      // Hold the countdown until the soundtrack is fully downloaded (at most 15 s), then start the music with it.
+      if (!soundtrackReady && musicHold < 15) {
+        musicHold += dt; $('countdown').textContent = `LOADING MUSIC ${Math.round(soundtrackProgress * 100)}%`; document.body.classList.add('buffering');
+        updateHUD(); return;
+      }
+      if (document.body.classList.contains('buffering')) { document.body.classList.remove('buffering'); if (audio.paused && !muted) playMusic(); }
       const old = Math.ceil(countdown); countdown -= dt;
       $('countdown').textContent = countdown > 0 ? Math.ceil(countdown) : 'GO!';
       if (Math.ceil(countdown) !== old && countdown > 0) soundEffect(440, .13);
@@ -2397,5 +2448,6 @@
   // Lets the update job wait until no race is in progress.
   window.morbidBusy = () => ['countdown', 'racing', 'paused', 'wrecked', 'invasion', 'final'].includes(mode) || (mode === 'disco' && !(finale && finale.resultsShown));
   window.addEventListener('resize', resize);
+  preloadSoundtrack();
   resize(); buildTrack(); requestAnimationFrame(frame);
 })();
