@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.11.0](https://github.com/Jan-Frederic/Zero/compare/v1.10.0...v1.11.0) (2026-11-08)
+
+
+### Features
+
+* credits and ship upgrades in the garage ([8041e33](https://github.com/Jan-Frederic/Zero/commit/8041e33d0294b4a3dfbc087e8014f9a3e5041457))
+
 # [1.10.0](https://github.com/Jan-Frederic/Zero/compare/v1.9.0...v1.10.0) (2026-11-08)
 
 
