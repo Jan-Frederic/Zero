@@ -27,6 +27,54 @@
   const boostDrain = () => 1 - profile.upgrades.boost * .2;
   const topSpeed = () => 1 + profile.upgrades.boost * .03;
   let raceEarned = 0, creditPopAt = -9;
+  // ---- Achievements (trophy cabinet).
+  const ACHIEVEMENTS = [
+    { id: 'first-race', icon: '🏁', name: 'LIGHTS OUT', info: 'Finish your first race.' },
+    { id: 'podium', icon: '🥉', name: 'PODIUM PILOT', info: 'Finish in the top 3.' },
+    { id: 'win', icon: '🏆', name: 'PURE OVERDRIVE', info: 'Win a race.' },
+    { id: 'flawless', icon: '💎', name: 'NOT A SCRATCH', info: 'Win a race without losing a life.' },
+    { id: 'cats10', icon: '🐱', name: 'CRAZY CAT PILOT', info: 'Pixel-poof 10 cats.' },
+    { id: 'ufo25', icon: '🛸', name: 'ALIEN KILLER', info: 'Shoot down 25 UFOs.' },
+    { id: 'rivals50', icon: '💥', name: 'DEMOLITION DERBY', info: 'Destroy 50 rivals.' },
+    { id: 'mothership', icon: '🌌', name: 'MOTHERSHIP DOWN', info: 'Destroy a mothership.' },
+    { id: 'hyper', icon: '✦', name: 'LIGHT SPEED', info: 'Fly through a star gate.' },
+    { id: 'collector', icon: '🧲', name: 'GADGETEER', info: 'Collect all four power-up types.' },
+    { id: 'galaxy', icon: '🪩', name: 'DISCO SAVIOUR', info: 'Defeat the final boss and reach the disco.' },
+    { id: 'galaxy6', icon: '👑', name: 'SINGULARITY SLAYER', info: 'Beat all six bosses of Singularity Run.' },
+    { id: 'upgrade', icon: '🛠', name: 'GREASE MONKEY', info: 'Buy your first upgrade.' },
+    { id: 'maxed', icon: '⚙', name: 'FULLY LOADED', info: 'Max out every upgrade.' },
+    { id: 'unlock-all', icon: '🗺', name: 'GRAND TOURER', info: 'Unlock every circuit.' },
+    { id: 'egg', icon: '🥚', name: 'EGG HUNTER', info: 'Find the secret on the title screen.' },
+  ];
+  profile.achievements = profile.achievements || {}; profile.stats = Object.assign({ cats: 0, ufos: 0, rivals: 0, powerTypes: [] }, profile.stats);
+  const achQueue = []; let achShownAt = -9;
+  const realTime = () => frameClock;
+  function unlockAchievement(id) {
+    if (profile.achievements[id]) return;
+    const a = ACHIEVEMENTS.find(x => x.id === id); if (!a) return;
+    profile.achievements[id] = Date.now(); saveProfile(); achQueue.push(a); showNextAchievement(); renderTrophyButton();
+  }
+  function showNextAchievement() {
+    const el = $('achievement'); if (!el || el.classList.contains('visible') || !achQueue.length) return;
+    const a = achQueue.shift();
+    el.innerHTML = `<i>${a.icon}</i><span><small>ACHIEVEMENT UNLOCKED</small><b>${a.name}</b><em>${a.info}</em></span>`;
+    el.classList.add('visible'); achShownAt = realTime(); playToneSweep(660, 1980, .45, 'triangle', .06);
+  }
+  // Driven by the frame loop (wall clock, so it also runs in menus and pauses).
+  function tickAchievement() {
+    const el = $('achievement'); if (!el) return;
+    if (el.classList.contains('visible') && realTime() - achShownAt > 3.2) { el.classList.remove('visible'); achShownAt = realTime(); }
+    else if (!el.classList.contains('visible') && achQueue.length && realTime() - achShownAt > .45) showNextAchievement();
+  }
+  function stat(key, add = 1) { profile.stats[key] = (profile.stats[key] || 0) + add; saveProfile(); return profile.stats[key]; }
+  function renderTrophyButton() { const b = $('open-trophies'); if (b) b.textContent = `🏆 TROPHIES ${Object.keys(profile.achievements).length}/${ACHIEVEMENTS.length}`; }
+  function renderTrophies() {
+    $('trophy-count').textContent = `${Object.keys(profile.achievements).length} / ${ACHIEVEMENTS.length}`;
+    $('trophy-list').innerHTML = ACHIEVEMENTS.map(a => {
+      const got = profile.achievements[a.id];
+      return `<div class="trophy ${got ? 'got' : ''}"><i>${got ? a.icon : '🔒'}</i><span><b>${a.name}</b><em>${a.info}</em>${got ? `<small>${new Date(got).toLocaleDateString()}</small>` : ''}</span></div>`;
+    }).join('');
+  }
   function addCredits(amount, why) {
     if (!amount) return;
     profile.credits += amount; raceEarned += amount; saveProfile();
@@ -61,7 +109,8 @@
   let laps = [], rivals = [], ufos = [], bombs = [], segments = [], countdown = 3.6, messageTime = 0, collisionCooldown = 0, wallCooldown = 0, boosting = false;
   let jumpHeight = 0, jumpVelocity = 0, jumpBoostTimer = 0;
   // Shot-down UFOs fly wild screen-space crash paths; new UFOs warp in to replace them.
-  let musicHold = 0;
+  let musicHold = 0, lostLifeThisRace = false;
+  let frameClock = 0;
   // Extra lives: one per difficulty step, shared by the race and the boss fights that follow it.
   let lives = 0, raceRespawnAt = 0, raceInvulnUntil = 0;
   let hyperTime = 0, hyperStarted = 0, hitGates = new Set();
@@ -387,6 +436,7 @@
   }
   function showCallout(text, color = '#ddff46') { callout = { text, color, started: time }; }
   function shootDownUfo(ufo) {
+    if (stat('ufos') >= 25) unlockAchievement('ufo25');
     ufos = ufos.filter(u => u !== ufo);
     const start = ufo.screen && time - ufo.screen.at < .3 ? ufo.screen : { x: W * .5, y: H * .38, size: Math.min(W, H) * .03 };
     const seed = Math.floor(time * 997) + ufo.seed * 31;
@@ -508,7 +558,7 @@
     boss.hp = Math.max(0, boss.hp - power); boss.hitFlash = 1; playImpactSound(.8);
     megaBlasts.push({ x: boss.x + (Math.random() - .5) * boss.size * .8, y: boss.y + boss.size * .05, started: time, duration: .45, color: '#ffd35a', seed: Math.floor(Math.random() * 999), scale: .16 });
     if (boss.hp <= 0) {
-      boss.dying = time; bossAttacks = []; addCredits(200, 'MOTHERSHIP DOWN');
+      boss.dying = time; bossAttacks = []; addCredits(200, 'MOTHERSHIP DOWN'); unlockAchievement('mothership');
       showCallout('MOTHERSHIP DESTROYED!', '#ddff46'); showMessage('LEGENDARY!  SHIELD + LASER RESTORED', 2.4);
       robotSay('Mothership destroyed. You are a legend', 'mothership-down');
       shield = 100; laserAmmo = laserCap(); laserCharge = 0; energy = 100;
@@ -763,6 +813,7 @@
   const hyper = () => hyperTime > 0 && mode === 'racing';
   const shieldText = amount => hyper() ? 'INVINCIBLE' : 'SHIELD -' + hullLoss(amount);
   function activateHyper() {
+    unlockAchievement('hyper');
     const fresh = hyperTime <= 0;
     hyperTime = HYPER_TIME; if (fresh) hyperStarted = time;
     energy = 100; boostLocked = false; screenFlash = Math.max(screenFlash, 1); shake = Math.max(shake, 1.2);
@@ -1098,6 +1149,7 @@
     if (f.wave + 1 < f.waves) finaleMsg(`BOSS ${f.wave + 1}/${f.waves} DOWN  /  NEXT ONE INCOMING`);
   }
   function enterDisco() {
+    unlockAchievement('galaxy'); if (finale.waves >= 6) unlockAchievement('galaxy6');
     const f = finale; f.phase = 'disco'; f.discoAt = time; f.gore = []; f.splats = []; f.bolts = []; f.beams = [];
     mode = 'disco'; document.body.classList.remove('final'); document.body.classList.add('disco', 'paused');
     robotSay('Congratulations, earthling', 'congratulations');
@@ -1458,6 +1510,8 @@
   }
   const worldPace = () => powerOn('warp') ? .45 : 1;
   function collectPowerup(type) {
+    if (!profile.stats.powerTypes.includes(type)) { profile.stats.powerTypes.push(type); saveProfile(); }
+    if (profile.stats.powerTypes.length >= 4) unlockAchievement('collector');
     const p = POWERUPS[type];
     power[type] = time + p.time; if (type === 'bubble') bubbleHits = 3;
     showCallout(`${p.icon} ${p.name}!`, p.color); showMessage(p.info, 1.6);
@@ -1507,7 +1561,7 @@
     rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
-    musicHold = 0; raceEarned = 0; lives = finaleWaveCount(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
+    musicHold = 0; raceEarned = 0; lostLifeThisRace = false; lives = finaleWaveCount(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
     $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE';
@@ -1585,6 +1639,7 @@
   const WRECK_TIME = 1.5;
   // A beaten rival is flung off the track: it careens across the whole screen, smoking and spinning, then explodes.
   function knockOut(rival) {
+    if (stat('rivals') >= 50) unlockAchievement('rivals50');
     if (mode === 'racing') addCredits(15, 'RIVAL DOWN');
     rival.alive = false; rival.boosting = false; rival.dying = null;
     const start = rival.screen && time - rival.screen.at < .3 ? rival.screen : { x: W * .5, y: H * .5, size: Math.min(W, H) * .04 };
@@ -1653,6 +1708,7 @@
   const hullLoss = amount => Math.round(amount / hullStrength());
   // Shield gone but a life left: the ship blows up big, and after a moment it is back at the same spot on the track.
   function loseRaceLife() {
+    lostLifeThisRace = true;
     lives--; mode = 'respawning'; raceRespawnAt = time + 2.4; boosting = false; jumpHeight = 0; jumpVelocity = 0;
     document.body.classList.remove('boosting'); laserShots = []; enemyShots = [];
     const shipSize = Math.min(W * .074, 110), m = machines[shipIndex];
@@ -1689,8 +1745,10 @@
   }
   function finishRace() {
     addCredits(Math.max(0, (PILOT_COUNT + 1 - rank) * 10) + (rank <= 3 ? 100 : 0) + (rank === 1 ? 150 : 0), `P${rank} FINISH`);
+    unlockAchievement('first-race'); if (rank <= 3) unlockAchievement('podium'); if (rank === 1) { unlockAchievement('win'); if (!lostLifeThisRace) unlockAchievement('flawless'); }
     let unlockedNow = '';
     if (rank <= 3 && trackIndex + 1 < tracks.length && trackLocked(trackIndex + 1)) { profile.unlocked = trackIndex + 2; saveProfile(); unlockedNow = tracks[trackIndex + 1].name; }
+    if ((profile.unlocked || 1) >= tracks.length) unlockAchievement('unlock-all');
     $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
     mode = 'finished'; boosting = false; document.body.classList.remove('boosting'); document.body.classList.add('paused');
     $('results').classList.remove('hidden'); $('result-position').textContent = String(rank).padStart(2, '0');
@@ -1738,7 +1796,7 @@
   }
   function update(dt) {
     time += dt; screenFlash = Math.max(0, screenFlash - dt * 2.4);
-    updateBoot();
+    updateBoot(); tickAchievement();
     if (analyser && !audio.paused && !muted) { analyser.getByteFrequencyData(frequency); beat = lerp(beat, frequency.slice(0, 12).reduce((a, b) => a + b, 0) / (12 * 255), .2); } else beat *= .95;
     if (engineGain) {
       engineGain.gain.setTargetAtTime(mode === 'racing' && !muted ? .013 + speed / 15000 * .027 : 0, audioContext.currentTime, .1);
@@ -1872,6 +1930,7 @@
             const previousAmmo = laserAmmo;
             laserAmmo = Math.min(laserCap(), laserAmmo + 1);
             createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, hazard.color || '#ff9bf2', .82, true);
+            if (stat('cats') >= 10) unlockAchievement('cats10');
             showMessage(laserAmmo > previousAmmo ? 'CAT PIXEL-POOF!  LASER +1' : 'CAT PIXEL-POOF!  LASER FULL', 1.05);
             playCatPopSound();
             if (damageShield(4)) { updateHUD(); return; }
@@ -2496,6 +2555,7 @@
     ctx.restore();
   }
   function frame(now) {
+    frameClock = now / 1000;
     const dt = previousTime ? Math.min((now - previousTime) / 1000, .05) : 1 / 60; previousTime = now;
     update(dt); render(); updateConfetti(dt); requestAnimationFrame(frame);
   }
@@ -2591,7 +2651,7 @@
   renderLock();
   // ---- Home screen dialogs: settings and changelog.
   function openDialog(id) { $(id).classList.remove('hidden'); document.body.classList.add('dialog-open'); }
-  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
+  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen', 'trophy-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
   // Health warning: shown on every visit (not again after an in-app update reload within the same session).
   let healthSeen = false;
   try { healthSeen = sessionStorage.getItem('morbid-health-ok') === '1'; } catch { /* show it */ }
@@ -2634,6 +2694,7 @@
   // to skip the race and go straight to the invasion; the number of bosses follows the selected circuit.
   let eggTaps = [], eggTyped = '';
   function bossRush() {
+    unlockAchievement('egg');
     eggTaps = []; eggTyped = '';
     setupAudio(); primeSpeech();
     $('menu').classList.add('hidden'); $('hud').classList.add('hidden');
@@ -2668,11 +2729,13 @@
     const lvl = profile.upgrades[key], cost = UPGRADE_COST[lvl];
     if (lvl >= UPGRADE_MAX || profile.credits < cost) return false;
     profile.credits -= cost; profile.upgrades[key] = lvl + 1; saveProfile(); renderShop();
+    unlockAchievement('upgrade'); if (Object.values(profile.upgrades).every(v => v >= UPGRADE_MAX)) unlockAchievement('maxed');
     playToneSweep(500, 1500, .3, 'square', .05); return true;
   }
   if ($('shop-list').addEventListener) $('shop-list').addEventListener('click', event => { const b = event.target && event.target.closest && event.target.closest('[data-buy]'); if (b) buyUpgrade(b.dataset.buy); });
   $('open-shop').addEventListener('click', () => { renderShop(); openDialog('shop-screen'); });
-  renderShop();
+  renderShop(); renderTrophyButton();
+  $('open-trophies').addEventListener('click', () => { renderTrophies(); openDialog('trophy-screen'); });
   window.morbidShop = { buy: buyUpgrade, profile };
   // Lets the update job wait until no race is in progress.
   window.morbidBusy = () => ['countdown', 'racing', 'respawning', 'paused', 'wrecked', 'invasion', 'final'].includes(mode) || (mode === 'disco' && !(finale && finale.resultsShown));

@@ -546,3 +546,17 @@ test('campaign: later circuits unlock with a podium on the previous one', () => 
   el('start').fire('click');
   assert.equal(inspect().mode, 'countdown', 'the unlocked circuit starts');
 });
+
+test('achievements unlock and are listed in the trophy cabinet', () => {
+  const { element: el, step, key, inspect, setRacePosition, disableAirRaid, eliminateRivals, storage } = harness({ fresh: true });
+  el('health-accept').fire('click');
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  disableAirRaid(); eliminateRivals();
+  for (let lap = 0; lap < 6 && inspect().mode === 'racing'; lap++) { setRacePosition((lap + 1) * 240000 - 60, 0); step(.5); }
+  const got = Object.keys(JSON.parse(storage.get('morbid-profile-v1')).achievements);
+  for (const id of ['first-race', 'podium', 'win', 'flawless']) assert.ok(got.includes(id), id);
+  assert.match(el('achievement').innerHTML, /ACHIEVEMENT UNLOCKED/);
+  el('garage').fire('click'); el('open-trophies').fire('click');
+  assert.match(el('trophy-count').textContent, /^4 \/ 16$/);
+  assert.match(el('open-trophies').textContent, /4\/16/);
+});

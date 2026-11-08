@@ -59,7 +59,7 @@
       <div class="circuit-preview"><svg viewBox="0 0 330 140" aria-hidden="true"><defs><filter id="glow"><feGaussianBlur stdDeviation="3"/></filter></defs><path class="map-glow" d="M58 102 C10 80 52 26 94 40 S139 91 172 57 S245 18 275 46 S315 105 265 106 S197 85 170 113 S89 125 58 102Z"/><path class="map-line" d="M58 102 C10 80 52 26 94 40 S139 91 172 57 S245 18 275 46 S315 105 265 106 S197 85 170 113 S89 125 58 102Z"/><circle cx="59" cy="102" r="5" fill="#edff80"/><path d="M53 91v22M65 96v22" stroke="white" stroke-width="2"/></svg><span class="map-caption">SECTOR 07 / NIGHTFALL</span></div>
       <div class="circuit-heading"><div><span id="track-type" class="small-label pink">THE ELECTRIC METROPOLIS</span><h2 id="track-name">NEON HORIZON</h2></div><div class="track-arrows"><button id="prev-track" aria-label="Previous circuit">←</button><button id="next-track" aria-label="Next circuit">→</button></div></div>
       <div id="track-lock" class="track-lock"></div><div class="track-stats"><div><span>CLASS</span><strong id="track-class">HYPER</strong></div><div><span>DISTANCE</span><strong>7.2 <small>KM</small></strong></div><div><span>DIFFICULTY</span><strong id="difficulty" class="difficulty">▰▰▰<em>▰▰▰▰▰</em></strong></div></div>
-      <div class="home-actions"><button id="open-shop" class="home-action home-action-wide" type="button">🛠 UPGRADES</button><button id="open-settings" class="home-action" type="button">⚙ SETTINGS</button><button id="open-changelog" class="home-action" type="button">☰ CHANGELOG</button></div>
+      <div class="home-actions"><button id="open-shop" class="home-action home-action-wide" type="button">🛠 UPGRADES</button><button id="open-trophies" class="home-action home-action-wide home-action-trophy" type="button">🏆 TROPHIES</button><button id="open-settings" class="home-action" type="button">⚙ SETTINGS</button><button id="open-changelog" class="home-action" type="button">☰ CHANGELOG</button></div>
     </aside>
     <div class="scene-label"><span class="live-dot"></span> LIVE CIRCUIT FEED <b id="feed-label">NIGHT CITY // 2097</b></div>
   </main>
@@ -82,6 +82,10 @@
       <div class="shop-balance">CREDITS <b id="shop-credits">0 CR</b><small>Earn credits for finishing positions, podiums, rival and UFO kills, motherships and bosses.</small></div>
       <div id="shop-list" class="shop-list"></div>
       <button class="start-button" type="button" data-close-dialog><span>BACK TO THE GARAGE</span><b>✓</b></button></div></section>
+  <section id="trophy-screen" class="modal hidden" role="dialog" aria-label="Trophies"><div class="modal-card dialog-card"><span class="eyebrow">HALL OF FAME</span><h2>TROPHIES</h2>
+      <div class="shop-balance">UNLOCKED <b id="trophy-count">0 / 16</b></div>
+      <div id="trophy-list" class="trophy-list"></div>
+      <button class="start-button" type="button" data-close-dialog><span>BACK TO THE GARAGE</span><b>✓</b></button></div></section>
   <section id="settings-screen" class="modal hidden" role="dialog" aria-label="Settings"><div class="modal-card dialog-card"><span class="eyebrow">CONTROLS &amp; DISPLAY</span><h2>SETTINGS</h2>
       <div class="setup" role="group" aria-label="Controls setup">
         <div class="setup-row"><span class="small-label">STEERING</span><div class="setup-options"><button class="setup-option" data-steer="gyro">⟲ GYRO</button><button class="setup-option" data-steer="touch">☝ TOUCH / KEYS</button></div></div>
@@ -99,6 +103,7 @@
   <footer class="bottom-bar"><div class="music"><button id="music-toggle" aria-label="Play soundtrack"><span class="equalizer"><i></i><i></i><i></i><i></i></span></button><div><span id="music-status">SOUNDTRACK / PRESS PLAY</span><strong>MORBID FINGERS <em>— Redemption (Live, 2003)</em></strong></div></div><div class="controls"><span><kbd>W</kbd><kbd>↑</kbd> ACCELERATE</span><span><kbd>A</kbd><kbd>D</kbd> STEER</span><span><kbd>SPACE</kbd> BOOST</span><span><kbd>X</kbd> LASER</span><span><kbd>ESC</kbd> PAUSE</span></div><span class="version">V<span id="app-version">dev</span> <b>✦</b></span></footer>
   <div id="touch-controls" class="touch-controls"><button data-key="ArrowLeft" aria-label="Steer left">◀</button><button data-key="ArrowRight" aria-label="Steer right">▶</button><button data-key="Space" aria-label="Boost">ϟ</button><button data-key="KeyX" aria-label="Fire laser">◎</button><button data-key="ArrowUp" aria-label="Accelerate">▲</button><button data-key="ArrowDown" aria-label="Brake">▼</button></div>
   <div id="rotate-overlay" class="rotate-overlay hidden" role="alertdialog" aria-label="Rotate your device"><div><div class="rotate-icon">📱</div><b id="rotate-title">ROTATE TO LANDSCAPE</b><p>Your screen setting is <span id="rotate-setting">LANDSCAPE</span>. Turn your device to play.</p><button id="rotate-switch" class="text-button">SWITCH TO <span id="rotate-other">PORTRAIT</span> INSTEAD</button></div></div>
+  <div id="achievement" class="achievement" role="status" aria-live="polite"></div>
   <canvas id="confetti" class="confetti" aria-hidden="true"></canvas>
   <audio id="soundtrack" src="Morbid_Fingers%20-%20live-%20Emmerich_Juli_2003%20-%2003%20Redemption.mp3" loop preload="none"></audio>
   <script src="game.js"></script>
