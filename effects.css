@@ -284,3 +284,8 @@ body.booting .bottom-bar .controls{display:none}
 body.racing .bottom-bar .boot,body.final .bottom-bar .boot{display:none}
 @media (max-height:520px) and (orientation:landscape){.bottom-bar .boot{flex-basis:340px;padding:4px 8px 5px}.bottom-bar .boot .boot-row{font-size:11px}}
 @media (max-width:900px) and (orientation:landscape){.bottom-bar .version{display:none}}
+
+/* Lives in the race HUD. */
+.race-lives-row{display:flex;align-items:center;gap:8px;margin-top:4px}
+#race-lives{color:#ff6a8a;font:15px var(--mono);letter-spacing:2px;text-shadow:0 0 10px #ff3b6b}
+@media (max-height:520px) and (orientation:landscape){.race-lives-row{margin-top:0}#race-lives{font-size:13px}}

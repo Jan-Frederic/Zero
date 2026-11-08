@@ -37,6 +37,8 @@
   let jumpHeight = 0, jumpVelocity = 0, jumpBoostTimer = 0;
   // Shot-down UFOs fly wild screen-space crash paths; new UFOs warp in to replace them.
   let musicHold = 0;
+  // Extra lives: one per difficulty step, shared by the race and the boss fights that follow it.
+  let lives = 0, raceRespawnAt = 0, raceInvulnUntil = 0;
   let hyperTime = 0, hyperStarted = 0, hitGates = new Set();
   const HYPER_TIME = 10;
   // Mothership boss: appears after every 10 UFO kills. Races run LAP_COUNT laps.
@@ -959,7 +961,7 @@
   function startFinalFight(shatter) {
     mode = 'final'; shield = 100; keys.clear(); resetGesture(); calibrateTilt();
     ufos = []; ufoRespawns = []; bombs = []; crashingUfos = []; smoke = []; boss = null; bossAttacks = []; enemyShots = []; laserShots = []; callout = null;
-    finale = { phase: 'fight', started: time, shatter, shipX: .5, cool: 0, wave: 0, waves: finaleWaveCount(), lives: finaleWaveCount(), invulnUntil: 0, beams: [], bolts: [], gore: [], splats: [], bursts: [], msg: null };
+    finale = { phase: 'fight', started: time, shatter, shipX: .5, cool: 0, wave: 0, waves: finaleWaveCount(), lives, invulnUntil: 0, beams: [], bolts: [], gore: [], splats: [], bursts: [], msg: null };
     startWave(0);
     $('results').classList.add('hidden'); $('hud').classList.add('hidden');
     document.body.classList.remove('paused', 'alarm', 'critical', 'boosting', 'hyper', 'boss', 'hinting');
@@ -1127,7 +1129,7 @@
     f.bolts = f.bolts.filter(bolt => bolt.kind === 'eyebeam' ? !bolt.hit && time < bolt.until : !bolt.hit && bolt.y < H + 40 && bolt.x > -40 && bolt.x < W + 40);
     if (shield <= 0) {
       f.bolts = []; f.lostAt = time; explodeShip(shipPx, L.shipY, L.ship);
-      if (f.lives > 0) { f.phase = 'respawn'; f.lives--; showCallout(`SHIP DESTROYED!  ${f.lives + 1} ${f.lives ? 'LIVES' : 'LIFE'} LEFT`, '#ff3b6b'); }
+      if (f.lives > 0) { f.phase = 'respawn'; f.lives--; lives = f.lives; showCallout(`SHIP DESTROYED!  ${f.lives + 1} ${f.lives ? 'LIVES' : 'LIFE'} LEFT`, '#ff3b6b'); }
       else { f.phase = 'lost'; showCallout('SHIP DESTROYED!', '#ff3b6b'); }
     }
   }
@@ -1403,7 +1405,7 @@
     rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
-    musicHold = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
+    musicHold = 0; lives = finaleWaveCount(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
     $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE';
@@ -1513,6 +1515,7 @@
   }
   function destroyPlayer() {
     if (mode !== 'racing') return;
+    if (lives > 0) { loseRaceLife(); return; }
     mode = 'wrecked'; wreckedAt = time;
     wreckRank = 1 + rivals.filter(r => r.alive && r.distance > distance + 1050).length;
     boosting = false; document.body.classList.remove('boosting'); document.body.classList.add('paused', 'destroyed');
@@ -1535,8 +1538,21 @@
     playExplosionSound(1.65); updateHUD();
   }
   const hullLoss = amount => Math.round(amount / HULL_STRENGTH);
+  // Shield gone but a life left: the ship blows up big, and after a moment it is back at the same spot on the track.
+  function loseRaceLife() {
+    lives--; mode = 'respawning'; raceRespawnAt = time + 2.4; boosting = false; jumpHeight = 0; jumpVelocity = 0;
+    document.body.classList.remove('boosting'); laserShots = []; enemyShots = [];
+    const shipSize = Math.min(W * .074, 110), m = machines[shipIndex];
+    megaBlasts.push({ x: W * .5, y: H * .79, started: time, duration: 2, color: '#ffec87', seed: 5, scale: 1 });
+    megaBlasts.push({ x: W * .5 - shipSize, y: H * .72, started: time + .2, duration: 1.6, color: m.color, seed: 9, scale: .65 });
+    megaBlasts.push({ x: W * .5 + shipSize, y: H * .75, started: time + .35, duration: 1.6, color: '#ff4eb8', seed: 21, scale: .65 });
+    for (let i = 0; i < 40; i++) particles.push({ x: W * .5, y: H * .78, vx: (Math.random() - .5) * 1600, vy: -Math.random() * 1100, life: 1.2, color: i % 3 ? m.color : '#ffec87' });
+    shake = 3.4; screenFlash = 1;
+    playExplosionSound(3); playToneSweep(90, 18, 2.2, 'sawtooth', .2); playNoiseBurst(2.4, .32, 2400, 40);
+    showMessage(`SHIP DESTROYED  /  ${lives + 1} ${lives ? 'LIVES' : 'LIFE'} LEFT`, 2.2); updateHUD();
+  }
   function damageShield(amount) {
-    if (hyper()) return false;
+    if (hyper() || time < raceInvulnUntil) return false;
     shield = Math.max(0, shield - amount / HULL_STRENGTH);
     if (shield <= 25) screenFlash = Math.max(screenFlash, .08 + (25 - shield) * .005);
     if (shield === 0) { destroyPlayer(); return true; }
@@ -1626,6 +1642,17 @@
       $('countdown').textContent = countdown > 0 ? Math.ceil(countdown) : 'GO!';
       if (Math.ceil(countdown) !== old && countdown > 0) soundEffect(440, .13);
       if (countdown <= 0) { mode = 'racing'; launchGoTime = .8; soundEffect(880, .35); calibrateTilt(); }
+      updateHUD(); return;
+    }
+    if (mode === 'respawning') {
+      elapsed += dt; shake *= Math.pow(.05, dt);
+      for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 450 * dt; p.life -= dt; }
+      particles = particles.filter(p => p.life > 0);
+      if (messageTime > 0) { messageTime -= dt; if (messageTime <= 0) $('race-message').classList.remove('visible'); }
+      if (time >= raceRespawnAt) {
+        mode = 'racing'; shield = 100; speed = Math.min(speed, 4500); playerX = 0; raceInvulnUntil = time + 2.5;
+        bombs = []; collisionCooldown = 1; showMessage('BACK IN THE RACE!', 1.2); playToneSweep(300, 1200, .5, 'sine', .07);
+      }
       updateHUD(); return;
     }
     if (mode === 'wrecked') {
@@ -1825,6 +1852,7 @@
     document.body.classList.toggle('boosting', boosting || jumpBoostTimer > 0); updateHUD();
   }
   function updateHUD() {
+    $('race-lives').textContent = '♥'.repeat(lives + (mode === 'respawning' ? 0 : 1));
     $('ufo-kills').textContent = `${String(ufoKills % BOSS_EVERY).padStart(2, '0')}/${BOSS_EVERY}`;
     document.body.classList.toggle('boss', !!boss);
     document.body.classList.toggle('hyper', hyper());
@@ -2294,7 +2322,7 @@
   function render() {
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
     ctx.save();
-    if (shake > .03 && (mode === 'racing' || mode === 'wrecked' || mode === 'invasion')) ctx.translate(Math.sin(time * 121) * shake * 8, Math.cos(time * 93) * shake * 5);
+    if (shake > .03 && (mode === 'racing' || mode === 'wrecked' || mode === 'invasion' || mode === 'respawning')) ctx.translate(Math.sin(time * 121) * shake * 8, Math.cos(time * 93) * shake * 5);
     background(); drawRoad(); drawLaserBeams();
     const isMenu = mode === 'menu';
     const m = machines[shipIndex];
@@ -2302,6 +2330,7 @@
     const groundShipY = isMenu ? H * .73 : H * .79, shipY = groundShipY - jumpHeight;
     const shipSize = Math.min(W * (isMenu ? .085 : .074), isMenu ? 130 : 110);
     if (mode === 'wrecked' && wreckBurst) drawExplosion(shipX, shipY, shipSize * .9, wreckBurst);
+    else if (mode === 'respawning' || (time < raceInvulnUntil && Math.sin(time * 40) < 0)) { /* exploded / blinking */ }
     else {
       if (jumpHeight > 30 && mode === 'racing') {
         ctx.save(); ctx.globalAlpha = clamp(1 - jumpHeight / 420, .18, .7); ctx.fillStyle = m.color; ctx.shadowColor = m.color; ctx.shadowBlur = 18;
@@ -2470,7 +2499,7 @@
     setupAudio(); primeSpeech();
     $('menu').classList.add('hidden'); $('hud').classList.add('hidden');
     document.body.classList.add('racing'); document.body.classList.remove('paused');
-    rivals = []; ufos = []; bombs = []; shield = 100;
+    rivals = []; ufos = []; bombs = []; shield = 100; lives = finaleWaveCount();
     startInvasion();
   }
   $('title-egg').addEventListener('click', () => {
@@ -2486,7 +2515,7 @@
     if (eggTyped === 'BOSS') bossRush();
   });
   // Lets the update job wait until no race is in progress.
-  window.morbidBusy = () => ['countdown', 'racing', 'paused', 'wrecked', 'invasion', 'final'].includes(mode) || (mode === 'disco' && !(finale && finale.resultsShown));
+  window.morbidBusy = () => ['countdown', 'racing', 'respawning', 'paused', 'wrecked', 'invasion', 'final'].includes(mode) || (mode === 'disco' && !(finale && finale.resultsShown));
   window.addEventListener('resize', resize);
   preloadSoundtrack(); prefetchVoices();
   resize(); buildTrack(); requestAnimationFrame(frame);
