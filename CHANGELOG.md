@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.10.0](https://github.com/Jan-Frederic/Zero/compare/v1.9.0...v1.10.0) (2026-11-08)
+
+
+### Features
+
+* power-ups on the track ([3a0238b](https://github.com/Jan-Frederic/Zero/commit/3a0238ba5b900a5969b698ea2c7913f8c351e27d))
+
 # [1.9.0](https://github.com/Jan-Frederic/Zero/compare/v1.8.0...v1.9.0) (2026-11-08)
 
 
