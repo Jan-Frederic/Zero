@@ -897,6 +897,8 @@
     { kind: 'cyclops', name: 'CYCLOPS COMMANDER', attack: 'eyebeam', color: '#c38bff', blood: ['#b06bff', '#7a2fd0'], guts: ['#ffb0d8', '#d05a9a'], splat: '#8f45e0', down: 'CYCLOPS POPPED!' },
     { kind: 'maggot', name: 'MAGGOT QUEEN', attack: 'acid', color: '#f2e85a', blood: ['#e8e04a', '#b8b020'], guts: ['#ff8a6a', '#c9503a'], splat: '#cfc23a', down: 'MAGGOT SQUASHED!' },
     { kind: 'robot', name: 'ROBO-TYRANT', attack: 'missiles', color: '#ff3b3b', blood: ['#26262c', '#4a4a52'], guts: ['#9aa3b5', '#c8ced8'], splat: '#1d1d22', down: 'ROBOT SCRAPPED!' },
+    { kind: 'spider', name: 'CRYSTAL SPIDER', attack: 'web', color: '#7dfcff', blood: ['#bff8ff', '#5fd8ff'], guts: ['#e6fbff', '#8fe9ff'], splat: '#7dd8f0', down: 'SPIDER SHATTERED!' },
+    { kind: 'shark', name: 'WORMHOLE SHARK', attack: 'portal', color: '#ff6a3d', blood: ['#ff3b3b', '#b0102a'], guts: ['#ff8aa2', '#c4566f'], splat: '#c0142e', down: 'SHARK SPLATTERED!' },
   ];
   const finaleWaveCount = () => clamp((tracks[trackIndex].difficulty || 3) - 2, 1, 6);
   function waveConfig(n) {
@@ -919,7 +921,9 @@
     } else showCallout(f.waves > 1 ? `FINAL BOSS 1/${f.waves}!` : 'FINAL BOSS!', cfg.type.color);
   }
   function playDeathScream(kind) {
-    robotSay('', `scream-${kind}`);
+    robotSay('', `scream-${{ spider: 'cyclops', shark: 'overlord' }[kind] || kind}`);
+    if (kind === 'spider') { playToneSweep(3200, 600, 1.4, 'triangle', .05); playNoiseBurst(1.2, .2, 9000, 3000); playToneSweep(4400, 2000, .6, 'sine', .04); return; }
+    if (kind === 'shark') { playToneSweep(160, 30, 2.2, 'sawtooth', .12); playToneSweep(90, 20, 2.4, 'square', .07); playNoiseBurst(1.4, .2, 1200, 80); return; }
     if (kind === 'overlord') { playToneSweep(220, 40, 2.4, 'sawtooth', .09); playNoiseBurst(1.6, .14, 900, 60); }
     else if (kind === 'cyclops') { playToneSweep(1400, 300, 1.8, 'triangle', .07); playToneSweep(1700, 420, 1.6, 'sawtooth', .03); }
     else if (kind === 'maggot') { playToneSweep(2200, 900, 1.2, 'square', .03); playNoiseBurst(1.1, .18, 500, 120); playToneSweep(120, 30, 1.2, 'sine', .14); }
@@ -1041,15 +1045,83 @@
     drawHitFlash(s, flash, .44, .42);
     ctx.restore();
   }
+  // A faceted ice-crystal spider: prism body, eight jointed legs, a cluster of glowing eyes and dripping fangs.
+  function drawSpider(x, y, s, flash, look) {
+    ctx.save(); ctx.translate(x, y);
+    for (const side of [-1, 1]) for (let i = 0; i < 4; i++) { // legs
+      const base = -.3 + i * .2, swing = Math.sin(time * 4 + i + (side > 0 ? 1.5 : 0)) * .12;
+      const kx = side * s * (.45 + i * .04), ky = s * (base - .25 + swing), fx = side * s * (.72 + i * .02), fy = s * (base + .35 + swing * .5);
+      ctx.strokeStyle = '#2b4d6b'; ctx.lineWidth = s * .05; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(side * s * .18, s * base * .6); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+      ctx.strokeStyle = '#9ff4ff'; ctx.lineWidth = s * .018; ctx.stroke();
+      ctx.fillStyle = '#e6fbff'; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + side * s * .03, fy + s * .1); ctx.lineTo(fx - side * s * .02, fy + s * .02); ctx.fill();
+    }
+    const facets = [[-.32, 0], [-.18, -.28], [.18, -.28], [.32, 0], [.18, .3], [-.18, .3]];
+    ctx.shadowColor = '#7dfcff'; ctx.shadowBlur = 28;
+    for (let k = 0; k < 6; k++) { // abdomen made of crystal facets
+      const [ax, ay] = facets[k], [bx, by] = facets[(k + 1) % 6];
+      ctx.fillStyle = `hsla(${190 + k * 8},90%,${55 + (k % 3) * 12}%,.9)`; ctx.beginPath(); ctx.moveTo(0, s * .02); ctx.lineTo(ax * s, ay * s); ctx.lineTo(bx * s, by * s); ctx.fill();
+    }
+    ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = Math.max(1, s * .008);
+    ctx.beginPath(); facets.forEach(([fx, fy], k) => ctx[k ? 'lineTo' : 'moveTo'](fx * s, fy * s)); ctx.closePath(); ctx.stroke();
+    ctx.fillStyle = '#132a3d'; ctx.beginPath(); ctx.ellipse(0, s * .38, s * .2, s * .14, 0, 0, TAU); ctx.fill(); // head
+    for (let e = 0; e < 8; e++) { // eye cluster
+      const ex = (e % 4 - 1.5) * s * .07, ey = s * (.33 + Math.floor(e / 4) * .07), er = s * (e % 4 === 1 || e % 4 === 2 ? .035 : .022);
+      ctx.fillStyle = '#ff2a5a'; ctx.shadowColor = '#ff2a5a'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(ex + look * s * .01, ey, er, 0, TAU); ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+    for (const side of [-1, 1]) { // fangs with dripping venom
+      ctx.fillStyle = '#e6fbff'; ctx.beginPath(); ctx.moveTo(side * s * .06, s * .48); ctx.lineTo(side * s * .1, s * .62); ctx.lineTo(side * s * .02, s * .5); ctx.fill();
+      const drip = mod(time * .8 + (side > 0 ? .5 : 0), 1); ctx.fillStyle = '#9dff5a'; ctx.globalAlpha = 1 - drip; ctx.beginPath(); ctx.arc(side * s * .09, s * (.63 + drip * .3), s * .015, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+    }
+    drawHitFlash(s, flash, .4, .45);
+    ctx.restore();
+  }
+  // A space shark that swims through wormholes: gills, rows of teeth, a dead eye and jet fins.
+  function drawShark(x, y, s, flash, look, attacking = false) {
+    ctx.save(); ctx.translate(x, y); if (attacking) ctx.rotate(-Math.PI / 2);
+    if (!attacking) { // swirling wormhole behind it
+      for (let r = 4; r > 0; r--) { ctx.strokeStyle = `hsla(${(time * 120 + r * 50) % 360},100%,60%,${.12 + r * .05})`; ctx.lineWidth = s * .03; ctx.beginPath(); ctx.ellipse(0, 0, s * (.45 + r * .14), s * (.2 + r * .07), time * (r % 2 ? 1 : -1) * .7, 0, TAU); ctx.stroke(); }
+      drawJets(s, s * .38, s * .2, '#ffb347', .8);
+    }
+    const wag = Math.sin(time * 5) * .12;
+    ctx.fillStyle = '#4a5a72'; ctx.beginPath(); ctx.moveTo(s * .45, 0); ctx.lineTo(s * .75, -s * .22 + wag * s); ctx.lineTo(s * .66, 0); ctx.lineTo(s * .75, s * .2 + wag * s); ctx.closePath(); ctx.fill(); // tail
+    ctx.beginPath(); ctx.moveTo(-s * .02, -s * .14); ctx.lineTo(s * .12, -s * .42); ctx.lineTo(s * .2, -s * .14); ctx.fill(); // dorsal fin
+    const body = ctx.createLinearGradient(0, -s * .2, 0, s * .2); body.addColorStop(0, '#7b8ca8'); body.addColorStop(.55, '#4a5a72'); body.addColorStop(.56, '#e9edf2'); body.addColorStop(1, '#c9d0da');
+    ctx.fillStyle = body; ctx.shadowColor = '#ff6a3d'; ctx.shadowBlur = attacking ? 0 : 24;
+    ctx.beginPath(); ctx.moveTo(-s * .55, s * .02); ctx.quadraticCurveTo(-s * .4, -s * .22, s * .1, -s * .17); ctx.quadraticCurveTo(s * .45, -s * .12, s * .5, 0); ctx.quadraticCurveTo(s * .4, s * .16, 0, s * .18); ctx.quadraticCurveTo(-s * .45, s * .2, -s * .55, s * .02); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#2b3445'; ctx.lineWidth = Math.max(1, s * .012); for (let gl = 0; gl < 4; gl++) { ctx.beginPath(); ctx.moveTo(-s * (.18 - gl * .05), -s * .08); ctx.quadraticCurveTo(-s * (.21 - gl * .05), 0, -s * (.18 - gl * .05), s * .08); ctx.stroke(); }
+    const open = attacking ? .9 : .4 + Math.sin(time * 3) * .3; // jaws
+    ctx.fillStyle = '#5a0614'; ctx.beginPath(); ctx.moveTo(-s * .55, s * .02); ctx.lineTo(-s * .3, -s * .02); ctx.lineTo(-s * .3, s * (.05 + open * .12)); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fffbe6'; for (let t = 0; t < 6; t++) { const tx = -s * (.52 - t * .04); ctx.beginPath(); ctx.moveTo(tx, s * .0); ctx.lineTo(tx + s * .02, s * .0); ctx.lineTo(tx + s * .01, s * .045); ctx.fill(); ctx.beginPath(); ctx.moveTo(tx, s * (.05 + open * .1)); ctx.lineTo(tx + s * .02, s * (.05 + open * .1)); ctx.lineTo(tx + s * .01, s * (.01 + open * .1)); ctx.fill(); }
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(-s * .36 + look * s * .005, -s * .06, s * .035, 0, TAU); ctx.fill(); // dead eye
+    ctx.fillStyle = '#ff3b3b'; ctx.beginPath(); ctx.arc(-s * .365, -s * .065, s * .01, 0, TAU); ctx.fill();
+    if (!attacking) drawHitFlash(s, flash, .55, .25);
+    ctx.restore();
+  }
   function drawFinalBoss(L, look) {
     const f = finale, kind = f.cfg.type.kind, y = L.bossY;
     if (kind === 'cyclops') drawCyclops(L.bossX, y, L.bs, f.boss.flash, look);
     else if (kind === 'maggot') drawMaggot(L.bossX, y, L.bs, f.boss.flash, look);
     else if (kind === 'robot') drawRobot(L.bossX, y, L.bs, f.boss.flash, look);
+    else if (kind === 'spider') drawSpider(L.bossX, y, L.bs, f.boss.flash, look);
+    else if (kind === 'shark') drawShark(L.bossX, y, L.bs, f.boss.flash, look);
     else drawOverlord(L.bossX, y, L.bs, f.boss.flash, look);
   }
   function bossAttack(L, shipPx) {
     const f = finale, mx = L.bossX, my = L.bossY + L.bs * .22, dx = shipPx - mx, dy = L.shipY - my, aim = Math.atan2(dy, dx), attack = f.cfg.type.attack;
+    if (attack === 'web') {
+      // A sticky web falls on the player's spot; caught ships are slowed for a while.
+      f.bolts.push({ kind: 'web', x: shipPx + (Math.random() - .5) * L.ship, y: my, vx: 0, vy: H * .34, dmg: 6, r: L.ship * .9 });
+      for (const s of [-1, 1]) f.bolts.push({ kind: 'shard', x: mx + s * L.bs * .3, y: my, vx: s * H * .12 + dx * .18, vy: H * .45, dmg: 7, color: '#bff8ff' });
+      playToneSweep(2600, 1200, .3, 'triangle', .04); return;
+    }
+    if (attack === 'portal') {
+      // The shark dives into a wormhole and bursts out under the player: a telegraphed bite from below.
+      f.bolts.push({ kind: 'bite', x: shipPx, y: L.shipY, vx: 0, vy: 0, dmg: 16, warnUntil: time + 1, until: time + 1.45 });
+      f.boss.hidden = time + 1.5;
+      playToneSweep(400, 60, 1, 'sine', .08); playNoiseBurst(.9, .1, 300, 2000); return;
+    }
     if (attack === 'eyebeam') {
       // Telegraphed death ray from the monocle eye straight down at the player's position.
       f.bolts.push({ kind: 'eyebeam', x: shipPx, y: L.shipY, vx: 0, vy: 0, dmg: 14, fromX: mx, fromY: L.bossY - L.bs * .03, warnUntil: time + .85, until: time + 1.35 });
@@ -1118,7 +1190,7 @@
       playToneSweep(760, 110, .14, 'square', .05);
       return;
     }
-    if (time - f.boss.arrive > 1.2 && Math.abs(x - L.bossX) < L.bs * .45) {
+    if (time - f.boss.arrive > 1.2 && !(f.boss.hidden > time) && Math.abs(x - L.bossX) < L.bs * .45) {
       const hitY = L.bossY + L.bs * .15;
       f.beams.push({ x, y0: startY, y1: hitY, at: time }); f.boss.hp--; f.boss.flash = 1; shake = Math.max(shake, .6);
       megaBlasts.push({ x, y: hitY, started: time, duration: .45, color: f.cfg.type.color, seed: Math.floor(Math.random() * 999), scale: .1 });
@@ -1202,7 +1274,7 @@
     // --- fight
     const keySteer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA'));
     const steer = keySteer || (gyroActive() ? tiltSteer() : gesture.steer);
-    f.shipX = clamp(f.shipX + steer * dt * .85, .05, .95);
+    f.shipX = clamp(f.shipX + steer * dt * .85 * (time < (f.webbedUntil || 0) ? .35 : 1), .05, .95);
     f.formX += f.formVx * dt; if (Math.abs(f.formX) > 1) { f.formX = Math.sign(f.formX); f.formVx *= -1; }
     f.rowPhase += f.rowSwing * dt;
     const b = f.boss; b.off += b.v * dt; if (Math.abs(b.off) > 1) { b.off = Math.sign(b.off); b.v *= -1; }
@@ -1225,6 +1297,16 @@
     }
     for (const bolt of f.bolts) {
       bolt.x += bolt.vx * dt; bolt.y += bolt.vy * dt;
+      if (bolt.kind === 'bite') {
+        if (time >= bolt.warnUntil && !bolt.fired) { bolt.fired = true; playToneSweep(90, 40, .4, 'sawtooth', .14); playNoiseBurst(.4, .2, 3000, 200); shake = Math.max(shake, 1.2); }
+        if (bolt.fired && time < bolt.until && time > f.invulnUntil && Math.abs(bolt.x - shipPx) < L.ship * 1.1) {
+          bolt.hit = true; shield = Math.max(0, shield - bolt.dmg); screenFlash = Math.max(screenFlash, .4); playImpactSound(1.2); finaleMsg(`CHOMP!  SHIELD -${bolt.dmg}`);
+        }
+        continue;
+      }
+      if (bolt.kind === 'web' && time > f.invulnUntil && Math.abs(bolt.x - shipPx) < bolt.r && Math.abs(bolt.y - L.shipY) < L.ship * .6) {
+        bolt.hit = true; f.webbedUntil = time + 2.2; shield = Math.max(0, shield - bolt.dmg); playNoiseBurst(.3, .1, 2000, 400); finaleMsg('WEBBED!  SLOWED DOWN'); continue;
+      }
       if (bolt.kind === 'eyebeam') {
         if (time >= bolt.warnUntil && !bolt.fired) { bolt.fired = true; playToneSweep(1800, 300, .5, 'sawtooth', .07); playNoiseBurst(.5, .12, 6000, 600); }
         if (bolt.fired && time < bolt.until && time > f.invulnUntil && Math.abs(bolt.x - shipPx) < L.ship * .75) {
@@ -1235,10 +1317,10 @@
       }
       if (time > f.invulnUntil && Math.abs(bolt.x - shipPx) < L.ship * .9 && Math.abs(bolt.y - L.shipY) < L.ship * .5) {
         bolt.hit = true; shield = Math.max(0, shield - bolt.dmg); shake = Math.max(shake, .8); screenFlash = Math.max(screenFlash, .25);
-        playImpactSound(.8); finaleMsg(`${{ slime: 'SLIMED!', acid: 'ACID BURN!', missile: 'MISSILE HIT!' }[bolt.kind] || 'ZAPPED!'}  SHIELD -${bolt.dmg}`);
+        playImpactSound(.8); finaleMsg(`${{ slime: 'SLIMED!', acid: 'ACID BURN!', missile: 'MISSILE HIT!', shard: 'CRYSTAL SHARD!' }[bolt.kind] || 'ZAPPED!'}  SHIELD -${bolt.dmg}`);
       }
     }
-    f.bolts = f.bolts.filter(bolt => bolt.kind === 'eyebeam' ? !bolt.hit && time < bolt.until : !bolt.hit && bolt.y < H + 40 && bolt.x > -40 && bolt.x < W + 40);
+    f.bolts = f.bolts.filter(bolt => bolt.kind === 'eyebeam' || bolt.kind === 'bite' ? !bolt.hit && time < bolt.until : !bolt.hit && bolt.y < H + 40 && bolt.x > -40 && bolt.x < W + 40);
     if (shield <= 0) {
       f.bolts = []; f.lostAt = time; explodeShip(shipPx, L.shipY, L.ship);
       if (f.lives > 0) { f.phase = 'respawn'; f.lives--; lives = f.lives; showCallout(`SHIP DESTROYED!  ${f.lives + 1} ${f.lives ? 'LIVES' : 'LIFE'} LEFT`, '#ff3b6b'); }
@@ -1473,7 +1555,7 @@
     if (f.phase === 'disco') { drawDisco(); ctx.restore(); return; }
     drawSpace();
     const L = finaleLayout(), shipPx = f.shipX * W;
-    if (f.phase !== 'won' || time - f.wonAt < .15) drawFinalBoss(L, clamp((shipPx - L.bossX) / (W * .25), -1, 1));
+    if ((f.phase !== 'won' || time - f.wonAt < .15) && !(f.boss.hidden > time)) drawFinalBoss(L, clamp((shipPx - L.bossX) / (W * .25), -1, 1));
     for (const v of f.invaders) if (v.alive) {
       const x = invaderX(L, v), y = L.top + (v.r + .5) * L.ch;
       drawCritter(x, y + Math.sin(time * 3 + v.seed) * L.ch * .05, L.cw * .92, CRITTER_COLORS[v.r % 4], clamp((shipPx - x) / (W * .3), -1, 1), time * 6 + v.seed);
@@ -1486,6 +1568,25 @@
     }
     ctx.restore(); ctx.globalAlpha = 1;
     for (const b of f.bolts) {
+      if (b.kind === 'web') {
+        ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(time * .6); ctx.strokeStyle = 'rgba(220,250,255,.85)'; ctx.lineWidth = 1.5;
+        for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; line(0, 0, Math.cos(a) * b.r, Math.sin(a) * b.r, 'rgba(220,250,255,.85)', 1.5); }
+        for (let ring = 1; ring <= 3; ring++) { ctx.beginPath(); for (let k = 0; k <= 8; k++) { const a = k / 8 * TAU, rr = b.r * ring / 3; ctx[k ? 'lineTo' : 'moveTo'](Math.cos(a) * rr, Math.sin(a) * rr); } ctx.stroke(); }
+        ctx.restore(); continue;
+      }
+      if (b.kind === 'shard') { ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(time * 8); ctx.fillStyle = '#bff8ff'; ctx.shadowColor = '#7dfcff'; ctx.shadowBlur = 12; ctx.beginPath(); ctx.moveTo(0, -L.ship * .25); ctx.lineTo(L.ship * .1, 0); ctx.lineTo(0, L.ship * .25); ctx.lineTo(-L.ship * .1, 0); ctx.fill(); ctx.restore(); continue; }
+      if (b.kind === 'bite') {
+        ctx.save();
+        if (!b.fired) {
+          const k = clamp(1 - (b.warnUntil - time), 0, 1); ctx.translate(b.x, L.shipY + L.ship * .35);
+          for (let r = 4; r > 0; r--) { ctx.fillStyle = `hsla(${(time * 200 + r * 60) % 360},100%,55%,${.3 + k * .25})`; ctx.beginPath(); ctx.ellipse(0, 0, L.ship * (.8 + r * .5) * (.4 + k * .6), L.ship * (.18 + r * .1), time * 3, 0, TAU); ctx.fill(); }
+          ctx.font = `bold ${Math.max(12, L.ship * .35)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.fillStyle = Math.sin(time * 20) > 0 ? '#ff6a3d' : '#ffffff'; ctx.fillText('⚠ WORMHOLE — MOVE!', 0, -L.ship * 1.3);
+        } else {
+          const k = clamp((time - b.warnUntil) / .45, 0, 1), up = Math.sin(k * Math.PI) * L.ship * 3.2; ctx.translate(b.x, L.shipY + L.ship * 1.4 - up);
+          drawShark(0, 0, L.ship * 3.4, 0, 0, true);
+        }
+        ctx.restore(); continue;
+      }
       if (b.kind === 'eyebeam') {
         ctx.save();
         if (!b.fired) { ctx.globalAlpha = Math.sin(time * 30) > 0 ? .7 : .25; line(b.x, b.fromY, b.x, H, '#ff3b55', 2); ctx.fillStyle = 'rgba(255,40,70,.35)'; ctx.beginPath(); ctx.ellipse(b.x, L.shipY + L.ship * .3, L.ship, L.ship * .25, 0, 0, TAU); ctx.fill(); }
