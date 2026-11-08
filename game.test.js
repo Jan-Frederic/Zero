@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 
 // Exercise the actual game loop with a deterministic clock and browser stand-ins.
-function harness() {
+function harness(opts = {}) {
   const gradient = { addColorStop() {} };
   const context = new Proxy({}, { get: (o, key) => o[key] || (String(key).startsWith('create') ? () => gradient : () => {}), set: (o, key, value) => (o[key] = value, true) });
   const elements = new Map();
@@ -24,7 +24,7 @@ function harness() {
   }
   const ships = [0, 1, 2].map(n => { const el = element(`ship${n}`); el.dataset.ship = String(n); return el; });
   const hapticButtons = ['on', 'off'].map(v => { const el = element(`haptics-${v}`); el.dataset.haptics = v; return el; });
-  const windowEvents = {}, storage = new Map(), vibrations = [];
+  const windowEvents = {}, storage = new Map(opts.fresh ? [] : [['morbid-profile-v1', JSON.stringify({ unlocked: 8 })]]), vibrations = [];
   let frame, now = 0;
   const sandbox = {
     console, Math, Uint8Array, navigator: { vibrate: pattern => { vibrations.push(pattern); return true; } }, innerWidth: 1280, innerHeight: 800, devicePixelRatio: 1,
@@ -528,4 +528,21 @@ test('credits: earned in races and boss fights, spent on ship upgrades that chan
   assert.equal(sandbox.morbidShop.buy('armor'), false, 'not enough credits left for armor level 2');
   el('start').fire('click'); step(.1);
   assert.equal(el('laser-count').textContent, '12', 'laser bank holds two more cells');
+});
+
+test('campaign: later circuits unlock with a podium on the previous one', () => {
+  const { element: el, step, key, inspect, setRacePosition, disableAirRaid, eliminateRivals } = harness({ fresh: true });
+  el('next-track').fire('click');
+  assert.match(el('track-lock').textContent, /LOCKED/);
+  el('start').fire('click');
+  assert.equal(inspect().mode, 'menu', 'a locked circuit cannot be started');
+  el('prev-track').fire('click');
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  disableAirRaid(); eliminateRivals();
+  for (let lap = 0; lap < 6 && inspect().mode === 'racing'; lap++) { setRacePosition((lap + 1) * 240000 - 60, 0); step(.5); }
+  assert.match(el('result-record').textContent, /UNLOCKED: SOLAR RIOT/);
+  el('garage').fire('click'); el('next-track').fire('click');
+  assert.match(el('track-lock').textContent, /UNLOCKED: 2\/8/);
+  el('start').fire('click');
+  assert.equal(inspect().mode, 'countdown', 'the unlocked circuit starts');
 });
