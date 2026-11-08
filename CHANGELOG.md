@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.13.0](https://github.com/Jan-Frederic/Zero/compare/v1.12.0...v1.13.0) (2026-11-08)
+
+
+### Features
+
+* achievements and a trophy cabinet ([281dedb](https://github.com/Jan-Frederic/Zero/commit/281dedb84457dac828cc871166299e40ed2b8050))
+
 # [1.12.0](https://github.com/Jan-Frederic/Zero/compare/v1.11.0...v1.12.0) (2026-11-08)
 
 
