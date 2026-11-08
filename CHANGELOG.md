@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.14.0](https://github.com/Jan-Frederic/Zero/compare/v1.13.0...v1.14.0) (2026-11-08)
+
+
+### Features
+
+* share your result ([ba40972](https://github.com/Jan-Frederic/Zero/commit/ba40972e3e973b879e9c1890127e813a51a149f3))
+
 # [1.13.0](https://github.com/Jan-Frederic/Zero/compare/v1.12.0...v1.13.0) (2026-11-08)
 
 
