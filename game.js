@@ -241,7 +241,15 @@
       source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
     } catch { /* Keep gameplay running if a browser cannot synthesize noise. */ }
   }
+  // Haptics: short buzzes for hits and boosts, long rumbles for explosions (Android; iOS has no web vibration).
+  let lastBuzz = 0;
+  function buzz(pattern, minGap = .06) {
+    if (!settings.haptics || mode === 'menu' || typeof navigator === 'undefined' || !navigator.vibrate) return;
+    if (time - lastBuzz < minGap) return; lastBuzz = time;
+    try { navigator.vibrate(pattern); } catch { /* unsupported */ }
+  }
   function playBoostSound(power = 1) {
+    buzz(Math.round(25 * power));
     playToneSweep(95, 560, .3, 'sawtooth', .055 * power);
     playNoiseBurst(.24, .055 * power, 3400, 260);
   }
@@ -250,11 +258,13 @@
     playToneSweep(510, 95, .17, 'sawtooth', .035);
   }
   function playImpactSound(power = 1) {
+    buzz(Math.round(35 + 45 * Math.min(power, 1.5)));
     playToneSweep(118, 29, .4, 'sawtooth', .095 * power);
     playToneSweep(980, 165, .11, 'square', .045 * power);
     playNoiseBurst(.3, .12 * power, 2400, 115);
   }
   function playExplosionSound(power = 1) {
+    buzz(power >= 2 ? [120, 40, 90, 40, 260] : Math.round(60 + power * 60), .02);
     playToneSweep(148, 27, .56, 'sawtooth', .12 * power);
     playToneSweep(740, 82, .28, 'triangle', .045 * power);
     playNoiseBurst(.5, .16 * power, 2800, 72);
@@ -637,6 +647,7 @@
     jetWhine.connect(whineFilter); whineFilter.connect(jetWhineGain); jetWhineGain.connect(sfxBus); jetWhine.start();
   }
   function playJetBlast(power = 1) {
+    buzz([30, 30, Math.round(60 * power)]);
     // Ignition: a roaring whoosh that tears upward, a deep rumble and a screaming turbine.
     const v = power * .38;
     playNoiseBurst(1.1 * power, .32 * v, 300, 6500);
@@ -647,7 +658,7 @@
   // ---- Setup: steering (touch or gyro) and screen orientation, chosen on the start screen and remembered.
   // Defaults: gyro steering in landscape. (v2 key: earlier builds saved touch/portrait implicitly.)
   const SETTINGS_KEY = 'morbid-settings-v2';
-  const settings = { steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
+  const settings = { haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch { /* defaults */ }
   const tilt = { x: 0, neutral: 0, live: false };
   function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ } }
@@ -680,6 +691,7 @@
   function renderSettings() {
     document.querySelectorAll('[data-steer]').forEach(b => b.classList.toggle('selected', b.dataset.steer === settings.steering));
     document.querySelectorAll('[data-screen]').forEach(b => b.classList.toggle('selected', b.dataset.screen === settings.screen));
+    document.querySelectorAll('[data-haptics]').forEach(b => b.classList.toggle('selected', (b.dataset.haptics === 'on') === settings.haptics));
     $('steer-hint').textContent = settings.steering === 'gyro' ? 'TILT ◀ ▶' : 'DRAG ◀ ▶';
     document.body.classList.toggle('gyro', settings.steering === 'gyro');
     checkOrientation();
@@ -2440,6 +2452,12 @@
       setupNote('GYRO ON — HOLD YOUR DEVICE NEUTRAL WHEN THE RACE STARTS');
     } else setupNote('DRAG ON THE TRACK TO STEER');
     settings.steering = button.dataset.steer; saveSettings(); renderSettings();
+  }));
+  document.querySelectorAll('[data-haptics]').forEach(button => button.addEventListener('click', () => {
+    settings.haptics = button.dataset.haptics === 'on'; saveSettings(); renderSettings();
+    const canVibrate = typeof navigator !== 'undefined' && !!navigator.vibrate;
+    if (settings.haptics && canVibrate) try { navigator.vibrate([40, 40, 80]); } catch { /* ignore */ }
+    setupNote(settings.haptics ? (canVibrate ? 'VIBRATION ON' : 'THIS DEVICE CANNOT VIBRATE FROM THE WEB') : 'VIBRATION OFF');
   }));
   document.querySelectorAll('[data-screen]').forEach(button => button.addEventListener('click', () => {
     settings.screen = button.dataset.screen; saveSettings(); renderSettings(); applyScreenSetting(true);

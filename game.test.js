@@ -23,11 +23,12 @@ function harness() {
     elements.set(id, el); return el;
   }
   const ships = [0, 1, 2].map(n => { const el = element(`ship${n}`); el.dataset.ship = String(n); return el; });
-  const windowEvents = {}, storage = new Map();
+  const hapticButtons = ['on', 'off'].map(v => { const el = element(`haptics-${v}`); el.dataset.haptics = v; return el; });
+  const windowEvents = {}, storage = new Map(), vibrations = [];
   let frame, now = 0;
   const sandbox = {
-    console, Math, Uint8Array, innerWidth: 1280, innerHeight: 800, devicePixelRatio: 1,
-    document: { getElementById: element, querySelector: element, querySelectorAll: query => query === '[data-ship]' ? ships : [], body: element('body'), addEventListener() {} },
+    console, Math, Uint8Array, navigator: { vibrate: pattern => { vibrations.push(pattern); return true; } }, innerWidth: 1280, innerHeight: 800, devicePixelRatio: 1,
+    document: { getElementById: element, querySelector: element, querySelectorAll: query => query === '[data-ship]' ? ships : query === '[data-haptics]' ? hapticButtons : [], body: element('body'), addEventListener() {} },
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
     requestAnimationFrame: fn => { frame = fn; },
     addEventListener: (event, fn) => (windowEvents[event] ||= []).push(fn),
@@ -38,7 +39,7 @@ function harness() {
   vm.runInNewContext(source, sandbox);
   const step = seconds => { for (let i = 0; i < Math.ceil(seconds * 20); i++) { now += 50; frame(now); } };
   const key = (code, type = 'keydown') => (windowEvents[type] || []).forEach(fn => fn({ code, repeat: false, target: element('body'), preventDefault() {} }));
-  return { element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b), eliminateRivals: () => sandbox.__eliminateRivals(), finaleAim: c => sandbox.__finaleAim(c), finaleState: () => sandbox.__finale(), finaleOpen: c => sandbox.__finaleOpen(c), finaleKillShip: () => sandbox.__finaleKillShip(), musicLoading: p => sandbox.__musicLoading(p), musicLoaded: () => sandbox.__musicLoaded(), setUfoKills: n => sandbox.__setUfoKills(n), setBossHp: n => sandbox.__setBossHp(n) };
+  return { vibrations, element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b), eliminateRivals: () => sandbox.__eliminateRivals(), finaleAim: c => sandbox.__finaleAim(c), finaleState: () => sandbox.__finale(), finaleOpen: c => sandbox.__finaleOpen(c), finaleKillShip: () => sandbox.__finaleKillShip(), musicLoading: p => sandbox.__musicLoading(p), musicLoaded: () => sandbox.__musicLoaded(), setUfoKills: n => sandbox.__setUfoKills(n), setBossHp: n => sandbox.__setBossHp(n) };
 }
 
 test('circuit selection, driving, boost, pause, full race, records and restart', () => {
@@ -477,4 +478,17 @@ test('extra lives also work in the race: you continue where you blew up', () => 
   assert.equal(el('race-lives').textContent, '♥');
   step(2.6); setReserves(1, 10, 100); key('ArrowRight'); step(1.2);
   assert.equal(inspect().mode, 'wrecked', 'without lives left the race ends as before');
+});
+
+test('vibration: hits and explosions buzz the phone, and it can be switched off', () => {
+  const { element: el, step, key, vibrations, setReserves } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(4);
+  vibrations.length = 0;
+  setReserves(100, 10, 100); key('ArrowRight'); step(1.2); key('ArrowRight', 'keyup'); step(.2);
+  assert.ok(vibrations.length > 0, 'hitting the barrier vibrates');
+  el('garage').fire('click'); el('haptics-off').fire('click');
+  el('start').fire('click'); key('ArrowUp'); step(4);
+  vibrations.length = 0;
+  key('ArrowRight'); step(1.2); key('ArrowRight', 'keyup');
+  assert.equal(vibrations.length, 0, 'no vibration when switched off');
 });
