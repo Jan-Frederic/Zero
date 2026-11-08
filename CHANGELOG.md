@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.4](https://github.com/Jan-Frederic/Zero/compare/v1.6.3...v1.6.4) (2026-11-08)
+
+
+### Bug Fixes
+
+* preload the whole soundtrack so music never drops out at race start ([0c3a9a3](https://github.com/Jan-Frederic/Zero/commit/0c3a9a359e0f3d5ac4b45d6afebd05c92668aa24))
+
 ## [1.6.3](https://github.com/Jan-Frederic/Zero/compare/v1.6.2...v1.6.3) (2026-11-07)
 
 
