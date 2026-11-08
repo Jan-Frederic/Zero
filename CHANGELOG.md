@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.12.0](https://github.com/Jan-Frederic/Zero/compare/v1.11.0...v1.12.0) (2026-11-08)
+
+
+### Features
+
+* campaign with unlockable circuits ([92e7bdc](https://github.com/Jan-Frederic/Zero/commit/92e7bdcc9e96f8b9daac4025a857e18c4b6436bb))
+
 # [1.11.0](https://github.com/Jan-Frederic/Zero/compare/v1.10.0...v1.11.0) (2026-11-08)
 
 
