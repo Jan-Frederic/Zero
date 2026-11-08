@@ -4,9 +4,32 @@
   const canvas = $('game'), ctx = canvas.getContext('2d', { alpha: false });
   const map = $('minimap').getContext('2d');
   const audio = $('soundtrack');
-  const TAU = Math.PI * 2, SEG = 200, COUNT = 1200, LENGTH = SEG * COUNT, ROAD = 1700, DEPTH = .88, PILOT_COUNT = 30, LASER_CAPACITY = 10;
-  // One laser cell recharges every LASER_RECHARGE seconds; HULL_STRENGTH > 1 makes the shield last that many times longer.
-  const LASER_RECHARGE = 2.5, HULL_STRENGTH = 2;
+  const TAU = Math.PI * 2, SEG = 200, COUNT = 1200, LENGTH = SEG * COUNT, ROAD = 1700, DEPTH = .88, PILOT_COUNT = 30, BASE_LASER_CAPACITY = 10;
+  // One laser cell recharges every laserRecharge() seconds; hullStrength() > 1 makes the shield last that many times longer.
+  const BASE_LASER_RECHARGE = 2.5, BASE_HULL_STRENGTH = 2;
+  // ---- Pilot profile (saved on the device): credits, ship upgrades, unlocked circuits, achievements, stats.
+  const PROFILE_KEY = 'morbid-profile-v1';
+  const profile = { credits: 0, upgrades: {}, unlocked: 1, achievements: {}, stats: {} };
+  try { Object.assign(profile, JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}')); } catch { /* fresh pilot */ }
+  profile.upgrades = Object.assign({ armor: 0, laser: 0, boost: 0 }, profile.upgrades);
+  function saveProfile() { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch { /* storage unavailable */ } }
+  const UPGRADES = {
+    armor: { name: 'HULL ARMOR', icon: '🛡', info: lvl => `takes ${Math.round(100 - 100 / (1 + lvl * .25))}% less damage` },
+    laser: { name: 'LASER BANK', icon: '◎', info: lvl => `${BASE_LASER_CAPACITY + lvl * 2} cells, recharge ${Math.round(lvl * 15)}% faster` },
+    boost: { name: 'BOOST CORE', icon: 'ϟ', info: lvl => `${Math.round(lvl * 20)}% less drain, +${lvl * 3}% top speed` },
+  };
+  const UPGRADE_COST = [150, 350, 700], UPGRADE_MAX = 3;
+  const hullStrength = () => BASE_HULL_STRENGTH * (1 + profile.upgrades.armor * .25);
+  const laserCap = () => BASE_LASER_CAPACITY + profile.upgrades.laser * 2;
+  const laserRecharge = () => BASE_LASER_RECHARGE * (1 - profile.upgrades.laser * .15);
+  const boostDrain = () => 1 - profile.upgrades.boost * .2;
+  const topSpeed = () => 1 + profile.upgrades.boost * .03;
+  let raceEarned = 0, creditPopAt = -9;
+  function addCredits(amount, why) {
+    if (!amount) return;
+    profile.credits += amount; raceEarned += amount; saveProfile();
+    $('credit-pop').textContent = `+${amount} CR  ${why}`; creditPopAt = time; $('credit-pop').classList.add('visible');
+  }
   // Cyan pads refill shield and laser cells in proportion to each track's boost recharge rate.
   const PAD_SHIELD = .45, PAD_LASER = .1;
   const keys = new Set();
@@ -70,7 +93,7 @@
   let shake = 0, steerVisual = 0, distance = 0, bestLap = 0, previousTime = 0, muted = false, beat = 0;
   let audioContext, analyser, frequency, engineGain, engineOsc, musicSource, musicGain, sfxBus;
   let particles = [], explosions = [], laserShots = [], enemyShots = [], hitHazards = new Set(), hitRamps = new Set(), rank = 20, lastPad = -1, launchGoTime = 0, boostLocked = false;
-  let laserAmmo = LASER_CAPACITY, laserCharge = 0, laserCooldown = 0, screenFlash = 0, wreckedAt = 0, wreckRank = PILOT_COUNT, wreckBurst = null;
+  let laserAmmo = BASE_LASER_CAPACITY, laserCharge = 0, laserCooldown = 0, screenFlash = 0, wreckedAt = 0, wreckRank = PILOT_COUNT, wreckBurst = null;
   const mod = (a, n) => ((a % n) + n) % n;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -369,7 +392,7 @@
     for (let i = 0; i < 5; i++) points.push([W * (.08 + random(seed + i * 3) * .84), H * (.12 + random(seed + i * 3 + 1) * .62)]);
     points.push([W * (.35 + random(seed + 40) * .3), H * (.3 + random(seed + 41) * .2)]);
     crashingUfos.push({ ...ufo, started: time, points, startSize: start.size, spinDir: random(seed + 9) > .5 ? 1 : -1, x: start.x, y: start.y, size: start.size, angle: 0 });
-    ufoKills++;
+    ufoKills++; addCredits(25, 'UFO DOWN');
     if (ufoKills % BOSS_EVERY === 0) summonBoss();
     else if (!boss) ufoRespawns.push({ at: time + UFO_CRASH_TIME + 2 + random(seed + 77) * 3, slot: ufo.slot });
     const [phrase, clip] = KILL_CALLS[Math.floor(random(seed + 5) * KILL_CALLS.length)];
@@ -482,10 +505,10 @@
     boss.hp = Math.max(0, boss.hp - power); boss.hitFlash = 1; playImpactSound(.8);
     megaBlasts.push({ x: boss.x + (Math.random() - .5) * boss.size * .8, y: boss.y + boss.size * .05, started: time, duration: .45, color: '#ffd35a', seed: Math.floor(Math.random() * 999), scale: .16 });
     if (boss.hp <= 0) {
-      boss.dying = time; bossAttacks = [];
+      boss.dying = time; bossAttacks = []; addCredits(200, 'MOTHERSHIP DOWN');
       showCallout('MOTHERSHIP DESTROYED!', '#ddff46'); showMessage('LEGENDARY!  SHIELD + LASER RESTORED', 2.4);
       robotSay('Mothership destroyed. You are a legend', 'mothership-down');
-      shield = 100; laserAmmo = LASER_CAPACITY; laserCharge = 0; energy = 100;
+      shield = 100; laserAmmo = laserCap(); laserCharge = 0; energy = 100;
     } else showMessage(`MOTHERSHIP HIT  /  ${Math.ceil(boss.hp / BOSS_HP * 100)}%`, .6);
   }
   function drawBoss() {
@@ -1059,6 +1082,7 @@
       life: 2.4 + Math.random() * 2 });
   }
   function killOverlord(L) {
+    addCredits(150 + finale.wave * 50, 'BOSS DOWN');
     const f = finale; f.phase = 'won'; f.wonAt = time; f.bolts = [];
     const x = L.bossX, y = L.bossY;
     for (let i = 0; i < 3; i++) megaBlasts.push({ x: x + (i - 1) * L.bs * .3, y: y + (i % 2) * L.bs * .2, started: time + i * .12, duration: 1.8, color: ['#7dff3a', '#ff4eb8', '#ffb347'][i], seed: 13 + i * 7 });
@@ -1078,6 +1102,8 @@
   }
   function showFinaleResults(won) {
     const f = finale; f.resultsShown = true;
+    if (won) addCredits(300, 'GALAXY SAVED');
+    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
     $('result-eyebrow').textContent = won ? 'INTERGALACTIC CHAMPION / INVASION REPELLED' : 'GAME OVER / THE INVASION WON';
     $('result-title').textContent = won ? 'GALAXY SAVED.' : 'ABDUCTED.';
     $('result-position').textContent = '01';
@@ -1462,13 +1488,13 @@
   }
   function startRace() {
     mode = 'countdown'; position = 0; distance = 0; playerX = 0; speed = 0; energy = 100; elapsed = 0; lap = 1; lapStart = 0;
-    laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = LASER_CAPACITY; laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
+    laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = laserCap(); laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
     const track = tracks[trackIndex];
     const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
     rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
-    musicHold = 0; lives = finaleWaveCount(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
+    musicHold = 0; raceEarned = 0; lives = finaleWaveCount(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
     $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE';
@@ -1546,6 +1572,7 @@
   const WRECK_TIME = 1.5;
   // A beaten rival is flung off the track: it careens across the whole screen, smoking and spinning, then explodes.
   function knockOut(rival) {
+    if (mode === 'racing') addCredits(15, 'RIVAL DOWN');
     rival.alive = false; rival.boosting = false; rival.dying = null;
     const start = rival.screen && time - rival.screen.at < .3 ? rival.screen : { x: W * .5, y: H * .5, size: Math.min(W, H) * .04 };
     const seed = Math.floor(time * 991) + rival.seed * 17;
@@ -1610,7 +1637,7 @@
     showMessage('SHIELDS DOWN  /  TOTAL CHAIN REACTION', 1.3);
     playExplosionSound(1.65); updateHUD();
   }
-  const hullLoss = amount => Math.round(amount / HULL_STRENGTH);
+  const hullLoss = amount => Math.round(amount / hullStrength());
   // Shield gone but a life left: the ship blows up big, and after a moment it is back at the same spot on the track.
   function loseRaceLife() {
     lives--; mode = 'respawning'; raceRespawnAt = time + 2.4; boosting = false; jumpHeight = 0; jumpVelocity = 0;
@@ -1631,12 +1658,13 @@
       if (!bubbleHits) power.bubble = 0;
       showMessage(bubbleHits ? `BUBBLE ABSORBED IT  /  ${bubbleHits} LEFT` : 'BUBBLE POPPED!', .9); return false;
     }
-    shield = Math.max(0, shield - amount / HULL_STRENGTH);
+    shield = Math.max(0, shield - amount / hullStrength());
     if (shield <= 25) screenFlash = Math.max(screenFlash, .08 + (25 - shield) * .005);
     if (shield === 0) { destroyPlayer(); return true; }
     return false;
   }
   function showWreckResults() {
+    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
     mode = 'finished';
     $('result-eyebrow').textContent = 'CATASTROPHIC FAILURE / SHIELDS OFFLINE';
     $('result-title').textContent = 'SHIELDS DOWN.';
@@ -1647,6 +1675,8 @@
     $('results').classList.remove('hidden');
   }
   function finishRace() {
+    addCredits(Math.max(0, (PILOT_COUNT + 1 - rank) * 10) + (rank <= 3 ? 100 : 0) + (rank === 1 ? 150 : 0), `P${rank} FINISH`);
+    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
     mode = 'finished'; boosting = false; document.body.classList.remove('boosting'); document.body.classList.add('paused');
     $('results').classList.remove('hidden'); $('result-position').textContent = String(rank).padStart(2, '0');
     $('result-title').textContent = rank === 1 ? 'PURE OVERDRIVE.' : rank <= 3 ? 'PODIUM FINISH.' : 'LIMITS REDEFINED.';
@@ -1754,10 +1784,10 @@
     boosting = boostHeld && !boostLocked && energy > 0 && speed > 2500 && !brake;
     if (boosting && !wasBoosting) { playBoostSound(1); playJetBlast(.75); }
     if (boosting) {
-      speed = Math.min((hyper() ? 19800 : 14900) * machine.top, speed + (hyper() ? 14000 : 9000) * dt); if (!hyper()) energy = Math.max(0, energy - machine.drain * dt);
+      speed = Math.min((hyper() ? 19800 : 14900) * machine.top * topSpeed(), speed + (hyper() ? 14000 : 9000) * dt); if (!hyper()) energy = Math.max(0, energy - machine.drain * boostDrain() * dt);
       if (energy <= 0) { boostLocked = true; showMessage('BOOST DEPLETED', 1); }
     } else {
-      const target = brake ? 3000 : accelerate ? 10700 * machine.top : 6500;
+      const target = brake ? 3000 : accelerate ? 10700 * machine.top * topSpeed() : 6500;
       speed += clamp(target - speed, -(brake ? 10500 : 2200) * dt, (accelerate ? 5300 : 2900) * dt);
       energy = Math.min(100, energy + dt * 7);
     }
@@ -1801,10 +1831,10 @@
       // Cyan pads recharge everything: boost energy, hull shield and laser cells.
       energy = Math.min(100, energy + dt * track.recharge); speed = Math.min(15000, speed + dt * 6000);
       shield = Math.min(100, shield + dt * track.recharge * PAD_SHIELD);
-      if (laserAmmo < LASER_CAPACITY) {
+      if (laserAmmo < laserCap()) {
         laserCharge += dt * track.recharge * PAD_LASER;
-        while (laserCharge >= 1 && laserAmmo < LASER_CAPACITY) { laserCharge -= 1; laserAmmo++; }
-        if (laserAmmo === LASER_CAPACITY) laserCharge = 0;
+        while (laserCharge >= 1 && laserAmmo < laserCap()) { laserCharge -= 1; laserAmmo++; }
+        if (laserAmmo === laserCap()) laserCharge = 0;
       }
       const id = Math.floor(distance / LENGTH) * COUNT + Math.floor(seg.index / track.padEvery);
       if (lastPad !== id) { lastPad = id; showMessage('RECHARGE  /  BOOST + SHIELD + LASER', 1.1); soundEffect(1000, .2); }
@@ -1824,7 +1854,7 @@
           } else if (hazard.type === 'cat') {
             speed = Math.max(3500, speed * .92); shake = Math.max(shake, .3); screenFlash = Math.max(screenFlash, .13);
             const previousAmmo = laserAmmo;
-            laserAmmo = Math.min(LASER_CAPACITY, laserAmmo + 1);
+            laserAmmo = Math.min(laserCap(), laserAmmo + 1);
             createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, hazard.color || '#ff9bf2', .82, true);
             showMessage(laserAmmo > previousAmmo ? 'CAT PIXEL-POOF!  LASER +1' : 'CAT PIXEL-POOF!  LASER FULL', 1.05);
             playCatPopSound();
@@ -1848,7 +1878,7 @@
       const trampoline = roadSegment.trampoline;
       if (trampoline && !hitRamps.has(id) && jumpHeight < 1 && jumpVelocity <= 0 && Math.abs(playerX - trampoline.lane * track.width) < .27 * track.width) {
         hitRamps.add(id); jumpHeight = 2; jumpVelocity = 850; jumpBoostTimer = 1.25; playJetBlast(1.25);
-        speed = Math.min(14900 * machine.top, speed + 2200); energy = Math.min(100, energy + 24);
+        speed = Math.min(14900 * machine.top * topSpeed(), speed + 2200); energy = Math.min(100, energy + 24);
         shake = Math.max(shake, .28); screenFlash = Math.max(screenFlash, .12);
         showMessage('TRAMPOLINE!  JUMP + BOOST!', 1.2); playToneSweep(250, 1300, .28, 'sine', .07); playBoostSound(.8);
         for (let i = 0; i < 12; i++) particles.push({ x: W * .5 + (random(time * 200 + i) - .5) * 120, y: H * .79, vx: (random(i + 9) - .5) * 340, vy: -random(i + 2) * 480, life: .55, color: i % 2 ? track.second : track.edge });
@@ -1915,9 +1945,9 @@
       }
     }
     enemyShots = enemyShots.filter(shot => time < shot.expires);
-    if (laserAmmo < LASER_CAPACITY) {
-      laserCharge += dt / LASER_RECHARGE;
-      if (laserCharge >= 1) { laserCharge -= 1; laserAmmo++; if (laserAmmo === LASER_CAPACITY) laserCharge = 0; }
+    if (laserAmmo < laserCap()) {
+      laserCharge += dt / laserRecharge();
+      if (laserCharge >= 1) { laserCharge -= 1; laserAmmo++; if (laserAmmo === laserCap()) laserCharge = 0; }
     } else laserCharge = 0;
     if ((keys.has('KeyX') || keys.has('KeyF') || gesture.fire || gesture.fireQueued) && laserCooldown <= 0) { gesture.fireQueued = false; fireLaser(); }
     laserShots = laserShots.filter(shot => time - shot.started < shot.duration);
@@ -1933,6 +1963,7 @@
   }
   let powerChipsHtml = '';
   function updateHUD() {
+    if (time - creditPopAt > 1.4) $('credit-pop').classList.remove('visible');
     const chips = POWERUP_ORDER.filter(powerOn).map(t => `<span style="--c:${POWERUPS[t].color}">${POWERUPS[t].icon} ${POWERUPS[t].name}${t === 'bubble' ? ' ×' + bubbleHits : ''} <b>${Math.max(0, power[t] - time).toFixed(1)}</b></span>`).join('');
     if (chips !== powerChipsHtml) { powerChipsHtml = chips; $('powerups').innerHTML = chips; }
     $('race-lives').textContent = '♥'.repeat(lives + (mode === 'respawning' ? 0 : 1));
@@ -1949,7 +1980,7 @@
     $('shield-text').textContent = Math.round(shield) + '%'; document.body.classList.toggle('critical', shield <= 25 && mode !== 'wrecked');
     $('energy-text').textContent = Math.round(energy) + '%'; $('position').textContent = String(rank).padStart(2, '0');
     $('laser-count').textContent = String(laserAmmo).padStart(2, '0');
-    $('laser-fill').style.width = Math.min(100, (laserAmmo + laserCharge) / LASER_CAPACITY * 100) + '%';
+    $('laser-fill').style.width = Math.min(100, (laserAmmo + laserCharge) / laserCap() * 100) + '%';
     document.body.classList.toggle('lasers-empty', laserAmmo === 0);
     $('lap').textContent = String(lap).padStart(2, '0'); $('timer').textContent = formatTime(elapsed);
     $('progress').style.width = Math.min(100, distance / (LENGTH * LAP_COUNT) * 100) + '%';
@@ -2543,7 +2574,7 @@
   renderSettings();
   // ---- Home screen dialogs: settings and changelog.
   function openDialog(id) { $(id).classList.remove('hidden'); document.body.classList.add('dialog-open'); }
-  function closeDialogs() { ['settings-screen', 'changelog-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
+  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
   // Health warning: shown on every visit (not again after an in-app update reload within the same session).
   let healthSeen = false;
   try { healthSeen = sessionStorage.getItem('morbid-health-ok') === '1'; } catch { /* show it */ }
@@ -2590,7 +2621,7 @@
     setupAudio(); primeSpeech();
     $('menu').classList.add('hidden'); $('hud').classList.add('hidden');
     document.body.classList.add('racing'); document.body.classList.remove('paused');
-    rivals = []; ufos = []; bombs = []; shield = 100; lives = finaleWaveCount();
+    rivals = []; ufos = []; bombs = []; shield = 100; lives = finaleWaveCount(); raceEarned = 0;
     startInvasion();
   }
   $('title-egg').addEventListener('click', () => {
@@ -2605,6 +2636,27 @@
     eggTyped = (eggTyped + event.code.slice(3)).slice(-4);
     if (eggTyped === 'BOSS') bossRush();
   });
+  // ---- Upgrade shop in the garage.
+  function renderShop() {
+    $('shop-credits').textContent = `${profile.credits} CR`;
+    $('open-shop').textContent = `🛠 UPGRADES · ${profile.credits} CR`;
+    $('shop-list').innerHTML = Object.entries(UPGRADES).map(([key, u]) => {
+      const lvl = profile.upgrades[key], cost = UPGRADE_COST[lvl], maxed = lvl >= UPGRADE_MAX;
+      const pips = Array.from({ length: UPGRADE_MAX }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
+      return `<div class="shop-row"><div class="shop-info"><b>${u.icon} ${u.name}</b><span class="pips">${pips}</span><small>${maxed ? 'MAXED OUT — ' : 'NOW: '}${u.info(lvl)}${maxed ? '' : `<br>NEXT: ${u.info(lvl + 1)}`}</small></div>`
+        + `<button class="setup-option shop-buy" data-buy="${key}" ${maxed || profile.credits < cost ? 'disabled' : ''}>${maxed ? 'MAX' : `UPGRADE · ${cost} CR`}</button></div>`;
+    }).join('');
+  }
+  function buyUpgrade(key) {
+    const lvl = profile.upgrades[key], cost = UPGRADE_COST[lvl];
+    if (lvl >= UPGRADE_MAX || profile.credits < cost) return false;
+    profile.credits -= cost; profile.upgrades[key] = lvl + 1; saveProfile(); renderShop();
+    playToneSweep(500, 1500, .3, 'square', .05); return true;
+  }
+  if ($('shop-list').addEventListener) $('shop-list').addEventListener('click', event => { const b = event.target && event.target.closest && event.target.closest('[data-buy]'); if (b) buyUpgrade(b.dataset.buy); });
+  $('open-shop').addEventListener('click', () => { renderShop(); openDialog('shop-screen'); });
+  renderShop();
+  window.morbidShop = { buy: buyUpgrade, profile };
   // Lets the update job wait until no race is in progress.
   window.morbidBusy = () => ['countdown', 'racing', 'respawning', 'paused', 'wrecked', 'invasion', 'final'].includes(mode) || (mode === 'disco' && !(finale && finale.resultsShown));
   window.addEventListener('resize', resize);

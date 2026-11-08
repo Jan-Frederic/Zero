@@ -39,7 +39,7 @@ function harness() {
   vm.runInNewContext(source, sandbox);
   const step = seconds => { for (let i = 0; i < Math.ceil(seconds * 20); i++) { now += 50; frame(now); } };
   const key = (code, type = 'keydown') => (windowEvents[type] || []).forEach(fn => fn({ code, repeat: false, target: element('body'), preventDefault() {} }));
-  return { vibrations, element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b), eliminateRivals: () => sandbox.__eliminateRivals(), finaleAim: c => sandbox.__finaleAim(c), finaleState: () => sandbox.__finale(), finaleOpen: c => sandbox.__finaleOpen(c), finaleKillShip: () => sandbox.__finaleKillShip(), musicLoading: p => sandbox.__musicLoading(p), musicLoaded: () => sandbox.__musicLoaded(), setUfoKills: n => sandbox.__setUfoKills(n), setBossHp: n => sandbox.__setBossHp(n) };
+  return { sandbox, vibrations, element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b), eliminateRivals: () => sandbox.__eliminateRivals(), finaleAim: c => sandbox.__finaleAim(c), finaleState: () => sandbox.__finale(), finaleOpen: c => sandbox.__finaleOpen(c), finaleKillShip: () => sandbox.__finaleKillShip(), musicLoading: p => sandbox.__musicLoading(p), musicLoaded: () => sandbox.__musicLoaded(), setUfoKills: n => sandbox.__setUfoKills(n), setBossHp: n => sandbox.__setBossHp(n) };
 }
 
 test('circuit selection, driving, boost, pause, full race, records and restart', () => {
@@ -511,4 +511,21 @@ test('power-ups: pick-ups on the track grant magnet, bubble, time warp and multi
   grab('magnet'); assert.ok(inspect().power.includes('magnet'));
   grab('warp'); assert.ok(inspect().power.includes('warp'));
   assert.match(el('powerups').innerHTML, /TIME WARP/);
+});
+
+test('credits: earned in races and boss fights, spent on ship upgrades that change the ship', () => {
+  const { element: el, step, key, inspect, setRacePosition, disableAirRaid, eliminateRivals, storage, sandbox } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  disableAirRaid(); eliminateRivals();
+  for (let lap = 0; lap < 6 && inspect().mode === 'racing'; lap++) { setRacePosition((lap + 1) * 240000 - 60, 0); step(.5); }
+  assert.equal(el('result-position').textContent, '01');
+  const profile = JSON.parse(storage.get('morbid-profile-v1'));
+  assert.equal(profile.credits, 300 + 100 + 150, 'P1 pays placement + podium + win bonus');
+  assert.match(el('result-credits').textContent, /\+550 CR EARNED/);
+  el('garage').fire('click');
+  assert.equal(sandbox.morbidShop.buy('laser'), true, 'laser bank upgrade bought');
+  assert.equal(sandbox.morbidShop.buy('armor'), true, 'armor upgrade bought');
+  assert.equal(sandbox.morbidShop.buy('armor'), false, 'not enough credits left for armor level 2');
+  el('start').fire('click'); step(.1);
+  assert.equal(el('laser-count').textContent, '12', 'laser bank holds two more cells');
 });

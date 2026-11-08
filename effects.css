@@ -296,3 +296,19 @@ body.racing .bottom-bar .boot,body.final .bottom-bar .boot{display:none}
 .powerups b{color:#fff;font-weight:400;margin-left:4px}
 @media (max-width:600px) and (orientation:portrait){.powerups{top:auto;bottom:250px}}
 @media (max-height:520px) and (orientation:landscape){.powerups{top:54px}.powerups span{font-size:11px;padding:2px 6px}}
+
+/* Garage upgrade shop, credits. */
+.home-actions{flex-wrap:wrap}.home-action-wide{flex-basis:100%;color:var(--acid);border-color:#ddff4666}
+.shop-balance{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font:12px var(--mono);letter-spacing:1px;color:#c9c2dc;border-top:1px solid #ffffff20;padding-top:12px}
+.shop-balance b{font:italic 800 28px var(--display);color:var(--acid);letter-spacing:.5px}.shop-balance small{flex-basis:100%;font-size:12px;color:#a9a1bd;letter-spacing:.3px}
+.shop-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.shop-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;background:#ffffff08;border:1px solid #ffffff18}
+.shop-info{display:flex;flex-direction:column;gap:4px;min-width:0}.shop-info b{font:13px var(--mono);letter-spacing:1px;color:#fff;font-weight:400}
+.shop-info small{font:12px var(--body);color:#b9b2cc;line-height:1.35}
+.pips{display:flex;gap:4px}.pips i{width:18px;height:6px;background:#ffffff22;transform:skew(-15deg)}.pips i.on{background:var(--acid);box-shadow:0 0 8px #ddff46}
+.shop-buy{flex:none;min-height:44px;font-size:12px!important}.shop-buy:disabled{opacity:.4;cursor:not-allowed}
+.result-credits{font:13px var(--mono)!important;letter-spacing:1px;color:var(--acid)!important;margin:4px 0 0}
+.credit-pop{position:absolute;left:0;top:150px;font:12px var(--mono);letter-spacing:1px;color:var(--acid);text-shadow:0 0 10px #ddff46;opacity:0;transform:translateY(6px);transition:opacity .25s,transform .25s;pointer-events:none}
+.credit-pop.visible{opacity:1;transform:none}
+@media (max-width:600px) and (orientation:portrait){.shop-row{flex-direction:column;align-items:stretch}.shop-buy{width:100%;min-height:50px}.credit-pop{top:118px}}
+@media (max-height:520px) and (orientation:landscape){.credit-pop{top:96px}.shop-row{padding:6px 10px}.shop-info small{font-size:11px}}
