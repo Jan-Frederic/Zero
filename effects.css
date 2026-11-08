@@ -260,3 +260,27 @@ body.final .touch-hint{display:none}
 
 /* Waiting for the soundtrack before the countdown starts. */
 body.buffering #countdown{font-size:clamp(22px,6vw,44px)!important;letter-spacing:2px;text-shadow:0 0 18px #4df8ff;animation:criticalShield .5s alternate infinite}
+
+/* Boot panel: playful download status on the start screen. */
+.boot{margin-top:14px;width:min(420px,100%);padding:9px 12px 10px;background:#09091ab8;border:1px solid #4df8ff55;border-left:3px solid var(--cyan);transition:opacity .6s,transform .6s,max-height .6s,margin .6s,padding .6s;max-height:80px;overflow:hidden}
+.boot-row{display:flex;align-items:center;gap:9px;font:11px var(--mono);letter-spacing:.8px;color:#d9f9ff}
+#boot-text{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:bootGlitch 1.8s steps(1) infinite}
+#boot-pct{color:var(--acid);font-weight:400}
+.boot-spinner{width:12px;height:12px;border:2px solid var(--cyan);border-right-color:transparent;border-radius:50%;animation:bootSpin .7s linear infinite;flex:none}
+.boot-bar{height:6px;margin-top:7px;background:#ffffff18;transform:skew(-15deg);overflow:hidden}
+.boot-bar i{display:block;height:100%;width:0;background:repeating-linear-gradient(90deg,var(--cyan) 0 10px,#4df8ff88 10px 14px);background-size:28px 100%;box-shadow:0 0 12px #4df8ff;animation:bootStripes .5s linear infinite;transition:width .3s}
+.boot.done{border-color:#ddff4688;border-left-color:var(--acid)}.boot.done .boot-row{color:var(--acid)}.boot.done .boot-spinner{border-color:var(--acid);animation:none;border-radius:2px;transform:rotate(45deg);width:9px;height:9px}
+.boot.done .boot-bar i{background:var(--acid);box-shadow:0 0 14px #ddff46;animation:none}.boot.done #boot-text{animation:none}
+.boot.gone{opacity:0;max-height:0;margin-top:0;padding-top:0;padding-bottom:0;border-width:0}
+@keyframes bootSpin{to{transform:rotate(360deg)}}
+@keyframes bootStripes{to{background-position:28px 0}}
+@keyframes bootGlitch{0%,92%{transform:none;text-shadow:none}94%{transform:translateX(-2px);text-shadow:2px 0 #ff4eb8}97%{transform:translateX(1px);text-shadow:-2px 0 #4df8ff}}
+@media (max-width:600px) and (orientation:portrait){.boot{width:100%;margin-top:12px}.boot-row{font-size:12px}#boot-text{white-space:normal;line-height:1.35}}
+@media (max-height:520px) and (orientation:landscape){.boot{margin-top:8px;padding:5px 9px 6px}.boot-bar{height:4px;margin-top:4px}}
+
+/* Boot panel in the bottom bar (desktop, tablets, phones in landscape). */
+.bottom-bar .boot{margin:0;flex:0 1 440px;align-self:center}
+body.booting .bottom-bar .controls{display:none}
+body.racing .bottom-bar .boot,body.final .bottom-bar .boot{display:none}
+@media (max-height:520px) and (orientation:landscape){.bottom-bar .boot{flex-basis:340px;padding:4px 8px 5px}.bottom-bar .boot .boot-row{font-size:11px}}
+@media (max-width:900px) and (orientation:landscape){.bottom-bar .version{display:none}}

@@ -445,3 +445,16 @@ test('the countdown waits until the soundtrack is fully loaded', () => {
   assert.equal(inspect().mode, 'racing', 'once loaded the countdown runs and the race starts');
   assert.equal(el('soundtrack').paused, false, 'music is playing');
 });
+
+test('the start screen shows a playful boot status while files download', () => {
+  const { element: el, step, musicLoading, musicLoaded } = harness();
+  musicLoading(.4); step(.1);
+  assert.equal(el('boot-pct').textContent, '49%', 'soundtrack and voices make up the progress');
+  const first = el('boot-text').textContent; assert.ok(first.endsWith('…'), 'a funny loading line is shown');
+  step(2);
+  assert.notEqual(el('boot-text').textContent, first, 'the lines keep changing');
+  musicLoaded(); step(.1);
+  assert.match(el('boot-text').textContent, /SYSTEM READY/);
+  assert.equal(el('boot').classList.contains('done'), true);
+  step(4); assert.equal(el('boot').classList.contains('gone'), true, 'the panel fades away when ready');
+});
