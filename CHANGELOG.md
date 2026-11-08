@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.8.0](https://github.com/Jan-Frederic/Zero/compare/v1.7.0...v1.8.0) (2026-11-08)
+
+
+### Features
+
+* extra lives in the race too, shared with the boss fights ([7b23165](https://github.com/Jan-Frederic/Zero/commit/7b231655038e34954b858d74d54394a1c01d820c))
+
 # [1.7.0](https://github.com/Jan-Frederic/Zero/compare/v1.6.4...v1.7.0) (2026-11-08)
 
 
