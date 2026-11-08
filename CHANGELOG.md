@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.15.0](https://github.com/Jan-Frederic/Zero/compare/v1.14.0...v1.15.0) (2026-11-08)
+
+
+### Features
+
+* two new bosses, Crystal Spider and Wormhole Shark ([bb5ec00](https://github.com/Jan-Frederic/Zero/commit/bb5ec00d9602f6774cc017306f377ef583de1b38))
+
 # [1.14.0](https://github.com/Jan-Frederic/Zero/compare/v1.13.0...v1.14.0) (2026-11-08)
 
 
