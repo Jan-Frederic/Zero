@@ -40,6 +40,17 @@
   // Extra lives: one per difficulty step, shared by the race and the boss fights that follow it.
   let lives = 0, raceRespawnAt = 0, raceInvulnUntil = 0;
   let hyperTime = 0, hyperStarted = 0, hitGates = new Set();
+  // Power-ups picked up on the track: magnet, shield bubble, time warp, multi-laser.
+  const POWERUPS = {
+    magnet: { name: 'MAGNET', icon: '🧲', color: '#ff5a5a', time: 10, info: 'PULLS IN PADS, CATS, GATES AND POWER-UPS' },
+    bubble: { name: 'SHIELD BUBBLE', icon: '◯', color: '#4df8ff', time: 15, info: 'ABSORBS THE NEXT 3 HITS' },
+    warp: { name: 'TIME WARP', icon: '⧗', color: '#a88aff', time: 7, info: 'EVERYONE ELSE MOVES IN SLOW MOTION' },
+    multi: { name: 'MULTI-LASER', icon: '⁂', color: '#ff4eb8', time: 10, info: 'EVERY SHOT HITS UP TO 3 TARGETS' },
+  };
+  const POWERUP_ORDER = ['magnet', 'bubble', 'warp', 'multi'];
+  let power = {}, bubbleHits = 0, hitPowerups = new Set();
+  const powerOn = type => (power[type] || 0) > time && (mode === 'racing' || mode === 'respawning');
+  const magnetReach = () => powerOn('magnet') ? 2.6 : 1;
   const HYPER_TIME = 10;
   // Mothership boss: appears after every 10 UFO kills. Races run LAP_COUNT laps.
   const BOSS_EVERY = 10, BOSS_HP = 40, LAP_COUNT = 6;
@@ -114,6 +125,13 @@
       while (segments[index].pad || segments[index].hazard || segments[index].trampoline || placed.some(other => Math.abs(other - index) < 24)) index = mod(index + 37, COUNT);
       placed.push(index);
       segments[index].stargate = { index, lane: gateLanes[(i + trackIndex) % gateLanes.length] };
+    }
+    const powerLanes = [-.42, .42, 0, .3, -.3, 0];
+    for (let i = 0; i < 6; i++) {
+      let index = mod(Math.floor((i + .38) * COUNT / 6), COUNT);
+      while (segments[index].pad || segments[index].hazard || segments[index].trampoline || segments[index].stargate || placed.some(other => Math.abs(other - index) < 16)) index = mod(index + 23, COUNT);
+      placed.push(index);
+      segments[index].powerup = { index, lane: powerLanes[i], type: POWERUP_ORDER[(i + trackIndex) % POWERUP_ORDER.length] };
     }
     try { bestLap = Number(localStorage.getItem(`chroma-best-${trackIndex}`)) || 0; } catch { bestLap = 0; }
   }
@@ -1409,6 +1427,39 @@
     if (screenFlash > .015) { ctx.fillStyle = `rgba(255,255,240,${screenFlash * .55})`; ctx.fillRect(-60, -60, W + 120, H + 120); }
     ctx.restore();
   }
+  const worldPace = () => powerOn('warp') ? .45 : 1;
+  function collectPowerup(type) {
+    const p = POWERUPS[type];
+    power[type] = time + p.time; if (type === 'bubble') bubbleHits = 3;
+    showCallout(`${p.icon} ${p.name}!`, p.color); showMessage(p.info, 1.6);
+    playToneSweep(600, 1800, .25, 'square', .05); playToneSweep(900, 2400, .3, 'sine', .05); buzz([20, 30, 20]);
+    screenFlash = Math.max(screenFlash, .2);
+  }
+  function drawPowerupPickup(s) {
+    const a = s.p1, b = s.p2, pu = s.powerup, def = POWERUPS[pu.type], width = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + width * pu.lane, y = lerp(a.y, b.y, .5);
+    const r = width * .07; if (r < 2) return;
+    const cy = y - r * 1.6 - Math.sin(time * 4 + pu.index) * r * .3;
+    ctx.save(); ctx.translate(x, cy);
+    ctx.globalAlpha = .35; ctx.fillStyle = def.color; ctx.beginPath(); ctx.ellipse(0, r * 1.6, r * 1.1, r * .3, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.rotate(Math.sin(time * 2 + pu.index) * .25);
+    ctx.shadowColor = def.color; ctx.shadowBlur = 20; ctx.fillStyle = '#12102a'; ctx.strokeStyle = def.color; ctx.lineWidth = Math.max(1.5, r * .14);
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-r, -r, r * 2, r * 2, r * .45) : ctx.rect(-r, -r, r * 2, r * 2); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.fillStyle = def.color; ctx.font = `bold ${r * 1.25}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(def.icon, 0, r * .06);
+    ctx.restore();
+  }
+  function drawPowerupAura(x, y, size) {
+    if (powerOn('bubble')) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y - size * .3, size * .4, x, y - size * .3, size * 1.4);
+      g.addColorStop(0, 'rgba(77,248,255,0)'); g.addColorStop(.8, `rgba(77,248,255,${.18 + .06 * Math.sin(time * 6)})`); g.addColorStop(1, 'rgba(77,248,255,.5)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y - size * .3, size * 1.35, size * .95, 0, 0, TAU); ctx.fill(); ctx.restore();
+    }
+    if (powerOn('magnet')) {
+      ctx.save(); ctx.strokeStyle = '#ff5a5a'; ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) { const k = mod(time * 1.5 + i / 3, 1); ctx.globalAlpha = 1 - k; ctx.beginPath(); ctx.ellipse(x, y - size * .2, size * (1.6 - k), size * (.5 - k * .3), 0, 0, TAU); ctx.stroke(); }
+      ctx.restore();
+    }
+    if (powerOn('warp')) { ctx.save(); ctx.fillStyle = 'rgba(120,90,255,.12)'; ctx.fillRect(-60, -60, W + 120, H + 120); ctx.restore(); }
+  }
   function startRace() {
     mode = 'countdown'; position = 0; distance = 0; playerX = 0; speed = 0; energy = 100; elapsed = 0; lap = 1; lapStart = 0;
     laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = LASER_CAPACITY; laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
@@ -1416,7 +1467,7 @@
     const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
     rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
     musicHold = 0; lives = finaleWaveCount(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
@@ -1471,6 +1522,16 @@
     if (!hyper()) laserAmmo--; laserCooldown = hyper() ? .1 : .24;
     laserShots.push({ distance: targetDistance, lane, color: track.second, mega: hyper(), started: time, duration: hyper() ? .28 : .2, x: W * .5, y: H * .79 });
     playLaserSound();
+    if (target && powerOn('multi')) {
+      // Multi-laser: two more beams fan out to the next rivals in a wide cone.
+      const extra = rivals.filter(r => r !== target && r.alive && r.distance > distance + 1350 && r.distance < distance + 22000 && Math.abs(r.x * track.width - playerX) < track.width * .75)
+        .sort((a, b) => a.distance - b.distance).slice(0, 2);
+      for (const r of extra) {
+        laserShots.push({ distance: r.distance, lane: r.x * track.width, color: POWERUPS.multi.color, started: time, duration: .2, x: W * .5, y: H * .79 });
+        r.hull -= 1; createExplosion(r.distance, r.x * track.width, r.color, r.hull > 0 ? .3 : .45);
+        if (r.hull <= 0) knockOut(r);
+      }
+    }
     if (target) {
       target.hull = hyper() ? 0 : target.hull - 1; target.stunnedUntil = time + .32;
       createExplosion(target.distance, lane, target.color, target.hull > 0 ? .3 : .45);
@@ -1565,6 +1626,11 @@
   }
   function damageShield(amount) {
     if (hyper() || time < raceInvulnUntil) return false;
+    if (bubbleHits > 0 && powerOn('bubble')) {
+      bubbleHits--; screenFlash = Math.max(screenFlash, .25); playToneSweep(900, 1500, .2, 'sine', .07);
+      if (!bubbleHits) power.bubble = 0;
+      showMessage(bubbleHits ? `BUBBLE ABSORBED IT  /  ${bubbleHits} LEFT` : 'BUBBLE POPPED!', .9); return false;
+    }
     shield = Math.max(0, shield - amount / HULL_STRENGTH);
     if (shield <= 25) screenFlash = Math.max(screenFlash, .08 + (25 - shield) * .005);
     if (shield === 0) { destroyPlayer(); return true; }
@@ -1707,7 +1773,7 @@
     for (const ufo of ufos) {
       ufo.distance = distance + 6900 + ufo.slot * UFO_SLOTS_SPACING + Math.sin(time * .38 + ufo.seed) * 280;
       ufo.lane = Math.sin(time * .8 + ufo.seed * 2.1) * .58;
-      ufo.dropCooldown -= dt;
+      ufo.dropCooldown -= dt * worldPace();
       if (ufo.dropCooldown <= 0) {
         const laneOffset = (random(Math.floor(time * 13) + ufo.seed * 77) - .5) * .62;
         const bombLane = clamp(playerX / track.width + laneOffset, -.68, .68);
@@ -1731,7 +1797,7 @@
         if (damageShield(10)) { updateHUD(); return; }
       }
     }
-    if (seg.pad && Math.abs(playerX - seg.padLane * track.width) < .31 * track.width) {
+    if (seg.pad && Math.abs(playerX - seg.padLane * track.width) < .31 * track.width * magnetReach()) {
       // Cyan pads recharge everything: boost energy, hull shield and laser cells.
       energy = Math.min(100, energy + dt * track.recharge); speed = Math.min(15000, speed + dt * 6000);
       shield = Math.min(100, shield + dt * track.recharge * PAD_SHIELD);
@@ -1751,7 +1817,7 @@
       if (hazard && !hitHazards.has(id)) {
         const lane = hazardLane(hazard), jumpedClear = jumpHeight > 110 && hazard.type !== 'gate' && hazard.type !== 'drone';
         if (jumpedClear) hitHazards.add(id);
-        else if (Math.abs(playerX - lane * track.width) < hazard.radius * track.width) {
+        else if (Math.abs(playerX - lane * track.width) < hazard.radius * track.width * (hazard.type === 'cat' ? magnetReach() : 1)) {
           hitHazards.add(id);
           if (hyper() && hazard.type !== 'cat') {
             createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, '#7dfcff', 1); showMessage('SMASHED THROUGH!', .7); playExplosionSound(.7);
@@ -1776,7 +1842,9 @@
         }
       }
       const gate = roadSegment.stargate;
-      if (gate && !hitGates.has(id) && Math.abs(playerX - gate.lane * track.width) < .3 * track.width) { hitGates.add(id); activateHyper(); }
+      if (gate && !hitGates.has(id) && Math.abs(playerX - gate.lane * track.width) < .3 * track.width * magnetReach()) { hitGates.add(id); activateHyper(); }
+      const pickup = roadSegment.powerup;
+      if (pickup && !hitPowerups.has(id) && Math.abs(playerX - pickup.lane * track.width) < .26 * track.width * magnetReach()) { hitPowerups.add(id); collectPowerup(pickup.type); }
       const trampoline = roadSegment.trampoline;
       if (trampoline && !hitRamps.has(id) && jumpHeight < 1 && jumpVelocity <= 0 && Math.abs(playerX - trampoline.lane * track.width) < .27 * track.width) {
         hitRamps.add(id); jumpHeight = 2; jumpVelocity = 850; jumpBoostTimer = 1.25; playJetBlast(1.25);
@@ -1814,9 +1882,9 @@
           if (Math.abs(r.distance - distance) < 5200) playBoostSound(.42);
         }
       }
-      r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt;
+      r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt * worldPace();
       r.x = r.lane + .13 * Math.sin(time * .8 + r.seed * 2);
-      r.laserCooldown -= dt;
+      r.laserCooldown -= dt * worldPace();
       if (r.laserCooldown <= 0) {
         r.laserCooldown = 4.4 + random(Math.floor(time * 5) + r.seed * 31) * 3.2;
         if (r.distance > distance + 1700 && r.distance < distance + 17000 && Math.abs(r.x * track.width - playerX) < track.width * .48) {
@@ -1863,7 +1931,10 @@
     particles = particles.filter(p => p.life > 0).slice(-100);
     document.body.classList.toggle('boosting', boosting || jumpBoostTimer > 0); updateHUD();
   }
+  let powerChipsHtml = '';
   function updateHUD() {
+    const chips = POWERUP_ORDER.filter(powerOn).map(t => `<span style="--c:${POWERUPS[t].color}">${POWERUPS[t].icon} ${POWERUPS[t].name}${t === 'bubble' ? ' ×' + bubbleHits : ''} <b>${Math.max(0, power[t] - time).toFixed(1)}</b></span>`).join('');
+    if (chips !== powerChipsHtml) { powerChipsHtml = chips; $('powerups').innerHTML = chips; }
     $('race-lives').textContent = '♥'.repeat(lives + (mode === 'respawning' ? 0 : 1));
     $('ufo-kills').textContent = `${String(ufoKills % BOSS_EVERY).padStart(2, '0')}/${BOSS_EVERY}`;
     document.body.classList.toggle('boss', !!boss);
@@ -2164,6 +2235,7 @@
       }
       if (s.trampoline) drawTrampoline(s, t);
       if (s.stargate && mode !== 'menu' && s.depth > 3) drawStarGate(s, t);
+      if (s.powerup && mode !== 'menu' && s.depth > 3 && !hitPowerups.has(Math.floor((distance + (s.index * SEG < mod(distance, LENGTH) ? LENGTH : 0)) / LENGTH) * COUNT + s.index)) drawPowerupPickup(s);
       if (s.hazard) drawHazard(s, t);
       for (const bomb of bombs) {
         const worldPosition = mod(bomb.distance, LENGTH);
@@ -2349,6 +2421,7 @@
         ctx.beginPath(); ctx.ellipse(shipX, groundShipY + shipSize * .12, shipSize * (.52 + jumpHeight / 650), shipSize * .12, 0, 0, TAU); ctx.fill(); ctx.restore();
       }
       drawShip(shipX, shipY, shipSize, m.color, m.dark, isMenu ? -.12 : -steerVisual, true, false, jumpHeight > 75);
+      if (!isMenu) drawPowerupAura(shipX, shipY, shipSize);
     }
     if (boosting && mode === 'racing') {
       for (let i = 0; i < 45; i++) {

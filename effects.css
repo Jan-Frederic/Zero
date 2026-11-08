@@ -289,3 +289,10 @@ body.racing .bottom-bar .boot,body.final .bottom-bar .boot{display:none}
 .race-lives-row{display:flex;align-items:center;gap:8px;margin-top:4px}
 #race-lives{color:#ff6a8a;font:15px var(--mono);letter-spacing:2px;text-shadow:0 0 10px #ff3b6b}
 @media (max-height:520px) and (orientation:landscape){.race-lives-row{margin-top:0}#race-lives{font-size:13px}}
+
+/* Active power-ups in the race HUD. */
+.powerups{position:absolute;left:50%;top:96px;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:6px;width:min(560px,92vw);pointer-events:none}
+.powerups span{font:12px var(--mono);letter-spacing:1px;color:var(--c);background:#09091acc;border:1px solid var(--c);padding:4px 8px;box-shadow:0 0 12px color-mix(in srgb,var(--c) 40%,transparent)}
+.powerups b{color:#fff;font-weight:400;margin-left:4px}
+@media (max-width:600px) and (orientation:portrait){.powerups{top:auto;bottom:250px}}
+@media (max-height:520px) and (orientation:landscape){.powerups{top:54px}.powerups span{font-size:11px;padding:2px 6px}}
