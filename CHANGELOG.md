@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.7.0](https://github.com/Jan-Frederic/Zero/compare/v1.6.4...v1.7.0) (2026-11-08)
+
+
+### Features
+
+* playful boot status on the start screen while files download ([9afb5ba](https://github.com/Jan-Frederic/Zero/commit/9afb5ba0d91ae543f60b731ca4853ca81a60d72d))
+
 ## [1.6.4](https://github.com/Jan-Frederic/Zero/compare/v1.6.3...v1.6.4) (2026-11-08)
 
 
