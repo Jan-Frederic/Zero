@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.9.0](https://github.com/Jan-Frederic/Zero/compare/v1.8.0...v1.9.0) (2026-11-08)
+
+
+### Features
+
+* haptic feedback on phones ([2caed01](https://github.com/Jan-Frederic/Zero/commit/2caed01c5c32765534c73ad1a46d2ec0603383b5))
+
 # [1.8.0](https://github.com/Jan-Frederic/Zero/compare/v1.7.0...v1.8.0) (2026-11-08)
 
 
