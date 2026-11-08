@@ -1,19 +1,22 @@
 name: Release and deploy to GitHub Pages
 
 # Conventional commits drive the version: fix → patch, feat → minor, BREAKING CHANGE → major.
-# Every push is tested; semantic-release tags/publishes a release when commits warrant one,
-# and the site is deployed stamped with the current version so installed apps update.
+# Every push and pull request is tested. On main, semantic-release tags/publishes a release when
+# commits warrant one, and the site is deployed stamped with the current version so installed apps update.
 
 on:
+  # Releases and deploys only happen on main; every other branch and every pull request is tested.
   push:
-    branches: [ccr-289fa066-n0frla]
+    branches: ['**']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: pages
+  group: ${{ github.ref == 'refs/heads/main' && 'pages' || format('ci-{0}', github.ref) }}
   cancel-in-progress: false
 
 jobs:
@@ -29,6 +32,7 @@ jobs:
 
   release:
     needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -54,6 +58,7 @@ jobs:
 
   deploy:
     needs: release
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       pages: write

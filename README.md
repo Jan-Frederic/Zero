@@ -62,7 +62,7 @@ The game code lives in `src/` (see `src/README.md`); `npm run build` assembles i
 
 ## Versioning & releases
 
-Commits follow [Conventional Commits](https://www.conventionalcommits.org/) and releases are cut automatically by [semantic-release](https://semantic-release.gitbook.io/) on every push to the release branch:
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/). Work happens on feature branches and reaches `main` through pull requests; every push and PR is tested, and every merge into `main` is released automatically by [semantic-release](https://semantic-release.gitbook.io/) and deployed:
 
 | Commit | Release |
 | --- | --- |
