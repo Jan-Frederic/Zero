@@ -557,6 +557,6 @@ test('achievements unlock and are listed in the trophy cabinet', () => {
   for (const id of ['first-race', 'podium', 'win', 'flawless']) assert.ok(got.includes(id), id);
   assert.match(el('achievement').innerHTML, /ACHIEVEMENT UNLOCKED/);
   el('garage').fire('click'); el('open-trophies').fire('click');
-  assert.match(el('trophy-count').textContent, /^4 \/ 16$/);
-  assert.match(el('open-trophies').textContent, /4\/16/);
+  assert.match(el('trophy-count').textContent, /^4 \/ 17$/);
+  assert.match(el('open-trophies').textContent, /4\/17/);
 });

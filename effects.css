@@ -333,3 +333,6 @@ body.track-locked #start{background:#3a3550!important;color:#c9c2dc!important;bo
 .achievement i{font-style:normal;font-size:30px}.achievement span{display:flex;flex-direction:column}
 .achievement small{font:11px var(--mono);letter-spacing:2px;color:#ffd35a}.achievement b{font:italic 800 20px var(--display);color:#fff;letter-spacing:.5px}.achievement em{font:12px var(--body);font-style:normal;color:#c9c2dc}
 @media (max-width:600px){.trophy-list{grid-template-columns:1fr}}
+
+.share-button{width:100%;margin-top:10px;min-height:46px;background:transparent;border:1px solid #4df8ff88;color:var(--cyan);font:13px var(--mono);letter-spacing:1.5px}
+.share-button:hover{background:#4df8ff14}
