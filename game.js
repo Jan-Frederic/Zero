@@ -1,3 +1,4 @@
+// GENERATED FILE — edit the parts in src/ and run `npm run build` (see src/README.md).
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
