@@ -4,6 +4,7 @@
     return { slot, seed, distance: 0, lane: 0, dropCooldown: .8 + slot * 1.25 + (spawnedAt > 0 ? 1.6 : 0), color: UFO_COLORS[seed % 4], spawnedAt, screen: null };
   }
   function shootDownUfo(ufo) {
+    mission('ufos');
     if (stat('ufos') >= 25) unlockAchievement('ufo25');
     if (mode === 'racing') raceStats.ufos++;
     ufos = ufos.filter(u => u !== ufo);

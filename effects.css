@@ -504,3 +504,34 @@ body.photo .photo-bar{display:flex;position:fixed;left:50%;bottom:calc(14px + en
   body.racing .ufo-label{justify-content:flex-start;gap:6px}body.racing .ufo-label span{display:none}body.racing .ufo-label b::before{content:'🛸 '}
   body.final .topbar,body.final .bottom-bar,body.disco .topbar,body.disco .bottom-bar{display:none!important}
 }
+
+/* Five game modes: wrap into rows of three on narrow screens. */
+.mode-options .setup-option{min-width:calc(20% - 6px)}
+@media (max-width:1100px){.mode-options .setup-option{min-width:calc(33% - 6px)}}
+@media (max-width:600px) and (orientation:portrait){.mode-options{grid-template-columns:repeat(3,1fr)}}
+
+/* Weekly missions. */
+.missions-button{display:block;width:100%;margin-top:8px;padding:8px 12px;text-align:left;background:#ffd35a10;border:1px solid #ffd35a55;color:#ffd35a;font:11px var(--mono);letter-spacing:1px}
+.missions-list{display:flex;flex-direction:column;gap:10px;margin:14px 0 6px;text-align:left}
+.mission{padding:10px 12px;background:#ffffff06;border:1px solid #ffffff18;display:flex;flex-direction:column;gap:6px}.mission.done{border-color:#ffd35a88;background:#ffd35a10}
+.mission b{font:13px var(--mono);letter-spacing:1px;font-weight:400;color:#fff}.mission small{font:11px var(--mono);color:#b9b2cc}
+.mission-bar{height:6px;background:#ffffff18;display:block}.mission-bar i{display:block;height:100%;background:#ffd35a;box-shadow:0 0 10px #ffd35a88}
+.mission-bonus{font:12px var(--mono)!important;letter-spacing:1px;color:#b9b2cc!important;margin:4px 0 0}.mission-bonus.done{color:#ffd35a!important}
+@media (max-height:720px){.missions-button{margin-top:6px;padding:6px 10px}}
+@media (max-height:520px) and (orientation:landscape){
+  body:not(.racing) #daily-meta,body:not(.racing) #track-lock{display:none}
+  .missions-button{margin-top:5px;padding:4px 10px}
+  .home-actions .home-action{min-height:30px}
+}
+
+/* Pilot level chip in the top bar and the XP line on the results card. */
+.pilot-chip{position:relative;display:flex;flex-direction:column;gap:1px;padding:3px 10px 5px;border:1px solid #ffd35a66;background:#ffd35a10;font:10px var(--mono);letter-spacing:1px;color:#ffe9a6;min-width:96px}
+.pilot-chip b{font-weight:400;color:#ffd35a}.pilot-chip span{font-size:9px;color:#cfc4a0;white-space:nowrap}
+.pilot-chip i{position:absolute;left:0;bottom:0;height:2px;width:var(--p);background:#ffd35a}
+.pilot-chip:empty{display:none}body.racing .pilot-chip{display:none}
+.result-xp{font:12px var(--mono)!important;letter-spacing:1px;color:#ffd35a!important;margin:6px 0 0!important}
+@media (max-width:600px){.pilot-chip{min-width:0;padding:2px 7px 4px}.pilot-chip span{display:none}}
+
+/* HUD size setting. */
+body.hud-small #hud .race-top,body.hud-small #hud .race-bottom{zoom:.82}
+body.hud-large #hud .race-top,body.hud-large #hud .race-bottom{zoom:1.18}

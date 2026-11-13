@@ -78,7 +78,7 @@
       if (t) m.lane = lerp(m.lane, t.x, Math.min(1, dt * 5));
       if (t && m.distance >= t.distance - 120) {
         m.done = true; knockOut(t); createExplosion(t.distance, t.x * track.width, '#ff8a2e', 1.1); playExplosionSound(1.1);
-        showMessage(t.nemesis ? `MISSILE GOT ${t.nemesis.name}!` : 'MISSILE HIT  /  RIVAL DESTROYED', 1.1);
+        showMessage(t.nemesis ? `MISSILE GOT ${t.nemesis.name}!` : 'MISSILE HIT  /  RIVAL DESTROYED', 1.1); mission('missile');
       } else if (time - m.started > 3) { m.done = true; createExplosion(m.distance, m.lane * track.width, '#ff8a2e', .7); }
     }
     missiles = missiles.filter(m => !m.done);
@@ -106,7 +106,7 @@
     if (slip > .5) {
       energy = Math.min(100, energy + dt * 16);
       if (!boosting) speed = Math.min(12200 * machines[shipIndex].top * topSpeed(), speed + dt * 1600);
-      if (!slipShown) { slipShown = true; showMessage('SLIPSTREAM  /  BOOST CHARGING', .9); playToneSweep(300, 700, .3, 'sine', .03); }
+      if (!slipShown) { slipShown = true; mission('slip'); showMessage('SLIPSTREAM  /  BOOST CHARGING', .9); playToneSweep(300, 700, .3, 'sine', .03); }
     } else if (slip === 0) slipShown = false;
   }
   function drawSlipstream() {
@@ -117,4 +117,28 @@
       ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + side * W * .02 * k, y + H * .06 + k * H * .08); ctx.stroke();
     }
     ctx.restore();
+  }
+  // ---- Drift: steer hard into a tight curve at speed. Costs a little speed, charges boost, pays a bonus at the end.
+  let driftCurve = 1, drift = 0, driftTime = 0;
+  function updateDrift(dt, steer, seg) {
+    const into = steer * Math.sign(seg.curve), tight = Math.abs(seg.curve) >= driftCurve;
+    const drifting = mode === 'racing' && tight && into > .6 && speed > 6000 && jumpHeight < 20 && !hyper();
+    if (drifting) {
+      driftTime += dt; drift = Math.min(1, drift + dt * 3);
+      energy = Math.min(100, energy + dt * 14); speed = Math.max(6000, speed - dt * 700);
+      if (Math.random() < dt * 30) {
+        const side = -Math.sign(seg.curve);
+        particles.push({ x: W * .5 + side * 60, y: H * .82, vx: side * (200 + Math.random() * 300), vy: -Math.random() * 200, life: .35, color: Math.random() < .5 ? '#ffd35a' : '#ffffff' });
+      }
+      if (tutorial) tutorial.drifted = true;
+    } else {
+      drift = Math.max(0, drift - dt * 4);
+      if (driftTime > 1 && drift === 0) {
+        const bonus = Math.min(30, Math.round(driftTime * 8));
+        energy = Math.min(100, energy + bonus); speed = Math.min(14900 * machines[shipIndex].top * topSpeed(), speed + 900);
+        showMessage(`DRIFT ${driftTime.toFixed(1)} S  /  +${bonus} BOOST`, 1); playToneSweep(400, 1200, .25, 'triangle', .05);
+        raceStats.drifts = (raceStats.drifts || 0) + 1; mission('drift', driftTime); profile.stats.driftSeconds = (profile.stats.driftSeconds || 0) + driftTime;
+      }
+      if (drift === 0) driftTime = 0;
+    }
   }

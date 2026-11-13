@@ -103,7 +103,8 @@
     playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip * (weather && weather.type === 'snow' ? .62 : 1);
     if (weather && weather.type === 'gravity') playerX += Math.sin((time - weather.started) * 1.4) * dt * .55 * track.width;
     playerX -= seg.curve * dt * speed / 10700 * .62;
-    steerVisual = lerp(steerVisual, steer, Math.min(1, dt * 9));
+    updateDrift(dt, steer, seg);
+    steerVisual = lerp(steerVisual, steer * (1 + drift * .6), Math.min(1, dt * 9));
     const edgeLimit = .93 * track.width;
     if (Math.abs(playerX) > edgeLimit) {
       const side = Math.sign(playerX); playerX = side * edgeLimit; speed = Math.max(2800, speed - dt * 15500); energy = Math.max(0, energy - dt * 10); shake = .5; screenFlash = Math.max(screenFlash, .08);
@@ -163,7 +164,7 @@
       if (cut && !hitShortcuts.has(id) && jumpHeight < 90) {
         const miss = Math.abs(playerX - cut.lane * track.width);
         if (miss < .1 * track.width) {
-          hitShortcuts.add(id); distance += SHORTCUT_SKIP * SEG; position = mod(distance, LENGTH); raceStats.shortcuts = (raceStats.shortcuts || 0) + 1;
+          hitShortcuts.add(id); distance += SHORTCUT_SKIP * SEG; position = mod(distance, LENGTH); raceStats.shortcuts = (raceStats.shortcuts || 0) + 1; mission('shortcut');
           showCallout('⤳ SHORTCUT!', '#ff9b2e'); showMessage('TUNNEL WARP  /  +' + SHORTCUT_SKIP * SEG / 1000 + ' KM AHEAD', 1.2);
           screenFlash = Math.max(screenFlash, .3); playJetBlast(1); playToneSweep(200, 1400, .4, 'sawtooth', .05); buzz([15, 25, 15]);
         } else if (miss < .3 * track.width) {
@@ -214,7 +215,8 @@
         }
       }
       r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt * worldPace() * empSlow(r);
-      r.x = r.lane + .13 * Math.sin(time * .8 + r.seed * 2);
+      rivalAI(r, dt, track);
+      r.x = r.lane + .13 * (r.dodging ? .25 : 1) * Math.sin(time * .8 + r.seed * 2);
       if (r.nemesis) {
         // Hunt the player: drift towards the player's lane when close, and taunt when overtaking.
         const gap = r.distance - distance;
@@ -242,7 +244,7 @@
         }
       }
     }
-    updateAttacks(dt, track); updateSlipstream(dt, track);
+    updateAttacks(dt, track); updateSlipstream(dt, track); updateRivalMissiles(dt, track); updateSurvival(track);
     for (const shot of enemyShots) {
       if (shot.resolved || time < shot.impactAt) continue;
       shot.resolved = true;
@@ -266,7 +268,7 @@
     rank = 1 + rivals.filter(r => r.alive && r.distance > distance + 1050).length;
     if (Math.floor(distance / LENGTH) > Math.floor(prevDistance / LENGTH)) {
       laps.push(elapsed - lapStart); lapStart = elapsed;
-      if (laps.length === LAP_COUNT) { finishRace(); } else { lap = laps.length + 1; showMessage(lap === LAP_COUNT ? 'FINAL LAP — MAKE IT COUNT' : `LAP ${String(lap).padStart(2, '0')} / ${String(LAP_COUNT).padStart(2, '0')} — KEEP PUSHING`, 2.2); soundEffect(660, .4); }
+      if (laps.length === LAP_COUNT && !survival) { finishRace(); } else { lap = laps.length + 1; if (!survival) showMessage(lap === LAP_COUNT ? 'FINAL LAP — MAKE IT COUNT' : `LAP ${String(lap).padStart(2, '0')} / ${String(LAP_COUNT).padStart(2, '0')} — KEEP PUSHING`, 2.2); soundEffect(660, .4); }
     }
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 450 * dt; p.life -= dt; }
     particles = particles.filter(p => p.life > 0).slice(lowFx() ? -30 : -100);
@@ -294,10 +296,11 @@
     $('laser-fill').style.width = Math.min(100, (laserAmmo + laserCharge) / laserCap() * 100) + '%';
     document.body.classList.toggle('lasers-empty', laserAmmo === 0);
     $('lap').textContent = String(lap).padStart(2, '0'); $('timer').textContent = formatTime(elapsed);
-    $('progress').style.width = Math.min(100, distance / (LENGTH * LAP_COUNT) * 100) + '%';
+    $('progress').style.width = (survival ? mod(elapsed, SURVIVAL_LEVEL_TIME) / SURVIVAL_LEVEL_TIME * 100 : Math.min(100, distance / (LENGTH * LAP_COUNT) * 100)) + '%';
     const laserIncoming = enemyShots.some(shot => !shot.resolved && shot.impactAt - time < .55);
+    const missileIncoming = rivalMissiles.length > 0;
     const bombIncoming = bombs.some(bomb => !bomb.exploded && bomb.distance - (distance + 1050) < 4200);
-    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : slip > .5 ? 'SLIPSTREAM  /  BOOST CHARGING' : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
-    document.body.classList.toggle('air-raid', laserIncoming || bombIncoming);
+    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : missileIncoming ? 'WARNING  /  MISSILE ON YOUR TAIL' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : slip > .5 ? 'SLIPSTREAM  /  BOOST CHARGING' : drift > .5 ? `DRIFT  ${driftTime.toFixed(1)} S` : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
+    document.body.classList.toggle('air-raid', laserIncoming || bombIncoming || missileIncoming);
     drawMap();
   }
