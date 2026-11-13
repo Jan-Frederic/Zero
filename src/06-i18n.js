@@ -185,6 +185,7 @@
     [/^🔒 UNLOCK WITH THE TROPHY (.+)$/, '🔒 FREISCHALTEN MIT DER TROPHÄE $1'], [/^BLINK RECHARGING  \/  ([\d.]+) S$/, 'BLINK LÄDT  /  $1 S'],
     [/^CHAPTER (\d+) \/ (\d+)  ·  (.+)$/, 'KAPITEL $1 / $2  ·  $3'], [/^🔒 (\d+) MORE CHAPTERS — UNLOCK CIRCUITS TO READ ON$/, '🔒 NOCH $1 KAPITEL — SCHALTE STRECKEN FREI, UM WEITERZULESEN'],
     [/^FILTER: (\w+)$/, (m, f) => `FILTER: ${({ NONE: 'KEINER' })[f] || f}`],
+    [/^DRIFT ([\d.]+) S  \/  \+(\d+) BOOST$/, 'DRIFT $1 S  /  +$2 BOOST'], [/^DRIFT  ([\d.]+) S$/, 'DRIFT  $1 S'],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],

@@ -118,3 +118,27 @@
     }
     ctx.restore();
   }
+  // ---- Drift: steer hard into a tight curve at speed. Costs a little speed, charges boost, pays a bonus at the end.
+  let driftCurve = 1, drift = 0, driftTime = 0;
+  function updateDrift(dt, steer, seg) {
+    const into = steer * Math.sign(seg.curve), tight = Math.abs(seg.curve) >= driftCurve;
+    const drifting = mode === 'racing' && tight && into > .6 && speed > 6000 && jumpHeight < 20 && !hyper();
+    if (drifting) {
+      driftTime += dt; drift = Math.min(1, drift + dt * 3);
+      energy = Math.min(100, energy + dt * 14); speed = Math.max(6000, speed - dt * 700);
+      if (Math.random() < dt * 30) {
+        const side = -Math.sign(seg.curve);
+        particles.push({ x: W * .5 + side * 60, y: H * .82, vx: side * (200 + Math.random() * 300), vy: -Math.random() * 200, life: .35, color: Math.random() < .5 ? '#ffd35a' : '#ffffff' });
+      }
+      if (tutorial) tutorial.drifted = true;
+    } else {
+      drift = Math.max(0, drift - dt * 4);
+      if (driftTime > 1 && drift === 0) {
+        const bonus = Math.min(30, Math.round(driftTime * 8));
+        energy = Math.min(100, energy + bonus); speed = Math.min(14900 * machines[shipIndex].top * topSpeed(), speed + 900);
+        showMessage(`DRIFT ${driftTime.toFixed(1)} S  /  +${bonus} BOOST`, 1); playToneSweep(400, 1200, .25, 'triangle', .05);
+        raceStats.drifts = (raceStats.drifts || 0) + 1; profile.stats.driftSeconds = (profile.stats.driftSeconds || 0) + driftTime;
+      }
+      if (drift === 0) driftTime = 0;
+    }
+  }

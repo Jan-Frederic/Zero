@@ -57,6 +57,7 @@
         pad: padPosition >= t.padStart && padPosition < t.padStart + t.padLength, padLane: Math.floor(i / t.padEvery) % 2 === 0 ? -.48 : .48,
         arch: i % Math.max(90, 150 - trackIndex * 6) === 30, tower: i % 9 === 0, p1: {}, p2: {} });
     });
+    driftCurve = Math.max(...segments.map(s => Math.abs(s.curve))) * .55;
     const placed = [];
     for (let i = 0; i < (t.hazards || 0); i++) {
       let index = Math.floor((i + 1) * COUNT / (t.hazards + 1));

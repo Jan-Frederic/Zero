@@ -471,6 +471,7 @@
     [/^🔒 UNLOCK WITH THE TROPHY (.+)$/, '🔒 FREISCHALTEN MIT DER TROPHÄE $1'], [/^BLINK RECHARGING  \/  ([\d.]+) S$/, 'BLINK LÄDT  /  $1 S'],
     [/^CHAPTER (\d+) \/ (\d+)  ·  (.+)$/, 'KAPITEL $1 / $2  ·  $3'], [/^🔒 (\d+) MORE CHAPTERS — UNLOCK CIRCUITS TO READ ON$/, '🔒 NOCH $1 KAPITEL — SCHALTE STRECKEN FREI, UM WEITERZULESEN'],
     [/^FILTER: (\w+)$/, (m, f) => `FILTER: ${({ NONE: 'KEINER' })[f] || f}`],
+    [/^DRIFT ([\d.]+) S  \/  \+(\d+) BOOST$/, 'DRIFT $1 S  /  +$2 BOOST'], [/^DRIFT  ([\d.]+) S$/, 'DRIFT  $1 S'],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
@@ -586,6 +587,7 @@
         pad: padPosition >= t.padStart && padPosition < t.padStart + t.padLength, padLane: Math.floor(i / t.padEvery) % 2 === 0 ? -.48 : .48,
         arch: i % Math.max(90, 150 - trackIndex * 6) === 30, tower: i % 9 === 0, p1: {}, p2: {} });
     });
+    driftCurve = Math.max(...segments.map(s => Math.abs(s.curve))) * .55;
     const placed = [];
     for (let i = 0; i < (t.hazards || 0); i++) {
       let index = Math.floor((i + 1) * COUNT / (t.hazards + 1));
@@ -1069,6 +1071,30 @@
       ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + side * W * .02 * k, y + H * .06 + k * H * .08); ctx.stroke();
     }
     ctx.restore();
+  }
+  // ---- Drift: steer hard into a tight curve at speed. Costs a little speed, charges boost, pays a bonus at the end.
+  let driftCurve = 1, drift = 0, driftTime = 0;
+  function updateDrift(dt, steer, seg) {
+    const into = steer * Math.sign(seg.curve), tight = Math.abs(seg.curve) >= driftCurve;
+    const drifting = mode === 'racing' && tight && into > .6 && speed > 6000 && jumpHeight < 20 && !hyper();
+    if (drifting) {
+      driftTime += dt; drift = Math.min(1, drift + dt * 3);
+      energy = Math.min(100, energy + dt * 14); speed = Math.max(6000, speed - dt * 700);
+      if (Math.random() < dt * 30) {
+        const side = -Math.sign(seg.curve);
+        particles.push({ x: W * .5 + side * 60, y: H * .82, vx: side * (200 + Math.random() * 300), vy: -Math.random() * 200, life: .35, color: Math.random() < .5 ? '#ffd35a' : '#ffffff' });
+      }
+      if (tutorial) tutorial.drifted = true;
+    } else {
+      drift = Math.max(0, drift - dt * 4);
+      if (driftTime > 1 && drift === 0) {
+        const bonus = Math.min(30, Math.round(driftTime * 8));
+        energy = Math.min(100, energy + bonus); speed = Math.min(14900 * machines[shipIndex].top * topSpeed(), speed + 900);
+        showMessage(`DRIFT ${driftTime.toFixed(1)} S  /  +${bonus} BOOST`, 1); playToneSweep(400, 1200, .25, 'triangle', .05);
+        raceStats.drifts = (raceStats.drifts || 0) + 1; profile.stats.driftSeconds = (profile.stats.driftSeconds || 0) + driftTime;
+      }
+      if (drift === 0) driftTime = 0;
+    }
   }
   // ==== Star gates and the hyperdrive.
   const HYPER_TIME = 10;
@@ -1589,7 +1615,7 @@
     nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
     if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
     endlessRun = false; trialRun = gameMode() === 'trial';
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); hitShortcuts = new Set(); blinkReadyAt = 0; missiles = []; mines = []; slip = 0; slipShown = false; ufoKills = 0; boss = null; bossAttacks = [];
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); hitShortcuts = new Set(); blinkReadyAt = 0; missiles = []; mines = []; slip = 0; slipShown = false; drift = 0; driftTime = 0; ufoKills = 0; boss = null; bossAttacks = [];
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
@@ -2036,7 +2062,8 @@
     playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip * (weather && weather.type === 'snow' ? .62 : 1);
     if (weather && weather.type === 'gravity') playerX += Math.sin((time - weather.started) * 1.4) * dt * .55 * track.width;
     playerX -= seg.curve * dt * speed / 10700 * .62;
-    steerVisual = lerp(steerVisual, steer, Math.min(1, dt * 9));
+    updateDrift(dt, steer, seg);
+    steerVisual = lerp(steerVisual, steer * (1 + drift * .6), Math.min(1, dt * 9));
     const edgeLimit = .93 * track.width;
     if (Math.abs(playerX) > edgeLimit) {
       const side = Math.sign(playerX); playerX = side * edgeLimit; speed = Math.max(2800, speed - dt * 15500); energy = Math.max(0, energy - dt * 10); shake = .5; screenFlash = Math.max(screenFlash, .08);
@@ -2230,7 +2257,7 @@
     $('progress').style.width = Math.min(100, distance / (LENGTH * LAP_COUNT) * 100) + '%';
     const laserIncoming = enemyShots.some(shot => !shot.resolved && shot.impactAt - time < .55);
     const bombIncoming = bombs.some(bomb => !bomb.exploded && bomb.distance - (distance + 1050) < 4200);
-    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : slip > .5 ? 'SLIPSTREAM  /  BOOST CHARGING' : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
+    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : slip > .5 ? 'SLIPSTREAM  /  BOOST CHARGING' : drift > .5 ? `DRIFT  ${driftTime.toFixed(1)} S` : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
     document.body.classList.toggle('air-raid', laserIncoming || bombIncoming);
     drawMap();
   }
