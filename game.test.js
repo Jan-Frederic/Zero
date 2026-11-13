@@ -27,7 +27,7 @@ function harness(opts = {}) {
   const windowEvents = {}, storage = new Map(opts.fresh ? [] : [['morbid-profile-v1', JSON.stringify({ unlocked: 8 })]]), vibrations = [];
   let frame, now = 0;
   const sandbox = {
-    console, Math, Uint8Array, navigator: { vibrate: pattern => { vibrations.push(pattern); return true; } }, innerWidth: 1280, innerHeight: 800, devicePixelRatio: 1,
+    console, Math, Uint8Array, btoa: s => Buffer.from(s, 'binary').toString('base64'), atob: s => Buffer.from(s, 'base64').toString('binary'), escape, unescape, navigator: { vibrate: pattern => { vibrations.push(pattern); return true; } }, innerWidth: 1280, innerHeight: 800, devicePixelRatio: 1,
     document: { getElementById: element, querySelector: element, querySelectorAll: query => query === '[data-ship]' ? ships : query === '[data-haptics]' ? hapticButtons : [], body: element('body'), addEventListener() {} },
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
     requestAnimationFrame: fn => { frame = fn; },
@@ -686,4 +686,18 @@ test('gamepad: A starts the race, the stick steers, X fires', () => {
   assert.ok(inspect().playerX > x0 + .2, 'stick steers right');
   const ammo = inspect().laserAmmo; press(2); step(.1); press(2, false); step(.05);
   assert.ok(inspect().laserAmmo < ammo, 'X fires the laser');
+});
+
+test('stats are counted and a profile code moves progress to another device', () => {
+  const a = harness();
+  a.element('start').fire('click'); a.key('ArrowUp'); a.step(3.05); a.disableAirRaid(); a.eliminateRivals();
+  for (let lap = 0; lap < 6 && a.inspect().mode === 'racing'; lap++) { a.setRacePosition((lap + 1) * 240000 - 60, 0); a.step(.5); }
+  const stats = JSON.parse(a.storage.get('morbid-profile-v1')).stats;
+  assert.equal(stats.races, 1); assert.equal(stats.wins, 1); assert.ok(stats.km > 40);
+  const code = a.sandbox.morbidProfile.exportCode();
+  assert.match(code, /^MR1-/);
+  const b = harness({ fresh: true });
+  assert.equal(b.sandbox.morbidProfile.importCode('nonsense'), false, 'bad codes are rejected');
+  assert.equal(b.sandbox.morbidProfile.importCode(code), true);
+  assert.equal(JSON.parse(b.storage.get('morbid-profile-v1')).stats.wins, 1, 'progress arrives on the other device');
 });

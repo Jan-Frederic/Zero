@@ -61,7 +61,7 @@
       <div class="circuit-heading"><div><span id="track-type" class="small-label pink">THE ELECTRIC METROPOLIS</span><h2 id="track-name">NEON HORIZON</h2></div><div class="track-arrows"><button id="prev-track" aria-label="Previous circuit">←</button><button id="next-track" aria-label="Next circuit">→</button></div></div>
       <div id="track-lock" class="track-lock"></div>
       <div id="daily" class="daily"><span class="small-label">📅 DAILY CHALLENGE</span><b id="daily-text">—</b><small id="daily-meta"></small><button id="daily-go" class="setup-option daily-go" type="button">GO ›</button></div><div class="track-stats"><div><span>CLASS</span><strong id="track-class">HYPER</strong></div><div><span>DISTANCE</span><strong>7.2 <small>KM</small></strong></div><div><span>DIFFICULTY</span><strong id="difficulty" class="difficulty">▰▰▰<em>▰▰▰▰▰</em></strong></div></div>
-      <div class="home-actions"><button id="open-shop" class="home-action home-action-wide" type="button">🛠 UPGRADES</button><button id="open-trophies" class="home-action home-action-wide home-action-trophy" type="button">🏆 TROPHIES</button><button id="open-settings" class="home-action" type="button">⚙ SETTINGS</button><button id="open-changelog" class="home-action" type="button">☰ CHANGELOG</button></div>
+      <div class="home-actions"><button id="open-shop" class="home-action home-action-wide" type="button">🛠 UPGRADES</button><button id="open-trophies" class="home-action home-action-trophy" type="button">🏆 TROPHIES</button><button id="open-stats" class="home-action" type="button">📊 STATS</button><button id="open-settings" class="home-action" type="button">⚙ SETTINGS</button><button id="open-changelog" class="home-action" type="button">☰ CHANGELOG</button></div>
     </aside>
     <div class="scene-label"><span class="live-dot"></span> LIVE CIRCUIT FEED <b id="feed-label">NIGHT CITY // 2097</b></div>
   </main>
@@ -89,6 +89,13 @@
   <section id="trophy-screen" class="modal hidden" role="dialog" aria-label="Trophies"><div class="modal-card dialog-card"><span class="eyebrow">HALL OF FAME</span><h2>TROPHIES</h2>
       <div class="shop-balance">UNLOCKED <b id="trophy-count">0 / 18</b></div>
       <div id="trophy-list" class="trophy-list"></div>
+      <button class="start-button" type="button" data-close-dialog><span>BACK TO THE GARAGE</span><b>✓</b></button></div></section>
+  <section id="stats-screen" class="modal hidden" role="dialog" aria-label="Statistics"><div class="modal-card dialog-card"><span class="eyebrow">PILOT RECORD</span><h2>STATS</h2>
+      <div id="stats-list" class="stats-list"></div>
+      <div class="shop-balance paint-head">MOVE YOUR PROGRESS<small>Export a code on this device and import it on another one — credits, upgrades, paints, trophies, circuits, records and settings come along.</small></div>
+      <div class="profile-transfer"><button id="profile-export" class="setup-option" type="button">⤴ EXPORT CODE</button><button id="profile-import" class="setup-option" type="button">⤵ IMPORT CODE</button></div>
+      <textarea id="profile-code" class="profile-code" rows="3" placeholder="Paste a profile code here to import it" spellcheck="false" autocomplete="off"></textarea>
+      <div id="profile-note" class="setup-note"></div>
       <button class="start-button" type="button" data-close-dialog><span>BACK TO THE GARAGE</span><b>✓</b></button></div></section>
   <section id="settings-screen" class="modal hidden" role="dialog" aria-label="Settings"><div class="modal-card dialog-card"><span class="eyebrow">CONTROLS &amp; DISPLAY</span><h2>SETTINGS</h2>
       <div class="setup" role="group" aria-label="Controls setup">

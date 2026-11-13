@@ -378,6 +378,7 @@
       life: 2.4 + Math.random() * 2 });
   }
   function killOverlord(L) {
+    stat('bosses');
     addCredits(150 + finale.wave * 50, 'BOSS DOWN');
     const f = finale; f.phase = 'won'; f.wonAt = time; f.bolts = [];
     const x = L.bossX, y = L.bossY;

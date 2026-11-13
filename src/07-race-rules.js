@@ -44,6 +44,14 @@
   function showLockedHint() { const el = $('track-lock'); if (el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); } }
   // ---- Game modes: RACE (grand prix), TIME TRIAL (alone against the clock) and ENDLESS (boss after boss).
   let trialRun = false;
+  // ---- Lifetime statistics.
+  function recordRaceStats(finished) {
+    const st = profile.stats;
+    st.races = (st.races || 0) + 1; st.km = (st.km || 0) + distance / LENGTH * 7.2;
+    st.perTrack = st.perTrack || {}; st.perTrack[trackIndex] = (st.perTrack[trackIndex] || 0) + 1;
+    if (finished && !trialRun) { if (rank === 1) st.wins = (st.wins || 0) + 1; if (rank <= 3) st.podiums = (st.podiums || 0) + 1; }
+    saveProfile();
+  }
   const GAME_MODES = { race: 'GRAND PRIX', trial: 'TIME TRIAL', endless: 'ENDLESS BOSSES' };
   const gameMode = () => GAME_MODES[settings.gameMode] ? settings.gameMode : 'race';
   function renderGameMode() {
@@ -286,6 +294,7 @@
     return false;
   }
   function showWreckResults() {
+    recordRaceStats(false);
     $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
     mode = 'finished';
     $('result-eyebrow').textContent = 'CATASTROPHIC FAILURE / SHIELDS OFFLINE';
@@ -310,6 +319,7 @@
     $('results').classList.remove('hidden'); invasionArmed = false; soundEffect(880, .6); if (record) playFanfare();
   }
   function finishRace() {
+    recordRaceStats(true);
     if (trialRun) { finishTrial(); return; }
     addCredits(Math.max(0, (PILOT_COUNT + 1 - rank) * 10) + (rank <= 3 ? 100 : 0) + (rank === 1 ? 150 : 0), `P${rank} FINISH`);
     unlockAchievement('first-race'); if (rank <= 3) unlockAchievement('podium'); if (rank === 1) { unlockAchievement('win'); if (!lostLifeThisRace) unlockAchievement('flawless'); }

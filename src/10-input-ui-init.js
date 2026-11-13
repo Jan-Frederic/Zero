@@ -75,6 +75,42 @@
   document.querySelectorAll('[data-setting]').forEach(button => button.addEventListener('click', () => setSetting(button.dataset.setting, button.dataset.value)));
   settingHooks.gameMode = () => renderGameMode();
   renderGameMode(); renderDaily();
+  // ---- Statistics and profile transfer (a copy-paste code, no server needed).
+  function renderStats() {
+    const s = profile.stats, fav = Object.entries(s.perTrack || {}).sort((a, b) => b[1] - a[1])[0];
+    const hours = Math.floor((s.seconds || 0) / 3600), mins = Math.floor((s.seconds || 0) % 3600 / 60);
+    const rows = [
+      ['RACES', s.races || 0], ['WINS', s.wins || 0], ['PODIUMS', s.podiums || 0], ['DISTANCE', `${Math.round(s.km || 0).toLocaleString()} KM`],
+      ['PLAY TIME', `${hours}H ${String(mins).padStart(2, '0')}M`], ['FAVOURITE', fav ? tracks[fav[0]].name : '—'],
+      ['RIVALS DESTROYED', s.rivals || 0], ['UFOs SHOT DOWN', s.ufos || 0], ['CATS POPPED', s.cats || 0], ['BOSSES DEFEATED', s.bosses || 0],
+      ['ENDLESS RECORD', `${s.endlessBest || 0} WAVES`], ['DAILY STREAK', `${profile.daily.streak || 0} DAYS`],
+      ['TROPHIES', `${Object.keys(profile.achievements).length}/${ACHIEVEMENTS.length}`], ['CREDITS', `${profile.credits} CR`],
+    ];
+    $('stats-list').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+    $('profile-code').value = ''; $('profile-note').textContent = '';
+  }
+  const exportCode = () => 'MR1-' + btoa(unescape(encodeURIComponent(JSON.stringify({ profile, settings, best: Object.fromEntries(tracks.map((_, i) => { try { return [i, localStorage.getItem(`chroma-best-${i}`)]; } catch { return [i, null]; } })) }))));
+  function importCode(code) {
+    try {
+      const data = JSON.parse(decodeURIComponent(escape(atob(String(code).trim().replace(/^MR1-/, '')))));
+      if (!data || typeof data.profile !== 'object') throw new Error('bad');
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(data.profile));
+      if (data.settings) localStorage.setItem(SETTINGS_KEY, JSON.stringify(data.settings));
+      for (const [i, v] of Object.entries(data.best || {})) if (v) localStorage.setItem(`chroma-best-${i}`, v);
+      return true;
+    } catch { return false; }
+  }
+  $('open-stats').addEventListener('click', () => { renderStats(); openDialog('stats-screen'); });
+  $('profile-export').addEventListener('click', async () => {
+    const code = exportCode(); $('profile-code').value = code;
+    try { await navigator.clipboard.writeText(code); $('profile-note').textContent = 'CODE COPIED — PASTE IT ON YOUR OTHER DEVICE.'; } catch { $('profile-note').textContent = 'COPY THE CODE BELOW AND PASTE IT ON YOUR OTHER DEVICE.'; }
+  });
+  $('profile-import').addEventListener('click', () => {
+    if (!$('profile-code').value.trim()) { $('profile-note').textContent = 'PASTE A PROFILE CODE INTO THE BOX FIRST.'; return; }
+    if (importCode($('profile-code').value)) { $('profile-note').textContent = 'PROFILE IMPORTED — RESTARTING…'; setTimeout(() => location.reload(), 700); }
+    else $('profile-note').textContent = 'THAT CODE DOES NOT LOOK RIGHT. CHECK IT AND TRY AGAIN.';
+  });
+  window.morbidProfile = { exportCode, importCode };
   $('tutorial-skip').addEventListener('click', () => endTutorial(true));
   $('tutorial-replay').addEventListener('click', () => { profile.tutorialDone = false; saveProfile(); setupNote('THE TUTORIAL RUNS IN YOUR NEXT GRAND PRIX'); });
   $('daily-go').addEventListener('click', () => { const d = dailyChallenge(); if (gameMode() !== 'race') setSetting('gameMode', 'race'); selectTrack(d.track - trackIndex); });
@@ -98,7 +134,7 @@
   renderLock();
   // ---- Home screen dialogs: settings and changelog.
   function openDialog(id) { $(id).classList.remove('hidden'); document.body.classList.add('dialog-open'); }
-  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen', 'trophy-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
+  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen', 'trophy-screen', 'stats-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
   // Health warning: shown on every visit (not again after an in-app update reload within the same session).
   let healthSeen = false;
   try { healthSeen = sessionStorage.getItem('morbid-health-ok') === '1'; } catch { /* show it */ }
