@@ -60,7 +60,7 @@
     const wasBoosting = boosting;
     if (hyper()) { energy = 100; boostLocked = false; }
     boosting = boostHeld && !boostLocked && energy > 0 && speed > 2500 && !brake;
-    if (boosting && !wasBoosting) { playBoostSound(1); playJetBlast(.75); }
+    if (boosting && !wasBoosting) { playBoostSound(1); playJetBlast(.75); raceStats.boost++; }
     if (boosting) {
       speed = Math.min((hyper() ? 19800 : 14900) * machine.top * topSpeed(), speed + (hyper() ? 14000 : 9000) * dt); if (!hyper()) energy = Math.max(0, energy - machine.drain * boostDrain() * dt);
       if (energy <= 0) { boostLocked = true; showMessage('BOOST DEPLETED', 1); }
@@ -134,7 +134,7 @@
             const previousAmmo = laserAmmo;
             laserAmmo = Math.min(laserCap(), laserAmmo + 1);
             createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, hazard.color || '#ff9bf2', .82, true);
-            if (stat('cats') >= 10) unlockAchievement('cats10');
+            if (stat('cats') >= 10) unlockAchievement('cats10'); raceStats.cats++;
             showMessage(laserAmmo > previousAmmo ? 'CAT PIXEL-POOF!  LASER +1' : 'CAT PIXEL-POOF!  LASER FULL', 1.05);
             playCatPopSound();
             if (damageShield(4)) { updateHUD(); return; }

@@ -1,6 +1,7 @@
   function showCallout(text, color = '#ddff46') { callout = { text, color, started: time }; }
   function shootDownUfo(ufo) {
     if (stat('ufos') >= 25) unlockAchievement('ufo25');
+    if (mode === 'racing') raceStats.ufos++;
     ufos = ufos.filter(u => u !== ufo);
     const start = ufo.screen && time - ufo.screen.at < .3 ? ufo.screen : { x: W * .5, y: H * .38, size: Math.min(W, H) * .03 };
     const seed = Math.floor(time * 997) + ufo.seed * 31;

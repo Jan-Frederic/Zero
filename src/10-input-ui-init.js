@@ -74,7 +74,8 @@
   }));
   document.querySelectorAll('[data-setting]').forEach(button => button.addEventListener('click', () => setSetting(button.dataset.setting, button.dataset.value)));
   settingHooks.gameMode = () => renderGameMode();
-  renderGameMode();
+  renderGameMode(); renderDaily();
+  $('daily-go').addEventListener('click', () => { const d = dailyChallenge(); if (gameMode() !== 'race') setSetting('gameMode', 'race'); selectTrack(d.track - trackIndex); });
   settingHooks.difficulty = () => setupNote(`DIFFICULTY: ${diff().name} · ${diff().lives > 0 ? '+1 LIFE, ' : diff().lives < 0 ? '-1 LIFE, ' : ''}${Math.round(diff().credits * 100)}% CREDITS`);
   window.morbidSettings = { set: setSetting, get: () => settings };
   document.querySelectorAll('[data-haptics]').forEach(button => button.addEventListener('click', () => {
