@@ -16,6 +16,9 @@ const root = path.join(__dirname, '..'), baseDir = path.join(__dirname, 'visual'
 const update = process.argv.includes('--update'), port = 4700 + Math.floor(Math.random() * 500);
 const MAX_DIFF = 0.04, BLOCK = 4, LAYOUT_TOLERANCE = 4;
 const VIEWPORTS = [{ name: 'desktop', width: 1280, height: 760 }, { name: 'phone', width: 390, height: 844, mobile: true }];
+// The race HUD is captured in a time trial (no rivals or UFOs, so the bars stay full); values that change are masked.
+const RACE_VIEWPORTS = [...VIEWPORTS, { name: 'phone-landscape', width: 844, height: 390, mobile: true }];
+const RACE_DYNAMIC = '#timer,#speed,#race-message,#credit-pop,#powerups,#progress,#countdown,#boost-label,#achievement,#subtitle,.touch-hint';
 const SCREENS = [
   { name: 'home', open: null, shot: '#menu' },
   { name: 'settings', open: '#open-settings', shot: '#settings-screen .modal-card' },
@@ -66,11 +69,11 @@ function compare(name, png, boxes) {
   return { name, status: 'ok', detail: `layout same, ${(share * 100).toFixed(2)} % of blocks differ` };
 }
 // Boxes of all visible elements inside the screenshot root, relative to it (rounded to whole pixels).
-const LAYOUT = root => {
+const LAYOUT = (root, skip = '#boot,#app-version,#music-status') => {
   const r = root.getBoundingClientRect(), out = [];
   for (const e of root.querySelectorAll('*')) {
     const b = e.getBoundingClientRect(), st = getComputedStyle(e);
-    if (!b.width || !b.height || st.visibility === 'hidden' || e.closest('#boot,#app-version,#music-status')) continue;
+    if (!b.width || !b.height || st.visibility === 'hidden' || e.closest(skip)) continue;
     out.push({ el: e.tagName.toLowerCase() + (e.id ? '#' + e.id : e.classList[0] ? '.' + e.classList[0] : ''), x: Math.round(b.left - r.left), y: Math.round(b.top - r.top), w: Math.round(b.width), h: Math.round(b.height) });
   }
   return out;
@@ -105,6 +108,26 @@ const LAYOUT = root => {
         results.push(compare(`${vp.name}-${s.name}`, png, boxes));
         if (s.open) await page.click(`${s.shot.split(' ')[0]} [data-close-dialog]`);
       }
+      await ctx.close();
+    }
+    for (const vp of RACE_VIEWPORTS) {
+      const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1, hasTouch: !!vp.mobile, isMobile: !!vp.mobile, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'UTC' });
+      const page = await ctx.newPage();
+      await page.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
+      await page.addInitScript(screen => {
+        localStorage.setItem('morbid-profile-v1', JSON.stringify({ unlocked: 3, tutorialDone: true }));
+        localStorage.setItem('morbid-settings-v2', JSON.stringify({ perf: 'full', lang: 'en', screen, steering: 'touch', gameMode: 'trial' }));
+      }, vp.width > vp.height ? 'landscape' : 'portrait');
+      await page.goto(`http://localhost:${port}/`);
+      await page.evaluate(async () => { await Promise.all([...document.fonts].map(f => f.load().catch(() => {}))); await document.fonts.ready; });
+      await page.click('#health-accept'); await page.addStyleTag({ content: FREEZE });
+      await page.click('#start');
+      await page.waitForFunction(() => document.body.classList.contains('racing') && !document.body.classList.contains('buffering') && document.getElementById('countdown').textContent === '', null, { timeout: 20000 });
+      await page.waitForTimeout(300);
+      const target = page.locator('#hud');
+      const png = await target.screenshot({ mask: RACE_DYNAMIC.split(',').map(sel => page.locator(sel)), animations: 'disabled' });
+      const boxes = await target.evaluate(LAYOUT, RACE_DYNAMIC + ',#boot,#app-version,#music-status');
+      results.push(compare(`${vp.name}-race`, png, boxes));
       await ctx.close();
     }
     await browser.close();
