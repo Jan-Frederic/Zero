@@ -405,3 +405,7 @@ body.gamepad .controls::after{content:'🎮 A GO · X LASER · Y BOOST · B BRAK
 body.calm #game{animation:none!important}
 body.calm *,body.calm *::before,body.calm *::after{animation-duration:.001s!important;animation-iteration-count:1!important}
 body.cb .hull-critical,body.cb.critical #shield-fill{background:repeating-linear-gradient(45deg,#ffe600 0 6px,#000 6px 12px)!important}
+
+/* Performance mode: drop expensive compositor effects. */
+body.lowfx *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+body.lowfx .home-bg,body.lowfx .scanlines{animation:none!important}

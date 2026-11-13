@@ -529,5 +529,5 @@
   function frame(now) {
     frameClock = now / 1000; pollGamepad();
     const dt = previousTime ? Math.min((now - previousTime) / 1000, .05) : 1 / 60; previousTime = now;
-    update(dt); render(); updateConfetti(dt); requestAnimationFrame(frame);
+    measureFps(dt); update(dt); render(); updateConfetti(dt); requestAnimationFrame(frame);
   }

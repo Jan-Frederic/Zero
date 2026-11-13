@@ -1,5 +1,5 @@
   function resize() {
-    W = innerWidth; H = innerHeight; dpr = Math.min(devicePixelRatio || 1, 1.6);
+    W = innerWidth; H = innerHeight; dpr = lowFx() ? 1 : Math.min(devicePixelRatio || 1, 1.6);
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }

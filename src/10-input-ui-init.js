@@ -269,5 +269,5 @@
   window.morbidBusy = () => ['countdown', 'racing', 'respawning', 'paused', 'wrecked', 'invasion', 'final'].includes(mode) || (mode === 'disco' && !(finale && finale.resultsShown));
   window.addEventListener('resize', resize);
   preloadSoundtrack(); prefetchVoices();
-  resize(); buildTrack(); requestAnimationFrame(frame);
+  applyPerf(); resize(); buildTrack(); requestAnimationFrame(frame);
 })();

@@ -252,7 +252,7 @@
       if (laps.length === LAP_COUNT) { finishRace(); } else { lap = laps.length + 1; showMessage(lap === LAP_COUNT ? 'FINAL LAP — MAKE IT COUNT' : `LAP ${String(lap).padStart(2, '0')} / ${String(LAP_COUNT).padStart(2, '0')} — KEEP PUSHING`, 2.2); soundEffect(660, .4); }
     }
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 450 * dt; p.life -= dt; }
-    particles = particles.filter(p => p.life > 0).slice(-100);
+    particles = particles.filter(p => p.life > 0).slice(lowFx() ? -30 : -100);
     document.body.classList.toggle('boosting', boosting || jumpBoostTimer > 0); updateHUD();
   }
   let powerChipsHtml = '';

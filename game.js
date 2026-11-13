@@ -185,7 +185,7 @@
   const random = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
   const formatTime = t => `${String(Math.floor(t / 60)).padStart(2, '0')}:${(t % 60).toFixed(3).padStart(6, '0')}`;
   function resize() {
-    W = innerWidth; H = innerHeight; dpr = Math.min(devicePixelRatio || 1, 1.6);
+    W = innerWidth; H = innerHeight; dpr = lowFx() ? 1 : Math.min(devicePixelRatio || 1, 1.6);
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
@@ -515,7 +515,7 @@
     }
     crashingUfos = crashingUfos.filter(u => !u.done);
     for (const p of smoke) { p.x += p.vx * dt; p.y += p.vy * dt; p.r *= 1 + dt * .9; p.life -= dt; }
-    smoke = smoke.filter(p => p.life > 0);
+    smoke = smoke.filter(p => p.life > 0); if (lowFx() && smoke.length > 40) smoke = smoke.slice(-40);
     if (smoke.length > 420) smoke.splice(0, smoke.length - 420);
     megaBlasts = megaBlasts.filter(b => time - b.started < b.duration);
     for (const r of ufoRespawns) if (time >= r.at && mode === 'racing') {
@@ -740,7 +740,7 @@
   const confettiCanvas = $('confetti'), confettiCtx = confettiCanvas && confettiCanvas.getContext('2d');
   function launchConfetti() {
     const colors = ['#ddff46', '#ff4eb8', '#4df8ff', '#fff16b', '#a88aff', '#ff8a3d', '#ffffff'];
-    for (let i = 0; i < 360; i++) {
+    for (let i = 0, n = lowFx() ? 110 : 360; i < n; i++) {
       const cannon = i % 3, fromSide = cannon < 2;
       confetti.push({ x: fromSide ? (cannon ? W + 10 : -10) : Math.random() * W, y: fromSide ? H * (.55 + Math.random() * .3) : -20 - Math.random() * H * .6,
         vx: fromSide ? (cannon ? -1 : 1) * (380 + Math.random() * 620) : (Math.random() - .5) * 120, vy: fromSide ? -(620 + Math.random() * 700) : 60 + Math.random() * 160,
@@ -791,7 +791,7 @@
   // Defaults: gyro steering in landscape. (v2 key: earlier builds saved touch/portrait implicitly.)
   const SETTINGS_KEY = 'morbid-settings-v2';
   const reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const settings = { calm: reducedMotion, cb: false, subtitles: false, difficulty: 'normal', haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
+  const settings = { perf: 'auto', perfAuto: false, calm: reducedMotion, cb: false, subtitles: false, difficulty: 'normal', haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch { /* defaults */ }
   const tilt = { x: 0, neutral: 0, live: false };
   // Difficulty: rival pace, damage taken, extra lives and credit payout.
@@ -818,6 +818,28 @@
     ctx.font = `bold ${Math.max(12, r * .9)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.strokeText('⚠', x, y); ctx.fillStyle = '#ffe600'; ctx.fillText('⚠', x, y); ctx.restore();
   }
+  // Performance mode: 'auto' switches to low effects by itself when the frame rate stays low during a race.
+  const lowFx = () => settings.perf === 'low' || (settings.perf === 'auto' && settings.perfAuto);
+  const fpsMeter = { frames: 0, sum: 0, slow: 0 };
+  function measureFps(dt) {
+    if (settings.perf !== 'auto' || settings.perfAuto || mode !== 'racing' || countdown > 0) { fpsMeter.frames = 0; fpsMeter.sum = 0; return; }
+    fpsMeter.frames++; fpsMeter.sum += dt;
+    if (fpsMeter.sum < 2) return;
+    const fps = fpsMeter.frames / fpsMeter.sum; fpsMeter.frames = 0; fpsMeter.sum = 0;
+    fpsMeter.slow = fps < 38 ? fpsMeter.slow + 1 : 0;
+    if (fpsMeter.slow >= 2) { settings.perfAuto = true; saveSettings(); applyPerf(); showMessage('LOW FPS · PERFORMANCE MODE ON', 2.2); }
+  }
+  // Low effects: no canvas glow (shadowBlur is the big cost on phones), 1x resolution, fewer particles.
+  function applyPerf() {
+    const low = lowFx();
+    try {
+      if (low) Object.defineProperty(ctx, 'shadowBlur', { configurable: true, get: () => 0, set: () => {} });
+      else delete ctx.shadowBlur;
+    } catch { /* context without configurable props */ }
+    document.body.classList.toggle('lowfx', low);
+    if (typeof resize === 'function' && W) resize();
+  }
+  settingHooks.perf = v => { if (v !== 'auto') settings.perfAuto = false; saveSettings(); applyPerf(); };
   function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ } }
   function screenAngle() { return (screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : Number(window.orientation) || 0) * Math.PI / 180; }
   // Roll angle of the device relative to the screen's horizontal axis, from the gravity direction in device coordinates.
@@ -850,7 +872,7 @@
     document.querySelectorAll('[data-screen]').forEach(b => b.classList.toggle('selected', b.dataset.screen === settings.screen));
     document.querySelectorAll('[data-haptics]').forEach(b => b.classList.toggle('selected', (b.dataset.haptics === 'on') === settings.haptics));
     document.querySelectorAll('[data-setting]').forEach(b => { const v = b.dataset.value, cur = settings[b.dataset.setting]; b.classList.toggle('selected', String(cur) === (v === 'on' ? 'true' : v === 'off' ? 'false' : v)); });
-    document.body.classList.toggle('calm', !!settings.calm); document.body.classList.toggle('cb', !!settings.cb);
+    document.body.classList.toggle('calm', !!settings.calm); if ($('perf-note')) $('perf-note').textContent = settings.perf === 'auto' ? (settings.perfAuto ? 'AUTO · LOW FPS DETECTED' : 'AUTO · WATCHING FPS') : settings.perf === 'low' ? 'FEWER EFFECTS' : 'ALL EFFECTS'; document.body.classList.toggle('cb', !!settings.cb);
     if ($('difficulty-badge')) $('difficulty-badge').textContent = diff().name;
     $('steer-hint').textContent = settings.steering === 'gyro' ? 'TILT ◀ ▶' : 'DRAG ◀ ▶';
     document.body.classList.toggle('gyro', settings.steering === 'gyro');
@@ -2314,7 +2336,7 @@
       if (laps.length === LAP_COUNT) { finishRace(); } else { lap = laps.length + 1; showMessage(lap === LAP_COUNT ? 'FINAL LAP — MAKE IT COUNT' : `LAP ${String(lap).padStart(2, '0')} / ${String(LAP_COUNT).padStart(2, '0')} — KEEP PUSHING`, 2.2); soundEffect(660, .4); }
     }
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 450 * dt; p.life -= dt; }
-    particles = particles.filter(p => p.life > 0).slice(-100);
+    particles = particles.filter(p => p.life > 0).slice(lowFx() ? -30 : -100);
     document.body.classList.toggle('boosting', boosting || jumpBoostTimer > 0); updateHUD();
   }
   let powerChipsHtml = '';
@@ -2953,7 +2975,7 @@
   function frame(now) {
     frameClock = now / 1000; pollGamepad();
     const dt = previousTime ? Math.min((now - previousTime) / 1000, .05) : 1 / 60; previousTime = now;
-    update(dt); render(); updateConfetti(dt); requestAnimationFrame(frame);
+    measureFps(dt); update(dt); render(); updateConfetti(dt); requestAnimationFrame(frame);
   }
   $('start').addEventListener('click', startRace); $('again').addEventListener('click', raceAgain);
   $('pause').addEventListener('click', pauseRace); $('resume').addEventListener('click', pauseRace);
@@ -3226,5 +3248,5 @@
   window.morbidBusy = () => ['countdown', 'racing', 'respawning', 'paused', 'wrecked', 'invasion', 'final'].includes(mode) || (mode === 'disco' && !(finale && finale.resultsShown));
   window.addEventListener('resize', resize);
   preloadSoundtrack(); prefetchVoices();
-  resize(); buildTrack(); requestAnimationFrame(frame);
+  applyPerf(); resize(); buildTrack(); requestAnimationFrame(frame);
 })();
