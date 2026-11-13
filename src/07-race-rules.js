@@ -48,10 +48,10 @@
     laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = laserCap(); laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
     const track = tracks[trackIndex];
     const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
-    rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
+    rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace * diff().pace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
-    musicHold = 0; raceEarned = 0; lostLifeThisRace = false; lives = finaleWaveCount(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
+    musicHold = 0; raceEarned = 0; lostLifeThisRace = false; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
     $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE';
@@ -217,7 +217,7 @@
       if (!bubbleHits) power.bubble = 0;
       showMessage(bubbleHits ? `BUBBLE ABSORBED IT  /  ${bubbleHits} LEFT` : 'BUBBLE POPPED!', .9); return false;
     }
-    shield = Math.max(0, shield - amount / hullStrength());
+    shield = Math.max(0, shield - amount * diff().dmg / hullStrength());
     if (shield <= 25) screenFlash = Math.max(screenFlash, .08 + (25 - shield) * .005);
     if (shield === 0) { destroyPlayer(); return true; }
     return false;

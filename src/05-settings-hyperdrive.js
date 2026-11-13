@@ -1,9 +1,23 @@
   // ---- Setup: steering (touch or gyro) and screen orientation, chosen on the start screen and remembered.
   // Defaults: gyro steering in landscape. (v2 key: earlier builds saved touch/portrait implicitly.)
   const SETTINGS_KEY = 'morbid-settings-v2';
-  const settings = { haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
+  const settings = { difficulty: 'normal', haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch { /* defaults */ }
   const tilt = { x: 0, neutral: 0, live: false };
+  // Difficulty: rival pace, damage taken, extra lives and credit payout.
+  const DIFFICULTY = {
+    easy: { name: 'EASY', pace: .9, dmg: .6, lives: 1, credits: .75 },
+    normal: { name: 'NORMAL', pace: 1, dmg: 1, lives: 0, credits: 1 },
+    hard: { name: 'HARD', pace: 1.08, dmg: 1.4, lives: -1, credits: 1.5 },
+  };
+  const diff = () => DIFFICULTY[settings.difficulty] || DIFFICULTY.normal;
+  // Generic option buttons: <button data-setting="key" data-value="value">. Hooks run after a change.
+  const settingHooks = {};
+  function setSetting(key, raw) {
+    const value = raw === 'on' ? true : raw === 'off' ? false : raw;
+    settings[key] = value; saveSettings(); renderSettings();
+    if (settingHooks[key]) settingHooks[key](value);
+  }
   function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ } }
   function screenAngle() { return (screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : Number(window.orientation) || 0) * Math.PI / 180; }
   // Roll angle of the device relative to the screen's horizontal axis, from the gravity direction in device coordinates.
@@ -35,6 +49,8 @@
     document.querySelectorAll('[data-steer]').forEach(b => b.classList.toggle('selected', b.dataset.steer === settings.steering));
     document.querySelectorAll('[data-screen]').forEach(b => b.classList.toggle('selected', b.dataset.screen === settings.screen));
     document.querySelectorAll('[data-haptics]').forEach(b => b.classList.toggle('selected', (b.dataset.haptics === 'on') === settings.haptics));
+    document.querySelectorAll('[data-setting]').forEach(b => { const v = b.dataset.value, cur = settings[b.dataset.setting]; b.classList.toggle('selected', String(cur) === (v === 'on' ? 'true' : v === 'off' ? 'false' : v)); });
+    if ($('difficulty-badge')) $('difficulty-badge').textContent = diff().name;
     $('steer-hint').textContent = settings.steering === 'gyro' ? 'TILT ◀ ▶' : 'DRAG ◀ ▶';
     document.body.classList.toggle('gyro', settings.steering === 'gyro');
     checkOrientation();

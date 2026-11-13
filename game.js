@@ -78,7 +78,7 @@
     }).join('');
   }
   function addCredits(amount, why) {
-    if (!amount) return;
+    amount = Math.round(amount * diff().credits); if (!amount) return;
     profile.credits += amount; raceEarned += amount; saveProfile();
     $('credit-pop').textContent = `+${amount} CR  ${why}`; creditPopAt = time; $('credit-pop').classList.add('visible');
   }
@@ -754,9 +754,23 @@
   // ---- Setup: steering (touch or gyro) and screen orientation, chosen on the start screen and remembered.
   // Defaults: gyro steering in landscape. (v2 key: earlier builds saved touch/portrait implicitly.)
   const SETTINGS_KEY = 'morbid-settings-v2';
-  const settings = { haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
+  const settings = { difficulty: 'normal', haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch { /* defaults */ }
   const tilt = { x: 0, neutral: 0, live: false };
+  // Difficulty: rival pace, damage taken, extra lives and credit payout.
+  const DIFFICULTY = {
+    easy: { name: 'EASY', pace: .9, dmg: .6, lives: 1, credits: .75 },
+    normal: { name: 'NORMAL', pace: 1, dmg: 1, lives: 0, credits: 1 },
+    hard: { name: 'HARD', pace: 1.08, dmg: 1.4, lives: -1, credits: 1.5 },
+  };
+  const diff = () => DIFFICULTY[settings.difficulty] || DIFFICULTY.normal;
+  // Generic option buttons: <button data-setting="key" data-value="value">. Hooks run after a change.
+  const settingHooks = {};
+  function setSetting(key, raw) {
+    const value = raw === 'on' ? true : raw === 'off' ? false : raw;
+    settings[key] = value; saveSettings(); renderSettings();
+    if (settingHooks[key]) settingHooks[key](value);
+  }
   function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ } }
   function screenAngle() { return (screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : Number(window.orientation) || 0) * Math.PI / 180; }
   // Roll angle of the device relative to the screen's horizontal axis, from the gravity direction in device coordinates.
@@ -788,6 +802,8 @@
     document.querySelectorAll('[data-steer]').forEach(b => b.classList.toggle('selected', b.dataset.steer === settings.steering));
     document.querySelectorAll('[data-screen]').forEach(b => b.classList.toggle('selected', b.dataset.screen === settings.screen));
     document.querySelectorAll('[data-haptics]').forEach(b => b.classList.toggle('selected', (b.dataset.haptics === 'on') === settings.haptics));
+    document.querySelectorAll('[data-setting]').forEach(b => { const v = b.dataset.value, cur = settings[b.dataset.setting]; b.classList.toggle('selected', String(cur) === (v === 'on' ? 'true' : v === 'off' ? 'false' : v)); });
+    if ($('difficulty-badge')) $('difficulty-badge').textContent = diff().name;
     $('steer-hint').textContent = settings.steering === 'gyro' ? 'TILT ◀ ▶' : 'DRAG ◀ ▶';
     document.body.classList.toggle('gyro', settings.steering === 'gyro');
     checkOrientation();
@@ -902,6 +918,7 @@
     { kind: 'shark', name: 'WORMHOLE SHARK', attack: 'portal', color: '#ff6a3d', blood: ['#ff3b3b', '#b0102a'], guts: ['#ff8aa2', '#c4566f'], splat: '#c0142e', down: 'SHARK SPLATTERED!' },
   ];
   const finaleWaveCount = () => clamp((tracks[trackIndex].difficulty || 3) - 2, 1, 6);
+  const startLives = () => Math.max(0, finaleWaveCount() + diff().lives);
   function waveConfig(n) {
     const type = BOSS_TYPES[n % BOSS_TYPES.length];
     return { type, name: type.name + (n >= BOSS_TYPES.length ? ' MK II' : ''), hp: FINAL_BOSS_HP + n * 4, rows: Math.min(6, FINALE_ROWS + Math.floor(n / 2)),
@@ -1301,23 +1318,23 @@
       if (bolt.kind === 'bite') {
         if (time >= bolt.warnUntil && !bolt.fired) { bolt.fired = true; playToneSweep(90, 40, .4, 'sawtooth', .14); playNoiseBurst(.4, .2, 3000, 200); shake = Math.max(shake, 1.2); }
         if (bolt.fired && time < bolt.until && time > f.invulnUntil && Math.abs(bolt.x - shipPx) < L.ship * 1.1) {
-          bolt.hit = true; shield = Math.max(0, shield - bolt.dmg); screenFlash = Math.max(screenFlash, .4); playImpactSound(1.2); finaleMsg(`CHOMP!  SHIELD -${bolt.dmg}`);
+          bolt.hit = true; shield = Math.max(0, shield - bolt.dmg * diff().dmg); screenFlash = Math.max(screenFlash, .4); playImpactSound(1.2); finaleMsg(`CHOMP!  SHIELD -${bolt.dmg}`);
         }
         continue;
       }
       if (bolt.kind === 'web' && time > f.invulnUntil && Math.abs(bolt.x - shipPx) < bolt.r && Math.abs(bolt.y - L.shipY) < L.ship * .6) {
-        bolt.hit = true; f.webbedUntil = time + 2.2; shield = Math.max(0, shield - bolt.dmg); playNoiseBurst(.3, .1, 2000, 400); finaleMsg('WEBBED!  SLOWED DOWN'); continue;
+        bolt.hit = true; f.webbedUntil = time + 2.2; shield = Math.max(0, shield - bolt.dmg * diff().dmg); playNoiseBurst(.3, .1, 2000, 400); finaleMsg('WEBBED!  SLOWED DOWN'); continue;
       }
       if (bolt.kind === 'eyebeam') {
         if (time >= bolt.warnUntil && !bolt.fired) { bolt.fired = true; playToneSweep(1800, 300, .5, 'sawtooth', .07); playNoiseBurst(.5, .12, 6000, 600); }
         if (bolt.fired && time < bolt.until && time > f.invulnUntil && Math.abs(bolt.x - shipPx) < L.ship * .75) {
-          bolt.hit = true; shield = Math.max(0, shield - bolt.dmg); shake = Math.max(shake, 1); screenFlash = Math.max(screenFlash, .35);
+          bolt.hit = true; shield = Math.max(0, shield - bolt.dmg * diff().dmg); shake = Math.max(shake, 1); screenFlash = Math.max(screenFlash, .35);
           playImpactSound(1); finaleMsg(`DEATH RAY!  SHIELD -${bolt.dmg}`);
         }
         continue;
       }
       if (time > f.invulnUntil && Math.abs(bolt.x - shipPx) < L.ship * .9 && Math.abs(bolt.y - L.shipY) < L.ship * .5) {
-        bolt.hit = true; shield = Math.max(0, shield - bolt.dmg); shake = Math.max(shake, .8); screenFlash = Math.max(screenFlash, .25);
+        bolt.hit = true; shield = Math.max(0, shield - bolt.dmg * diff().dmg); shake = Math.max(shake, .8); screenFlash = Math.max(screenFlash, .25);
         playImpactSound(.8); finaleMsg(`${{ slime: 'SLIMED!', acid: 'ACID BURN!', missile: 'MISSILE HIT!', shard: 'CRYSTAL SHARD!' }[bolt.kind] || 'ZAPPED!'}  SHIELD -${bolt.dmg}`);
       }
     }
@@ -1661,10 +1678,10 @@
     laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = laserCap(); laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
     const track = tracks[trackIndex];
     const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
-    rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
+    rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace * diff().pace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
-    musicHold = 0; raceEarned = 0; lostLifeThisRace = false; lives = finaleWaveCount(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
+    musicHold = 0; raceEarned = 0; lostLifeThisRace = false; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
     $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE';
@@ -1830,7 +1847,7 @@
       if (!bubbleHits) power.bubble = 0;
       showMessage(bubbleHits ? `BUBBLE ABSORBED IT  /  ${bubbleHits} LEFT` : 'BUBBLE POPPED!', .9); return false;
     }
-    shield = Math.max(0, shield - amount / hullStrength());
+    shield = Math.max(0, shield - amount * diff().dmg / hullStrength());
     if (shield <= 25) screenFlash = Math.max(screenFlash, .08 + (25 - shield) * .005);
     if (shield === 0) { destroyPlayer(); return true; }
     return false;
@@ -2736,6 +2753,9 @@
     } else setupNote('DRAG ON THE TRACK TO STEER');
     settings.steering = button.dataset.steer; saveSettings(); renderSettings();
   }));
+  document.querySelectorAll('[data-setting]').forEach(button => button.addEventListener('click', () => setSetting(button.dataset.setting, button.dataset.value)));
+  settingHooks.difficulty = () => setupNote(`DIFFICULTY: ${diff().name} · ${diff().lives > 0 ? '+1 LIFE, ' : diff().lives < 0 ? '-1 LIFE, ' : ''}${Math.round(diff().credits * 100)}% CREDITS`);
+  window.morbidSettings = { set: setSetting, get: () => settings };
   document.querySelectorAll('[data-haptics]').forEach(button => button.addEventListener('click', () => {
     settings.haptics = button.dataset.haptics === 'on'; saveSettings(); renderSettings();
     const canVibrate = typeof navigator !== 'undefined' && !!navigator.vibrate;
@@ -2802,7 +2822,7 @@
     setupAudio(); primeSpeech();
     $('menu').classList.add('hidden'); $('hud').classList.add('hidden');
     document.body.classList.add('racing'); document.body.classList.remove('paused');
-    rivals = []; ufos = []; bombs = []; shield = 100; lives = finaleWaveCount(); raceEarned = 0;
+    rivals = []; ufos = []; bombs = []; shield = 100; lives = startLives(); raceEarned = 0;
     startInvasion();
   }
   $('title-egg').addEventListener('click', () => {

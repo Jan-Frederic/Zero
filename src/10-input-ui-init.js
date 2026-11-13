@@ -72,6 +72,9 @@
     } else setupNote('DRAG ON THE TRACK TO STEER');
     settings.steering = button.dataset.steer; saveSettings(); renderSettings();
   }));
+  document.querySelectorAll('[data-setting]').forEach(button => button.addEventListener('click', () => setSetting(button.dataset.setting, button.dataset.value)));
+  settingHooks.difficulty = () => setupNote(`DIFFICULTY: ${diff().name} · ${diff().lives > 0 ? '+1 LIFE, ' : diff().lives < 0 ? '-1 LIFE, ' : ''}${Math.round(diff().credits * 100)}% CREDITS`);
+  window.morbidSettings = { set: setSetting, get: () => settings };
   document.querySelectorAll('[data-haptics]').forEach(button => button.addEventListener('click', () => {
     settings.haptics = button.dataset.haptics === 'on'; saveSettings(); renderSettings();
     const canVibrate = typeof navigator !== 'undefined' && !!navigator.vibrate;
@@ -138,7 +141,7 @@
     setupAudio(); primeSpeech();
     $('menu').classList.add('hidden'); $('hud').classList.add('hidden');
     document.body.classList.add('racing'); document.body.classList.remove('paused');
-    rivals = []; ufos = []; bombs = []; shield = 100; lives = finaleWaveCount(); raceEarned = 0;
+    rivals = []; ufos = []; bombs = []; shield = 100; lives = startLives(); raceEarned = 0;
     startInvasion();
   }
   $('title-egg').addEventListener('click', () => {

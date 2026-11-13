@@ -336,3 +336,5 @@ body.track-locked #start{background:#3a3550!important;color:#c9c2dc!important;bo
 
 .share-button{width:100%;margin-top:10px;min-height:46px;background:transparent;border:1px solid #4df8ff88;color:var(--cyan);font:13px var(--mono);letter-spacing:1.5px}
 .share-button:hover{background:#4df8ff14}
+
+@media (max-width:600px) and (orientation:portrait){.setup-options.setup-3{grid-template-columns:1fr 1fr 1fr}}

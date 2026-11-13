@@ -78,7 +78,7 @@
     }).join('');
   }
   function addCredits(amount, why) {
-    if (!amount) return;
+    amount = Math.round(amount * diff().credits); if (!amount) return;
     profile.credits += amount; raceEarned += amount; saveProfile();
     $('credit-pop').textContent = `+${amount} CR  ${why}`; creditPopAt = time; $('credit-pop').classList.add('visible');
   }

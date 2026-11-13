@@ -572,3 +572,15 @@ test('the boss roster has six different bosses before any MK II repeat', () => {
   for (let n = 0; n < 6; n++) { sandbox.__wave(n); kinds.push(finaleState().kind); step(3); }
   assert.deepEqual(kinds, ['overlord', 'cyclops', 'maggot', 'robot', 'spider', 'shark']);
 });
+
+test('difficulty: easy gives an extra life and softer hits, hard the opposite', () => {
+  const run = level => {
+    const h = harness(); h.sandbox.morbidSettings.set('difficulty', level);
+    h.element('start').fire('click'); h.key('ArrowUp'); h.step(4); h.disableAirRaid();
+    const lives = h.inspect().lives; h.setReserves(100, 10, 100); h.key('ArrowRight'); h.step(1.2);
+    return { lives, shield: Number.parseInt(h.element('shield-text').textContent) };
+  };
+  const easy = run('easy'), normal = run('normal'), hard = run('hard');
+  assert.deepEqual([easy.lives, normal.lives, hard.lives], [2, 1, 0]);
+  assert.ok(easy.shield > normal.shield && normal.shield > hard.shield, `${easy.shield} > ${normal.shield} > ${hard.shield}`);
+});

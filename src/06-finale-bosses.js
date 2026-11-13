@@ -68,6 +68,7 @@
     { kind: 'shark', name: 'WORMHOLE SHARK', attack: 'portal', color: '#ff6a3d', blood: ['#ff3b3b', '#b0102a'], guts: ['#ff8aa2', '#c4566f'], splat: '#c0142e', down: 'SHARK SPLATTERED!' },
   ];
   const finaleWaveCount = () => clamp((tracks[trackIndex].difficulty || 3) - 2, 1, 6);
+  const startLives = () => Math.max(0, finaleWaveCount() + diff().lives);
   function waveConfig(n) {
     const type = BOSS_TYPES[n % BOSS_TYPES.length];
     return { type, name: type.name + (n >= BOSS_TYPES.length ? ' MK II' : ''), hp: FINAL_BOSS_HP + n * 4, rows: Math.min(6, FINALE_ROWS + Math.floor(n / 2)),
@@ -467,23 +468,23 @@
       if (bolt.kind === 'bite') {
         if (time >= bolt.warnUntil && !bolt.fired) { bolt.fired = true; playToneSweep(90, 40, .4, 'sawtooth', .14); playNoiseBurst(.4, .2, 3000, 200); shake = Math.max(shake, 1.2); }
         if (bolt.fired && time < bolt.until && time > f.invulnUntil && Math.abs(bolt.x - shipPx) < L.ship * 1.1) {
-          bolt.hit = true; shield = Math.max(0, shield - bolt.dmg); screenFlash = Math.max(screenFlash, .4); playImpactSound(1.2); finaleMsg(`CHOMP!  SHIELD -${bolt.dmg}`);
+          bolt.hit = true; shield = Math.max(0, shield - bolt.dmg * diff().dmg); screenFlash = Math.max(screenFlash, .4); playImpactSound(1.2); finaleMsg(`CHOMP!  SHIELD -${bolt.dmg}`);
         }
         continue;
       }
       if (bolt.kind === 'web' && time > f.invulnUntil && Math.abs(bolt.x - shipPx) < bolt.r && Math.abs(bolt.y - L.shipY) < L.ship * .6) {
-        bolt.hit = true; f.webbedUntil = time + 2.2; shield = Math.max(0, shield - bolt.dmg); playNoiseBurst(.3, .1, 2000, 400); finaleMsg('WEBBED!  SLOWED DOWN'); continue;
+        bolt.hit = true; f.webbedUntil = time + 2.2; shield = Math.max(0, shield - bolt.dmg * diff().dmg); playNoiseBurst(.3, .1, 2000, 400); finaleMsg('WEBBED!  SLOWED DOWN'); continue;
       }
       if (bolt.kind === 'eyebeam') {
         if (time >= bolt.warnUntil && !bolt.fired) { bolt.fired = true; playToneSweep(1800, 300, .5, 'sawtooth', .07); playNoiseBurst(.5, .12, 6000, 600); }
         if (bolt.fired && time < bolt.until && time > f.invulnUntil && Math.abs(bolt.x - shipPx) < L.ship * .75) {
-          bolt.hit = true; shield = Math.max(0, shield - bolt.dmg); shake = Math.max(shake, 1); screenFlash = Math.max(screenFlash, .35);
+          bolt.hit = true; shield = Math.max(0, shield - bolt.dmg * diff().dmg); shake = Math.max(shake, 1); screenFlash = Math.max(screenFlash, .35);
           playImpactSound(1); finaleMsg(`DEATH RAY!  SHIELD -${bolt.dmg}`);
         }
         continue;
       }
       if (time > f.invulnUntil && Math.abs(bolt.x - shipPx) < L.ship * .9 && Math.abs(bolt.y - L.shipY) < L.ship * .5) {
-        bolt.hit = true; shield = Math.max(0, shield - bolt.dmg); shake = Math.max(shake, .8); screenFlash = Math.max(screenFlash, .25);
+        bolt.hit = true; shield = Math.max(0, shield - bolt.dmg * diff().dmg); shake = Math.max(shake, .8); screenFlash = Math.max(screenFlash, .25);
         playImpactSound(.8); finaleMsg(`${{ slime: 'SLIMED!', acid: 'ACID BURN!', missile: 'MISSILE HIT!', shard: 'CRYSTAL SHARD!' }[bolt.kind] || 'ZAPPED!'}  SHIELD -${bolt.dmg}`);
       }
     }
