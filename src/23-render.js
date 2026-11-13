@@ -1,3 +1,4 @@
+  // ==== Race rendering and the frame loop.
   function polygon(points, fill, stroke, lineWidth = 1) {
     ctx.beginPath(); points.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
     if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lineWidth; ctx.stroke(); }
@@ -46,66 +47,6 @@
     const gridHorizon = H * .51;
     for (let i = -14; i <= 14; i++) line(W / 2 + i * 22 - playerX * 15, gridHorizon, W / 2 + i * W / 7 - playerX * 130, H, t.edge + '28');
     for (let i = 0; i < 22; i++) { const q = mod(i / 22 + position / 50000, 1); const y = gridHorizon + q ** 3 * (H - gridHorizon); line(0, y, W, y, t.edge + '35'); }
-  }
-  // Light-speed space: nebulae, a ringed planet and star streaks rushing out of the vanishing point.
-  function hyperFade() { return clamp(Math.min((time - hyperStarted) * 2.5, hyperTime * 1.5), 0, 1); }
-  function drawHyperSpace() {
-    const k = hyperFade(), cx = W * .5 - playerX * 30, cy = H * .42, hue = (time * 90) % 360;
-    ctx.save(); ctx.globalAlpha = k;
-    const deep = ctx.createRadialGradient(cx, cy, 10, cx, cy, Math.max(W, H) * .9);
-    deep.addColorStop(0, '#ffffff'); deep.addColorStop(.04, `hsl(${hue},100%,70%)`); deep.addColorStop(.25, `hsl(${(hue + 60) % 360},90%,22%)`); deep.addColorStop(1, '#03010d');
-    ctx.fillStyle = deep; ctx.fillRect(0, 0, W, H);
-    ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 5; i++) {
-      const nx = W * (.15 + random(i + 300) * .7) + Math.sin(time * .3 + i) * 40, ny = H * (.1 + random(i + 310) * .35), nr = Math.max(W, H) * (.18 + random(i + 320) * .2);
-      const neb = ctx.createRadialGradient(nx, ny, 1, nx, ny, nr); neb.addColorStop(0, `hsla(${(hue + i * 70) % 360},100%,60%,.45)`); neb.addColorStop(1, 'hsla(0,0%,0%,0)');
-      ctx.fillStyle = neb; ctx.fillRect(nx - nr, ny - nr, nr * 2, nr * 2);
-    }
-    for (let i = 0; i < 160; i++) {
-      const angle = random(i * 3.1) * TAU, phase = mod(time * (1.2 + random(i) * 1.6) + random(i + 7), 1), r0 = phase * phase * Math.max(W, H) * .8;
-      const len = 10 + phase * phase * 220, x = cx + Math.cos(angle) * r0, y = cy + Math.sin(angle) * r0 * .7;
-      ctx.globalAlpha = k * phase; line(x, y, x + Math.cos(angle) * len, y + Math.sin(angle) * len * .7, `hsl(${(hue + i * 9) % 360},100%,${70 + phase * 25}%)`, .6 + phase * 2.4);
-    }
-    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = k;
-    const px = W * .78 - playerX * 50, py = H * .2, pr = Math.min(W, H) * .08;
-    const planet = ctx.createRadialGradient(px - pr * .4, py - pr * .4, 2, px, py, pr); planet.addColorStop(0, `hsl(${(hue + 180) % 360},90%,75%)`); planet.addColorStop(1, `hsl(${(hue + 240) % 360},80%,25%)`);
-    ctx.fillStyle = planet; ctx.beginPath(); ctx.arc(px, py, pr, 0, TAU); ctx.fill();
-    ctx.translate(px, py); ctx.rotate(-.4); ctx.scale(1, .28); ctx.beginPath(); ctx.arc(0, 0, pr * 1.8, 0, TAU); ctx.strokeStyle = `hsla(${(hue + 30) % 360},100%,70%,.8)`; ctx.lineWidth = pr * .18; ctx.stroke();
-    ctx.restore();
-  }
-  function drawWarpOverlay() {
-    const k = hyperFade(), cx = W * .5, cy = H * .45, hue = (time * 140) % 360;
-    ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 70; i++) {
-      const angle = random(i * 5.7 + 11) * TAU, phase = mod(time * 2.6 + random(i + 3), 1), r0 = Math.max(W, H) * (.12 + phase * .9);
-      ctx.globalAlpha = k * phase * .55;
-      line(cx + Math.cos(angle) * r0, cy + Math.sin(angle) * r0, cx + Math.cos(angle) * (r0 + 60 + phase * 260), cy + Math.sin(angle) * (r0 + 60 + phase * 260), `hsl(${(hue + i * 13) % 360},100%,72%)`, 1 + phase * 3);
-    }
-    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = k * .5;
-    const tunnel = ctx.createRadialGradient(cx, cy, Math.min(W, H) * .3, cx, cy, Math.max(W, H) * .75);
-    tunnel.addColorStop(0, 'hsla(0,0%,0%,0)'); tunnel.addColorStop(1, `hsla(${hue},100%,45%,.55)`); ctx.fillStyle = tunnel; ctx.fillRect(0, 0, W, H);
-    ctx.restore();
-  }
-  function drawStarGate(s, t) {
-    const a = s.p1, b = s.p2, g = s.stargate, width = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + width * g.lane, y = lerp(a.y, b.y, .5);
-    const r = width * .26; if (r < 3) return;
-    const cy = y - r * 1.05, hue = (time * 160 + g.index) % 360, active = hyperTime <= 0;
-    ctx.save(); ctx.translate(x, cy); ctx.globalCompositeOperation = 'lighter';
-    const core = ctx.createRadialGradient(0, 0, 1, 0, 0, r); core.addColorStop(0, `hsla(${hue},100%,85%,${active ? .55 : .18})`); core.addColorStop(.7, `hsla(${(hue + 90) % 360},100%,55%,.25)`); core.addColorStop(1, 'hsla(0,0%,0%,0)');
-    ctx.fillStyle = core; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
-    for (let ring = 0; ring < 3; ring++) {
-      ctx.beginPath(); ctx.ellipse(0, 0, r * (1 - ring * .14), r * (1 - ring * .14), time * (ring % 2 ? -1.5 : 1.2), 0, TAU);
-      ctx.strokeStyle = `hsl(${(hue + ring * 100) % 360},100%,${active ? 65 : 40}%)`; ctx.lineWidth = Math.max(1.5, r * .07); ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 18; ctx.stroke();
-    }
-    ctx.rotate(time * 2);
-    for (let i = 0; i < 8; i++) {
-      const ang = i / 8 * TAU, sx = Math.cos(ang) * r * 1.12, sy = Math.sin(ang) * r * 1.12, sr = r * .13;
-      ctx.fillStyle = i % 2 ? '#fff6a0' : `hsl(${(hue + i * 45) % 360},100%,70%)`; ctx.beginPath();
-      for (let j = 0; j < 10; j++) { const rr = j % 2 ? sr * .45 : sr, aa = j / 10 * TAU; ctx.lineTo(sx + Math.cos(aa) * rr, sy + Math.sin(aa) * rr); }
-      ctx.fill();
-    }
-    ctx.restore();
-    roadStrip(a, b, g.lane - .3, g.lane + .3, `hsla(${hue},100%,60%,.35)`);
   }
   function project(p, worldX, worldY, z, cameraY) {
     p.scale = DEPTH / Math.max(1, z); p.x = W * .5 + p.scale * worldX * W * .5;
@@ -190,31 +131,6 @@
       line(ax + size * .1, -size * .42, ax, -size * .53, '#fff3a2', Math.max(1, size * .05));
     }
     ctx.restore();
-  }
-  function drawUfo(s, ufo) {
-    const a = s.p1, b = s.p2, f = mod(ufo.distance, SEG) / SEG, width = lerp(a.w, b.w, f);
-    const arrive = ufo.spawnedAt > 0 ? clamp((time - ufo.spawnedAt) / 1.2, 0, 1) : 1;
-    const x = lerp(a.x, b.x, f) + width * ufo.lane, roadY = lerp(a.y, b.y, f), size = width * .17, y = roadY - width * .43 - (1 - arrive) * (1 - arrive) * H * .6;
-    if (size < 2) return;
-    ufo.screen = { x, y, size, at: time };
-    ctx.save(); ctx.translate(x, y); ctx.globalAlpha = .82; ctx.shadowColor = ufo.color; ctx.shadowBlur = Math.min(25, size * .55);
-    ctx.globalAlpha = .12; polygon([[-size * .4, size * .12], [-size * 1.8, size * 2.3], [size * 1.8, size * 2.3], [size * .4, size * .12]], ufo.color);
-    ctx.globalAlpha = .94 * arrive;
-    drawUfoShape(size, ufo.color);
-    ctx.restore();
-  }
-  function drawBomb(s, bomb, t) {
-    const a = s.p1, b = s.p2, worldPosition = mod(bomb.distance, LENGTH), f = worldPosition % SEG / SEG, width = lerp(a.w, b.w, f);
-    const x = lerp(a.x, b.x, f) + width * bomb.lane, roadY = lerp(a.y, b.y, f), fall = clamp((time - bomb.droppedAt) / bomb.fallTime, 0, 1);
-    const size = width * (.075 + fall * .025), y = roadY - (1 - fall) * width * .62;
-    if (size < 1.5) return;
-    ctx.save(); ctx.translate(x, y); ctx.globalAlpha = .7 + Math.sin(time * 18 + bomb.seed) * .2; ctx.shadowColor = bomb.color; ctx.shadowBlur = Math.min(24, size * .7);
-    if (bomb.landed) { ctx.beginPath(); ctx.ellipse(0, size * .2, size * 1.8, size * .55, 0, 0, TAU); ctx.strokeStyle = '#ff6d3f'; ctx.lineWidth = Math.max(1, size * .06); ctx.stroke(); }
-    ctx.beginPath(); ctx.arc(0, 0, size * .66, 0, TAU); ctx.fillStyle = '#292435'; ctx.fill(); ctx.strokeStyle = bomb.color; ctx.lineWidth = Math.max(1, size * .11); ctx.stroke();
-    line(0, -size * .55, size * .2, -size * .95, '#fff2a1', Math.max(1, size * .08));
-    ctx.fillStyle = '#fff1a0'; ctx.beginPath(); ctx.arc(size * .23, -size, Math.max(1, size * .09), 0, TAU); ctx.fill();
-    ctx.restore();
-    if (bomb.landed) cbMark(x, roadY, Math.max(10, size * 1.6));
   }
   function drawExplosion(x, y, width, explosion) {
     const progress = clamp((time - explosion.started) / explosion.duration, 0, 1);
@@ -501,30 +417,6 @@
     // A light scanline texture ties the entire scene together.
     ctx.fillStyle = '#05051b12'; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
     ctx.restore();
-  }
-  // ---- Gamepad (standard mapping): stick/D-pad steer, A/RT accelerate, B/LT brake, X/RB laser, Y/LB boost,
-  // START pause; in menus A starts / races again / resumes. Buttons are fed in as virtual keys.
-  const PAD_KEYS = { ArrowUp: [0, 7], ArrowDown: [1, 6], KeyX: [2, 5], Space: [3, 4] };
-  let padHeld = new Set(), padSteer = 0, padPrev = {}, padSeen = false;
-  function pollGamepad() {
-    const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
-    const pad = pads[0];
-    if (!pad) { if (padHeld.size) { padHeld.forEach(k => keys.delete(k)); padHeld.clear(); } padSteer = 0; return; }
-    if (!padSeen) { padSeen = true; document.body.classList.add('gamepad'); showMessage('🎮 GAMEPAD CONNECTED', 1.4); }
-    const pressed = i => !!(pad.buttons[i] && (pad.buttons[i].pressed || pad.buttons[i].value > .4));
-    const edge = i => { const now = pressed(i), was = padPrev[i]; padPrev[i] = now; return now && !was; };
-    const stick = pad.axes[0] || 0;
-    padSteer = Math.abs(stick) > .18 ? clamp((stick - Math.sign(stick) * .18) / .7, -1, 1) : pressed(15) ? 1 : pressed(14) ? -1 : 0;
-    for (const [code, buttons] of Object.entries(PAD_KEYS)) {
-      const on = buttons.some(pressed) && (mode === 'racing' || mode === 'countdown' || mode === 'final' || mode === 'respawning');
-      if (on && !padHeld.has(code)) { padHeld.add(code); keys.add(code); } else if (!on && padHeld.has(code)) { padHeld.delete(code); keys.delete(code); }
-    }
-    const a = edge(0), start = edge(9);
-    if (start && ['racing', 'countdown', 'paused'].includes(mode)) pauseRace();
-    if (a && !document.body.classList.contains('dialog-open')) {
-      if (mode === 'menu') startRace(); else if (mode === 'paused') pauseRace();
-      else if (mode === 'finished' || (finale && finale.resultsShown)) raceAgain();
-    } else if (a && !$('health-screen').classList.contains('hidden')) $('health-accept').click();
   }
   function frame(now) {
     frameClock = now / 1000; pollGamepad();

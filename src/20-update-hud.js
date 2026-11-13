@@ -1,3 +1,4 @@
+  // ==== Per-frame update loop and HUD.
   let playClock = 0;
   function update(dt) {
     time += dt; screenFlash = Math.max(0, screenFlash - dt * 2.4);
@@ -256,82 +257,6 @@
     document.body.classList.toggle('boosting', boosting || jumpBoostTimer > 0); updateHUD();
   }
   let powerChipsHtml = '';
-  // ---- Weather and track events: a random event every 20-35 s of racing, lasting about 9 s.
-  const WEATHER = {
-    meteors: { name: '☄ METEOR SHOWER', info: 'WATCH THE IMPACT MARKERS!', color: '#ff8a2e' },
-    sandstorm: { name: '🌪 SANDSTORM', info: 'VISIBILITY DROPPING', color: '#e0b070' },
-    gravity: { name: '〰 GRAVITY WAVES', info: 'THE TRACK PULLS YOU SIDEWAYS', color: '#a88aff' },
-  };
-  let weather = null, nextWeatherAt = 25;
-  function updateWeather(dt, track) {
-    if (!weather && time >= nextWeatherAt) {
-      const types = Object.keys(WEATHER), type = types[Math.floor(random(Math.floor(time * 3) + trackIndex) * types.length) % types.length];
-      weather = { type, started: time, until: time + 9, nextMeteor: time + .6 };
-      showCallout(WEATHER[type].name, WEATHER[type].color); showMessage(WEATHER[type].info, 2); playToneSweep(200, 600, .6, 'sawtooth', .04);
-    }
-    if (!weather) return;
-    if (weather.type === 'meteors' && time >= weather.nextMeteor) {
-      weather.nextMeteor = time + .55 + Math.random() * .5;
-      const lane = clamp(playerX / track.width + (Math.random() - .5) * .9, -.75, .75);
-      bombs.push({ distance: distance + Math.max(4800, speed * .7 + 1200), lane, droppedAt: time, fallTime: .7, landed: false, exploded: false, seed: Math.floor(time * 10), color: '#ff8a2e', meteor: true });
-    }
-    if (time >= weather.until) { weather = null; nextWeatherAt = time + 20 + Math.random() * 15; showMessage('THE SKY CLEARS', 1); }
-  }
-  function drawWeather() {
-    if (!weather || mode === 'menu') return;
-    const k = clamp(Math.min((time - weather.started) * 1.5, (weather.until - time) * 1.5), 0, 1);
-    ctx.save();
-    if (weather.type === 'sandstorm') {
-      const g = ctx.createLinearGradient(0, H * .2, 0, H * .75); g.addColorStop(0, `rgba(180,130,70,${.75 * k})`); g.addColorStop(.7, `rgba(150,100,50,${.45 * k})`); g.addColorStop(1, 'rgba(150,100,50,0)');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = `rgba(240,200,140,${.55 * k})`;
-      for (let i = 0; i < 160; i++) { const x = mod(random(i + 900) * W - time * (300 + random(i) * 500), W), y = random(i + 910) * H * .85; ctx.fillRect(x, y, 2 + random(i) * 10, 1.5); }
-    } else if (weather.type === 'gravity') {
-      ctx.strokeStyle = '#b89cff'; ctx.lineWidth = 5; ctx.shadowColor = '#a88aff'; ctx.shadowBlur = 14;
-      for (let i = 0; i < 4; i++) { const ph = mod(time * .8 + i / 4, 1); ctx.globalAlpha = (1 - ph) * k; ctx.beginPath(); ctx.ellipse(W / 2 + Math.sin((time - weather.started) * 1.4) * W * .2, H * .6, W * (.1 + ph * .7), H * (.03 + ph * .2), 0, 0, TAU); ctx.stroke(); }
-    } else if (weather.type === 'meteors') {
-      ctx.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < 10; i++) { const ph = mod(time * .7 + random(i + 70), 1), x = W * (.1 + random(i + 80) * .8) - ph * W * .25, y = -40 + ph * H * .6; ctx.globalAlpha = k * (1 - ph); line(x, y, x + 60, y - 90, '#ffb347', 3); ctx.fillStyle = '#fff1c2'; ctx.beginPath(); ctx.arc(x, y, 4, 0, TAU); ctx.fill(); }
-    }
-    ctx.restore();
-  }
-  // ---- First-run tutorial: short prompts during the first race that advance when you do the thing.
-  const touchUI = () => !!window.matchMedia?.('(pointer: coarse)').matches;
-  const TUTORIAL = [
-    { id: 'steer', text: () => touchUI() ? (settings.steering === 'gyro' ? 'TILT YOUR DEVICE TO STEER' : 'DRAG LEFT / RIGHT ON THE TRACK TO STEER') : 'STEER WITH  A / D  OR  ◀ ▶', done: t => t.steered > .8 },
-    { id: 'boost', text: () => touchUI() ? 'SLIDE UP (OR TAP ϟ) TO BOOST' : 'HOLD  SPACE  TO BOOST', done: t => t.boosted > .5 },
-    { id: 'laser', text: () => touchUI() ? 'TAP THE TRACK (OR ◎) TO FIRE YOUR LASER' : 'PRESS  X  TO FIRE YOUR LASER', done: t => t.fired },
-    { id: 'pads', text: () => 'CYAN PADS RECHARGE BOOST, SHIELD AND LASER', done: t => t.pad || t.stepTime > 7 },
-    { id: 'extras', text: () => 'GRAB POWER-UP BOXES  ·  FLY THROUGH ✦ STAR GATES FOR HYPERDRIVE', done: t => t.stepTime > 7 },
-    { id: 'goal', text: () => 'FINISH TOP 3 TO UNLOCK THE NEXT CIRCUIT  ·  WIN TO FACE THE INVASION!', done: t => t.stepTime > 6 },
-  ];
-  let tutorial = null;
-  function startTutorial() {
-    tutorial = { step: 0, stepTime: 0, steered: 0, boosted: 0, fired: false, pad: false };
-    $('tutorial').classList.add('visible'); document.body.classList.add('tutoring'); renderTutorial();
-  }
-  function endTutorial(skipped) {
-    tutorial = null; $('tutorial').classList.remove('visible'); document.body.classList.remove('tutoring'); profile.tutorialDone = true; saveProfile();
-    if (!skipped) { showMessage("YOU'RE READY, PILOT!", 1.4); playToneSweep(500, 1500, .3, 'triangle', .05); }
-  }
-  function renderTutorial() {
-    if (!tutorial) return;
-    const s = TUTORIAL[tutorial.step];
-    $('tutorial-step').textContent = `TUTORIAL ${tutorial.step + 1}/${TUTORIAL.length}`; $('tutorial-text').textContent = s.text();
-  }
-  function updateTutorial(dt, steer) {
-    if (!tutorial || mode !== 'racing') return;
-    tutorial.stepTime += dt; if (Math.abs(steer) > .3) tutorial.steered += dt; if (boosting) tutorial.boosted += dt;
-    if (TUTORIAL[tutorial.step].done(tutorial)) {
-      tutorial.step++; tutorial.stepTime = 0; playToneSweep(900, 1400, .12, 'square', .03);
-      if (tutorial.step >= TUTORIAL.length) endTutorial(false); else renderTutorial();
-    }
-  }
-  function nemesisTaunt(r) {
-    if (time - (r.tauntAt || 0) < 8) return; r.tauntAt = time;
-    const lines = { vex: 'YOU ARE GOING DOWN, ROOKIE!', kronos: 'KRONOS OWNS THIS TRACK!', null9: 'TARGET ACQUIRED.', blaze: 'EAT MY EXHAUST!' };
-    showCallout(`${r.nemesis.name}: “${lines[r.nemesis.id]}”`, r.nemesis.color); robotSay(lines[r.nemesis.id], `taunt-${r.nemesis.id}`);
-  }
   function updateHUD() {
     if (time - creditPopAt > 1.4) $('credit-pop').classList.remove('visible');
     const chips = POWERUP_ORDER.filter(powerOn).map(t => `<span style="--c:${POWERUPS[t].color}">${POWERUPS[t].icon} ${POWERUPS[t].name}${t === 'bubble' ? ' ×' + bubbleHits : ''} <b>${Math.max(0, power[t] - time).toFixed(1)}</b></span>`).join('');
