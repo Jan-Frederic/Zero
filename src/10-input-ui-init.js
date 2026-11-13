@@ -75,6 +75,8 @@
   document.querySelectorAll('[data-setting]').forEach(button => button.addEventListener('click', () => setSetting(button.dataset.setting, button.dataset.value)));
   settingHooks.gameMode = () => renderGameMode();
   renderGameMode(); renderDaily();
+  $('tutorial-skip').addEventListener('click', () => endTutorial(true));
+  $('tutorial-replay').addEventListener('click', () => { profile.tutorialDone = false; saveProfile(); setupNote('THE TUTORIAL RUNS IN YOUR NEXT GRAND PRIX'); });
   $('daily-go').addEventListener('click', () => { const d = dailyChallenge(); if (gameMode() !== 'race') setSetting('gameMode', 'race'); selectTrack(d.track - trackIndex); });
   settingHooks.difficulty = () => setupNote(`DIFFICULTY: ${diff().name} · ${diff().lives > 0 ? '+1 LIFE, ' : diff().lives < 0 ? '-1 LIFE, ' : ''}${Math.round(diff().credits * 100)}% CREDITS`);
   window.morbidSettings = { set: setSetting, get: () => settings };

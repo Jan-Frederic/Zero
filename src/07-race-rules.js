@@ -112,6 +112,7 @@
     $('race-message').classList.remove('visible'); messageTime = 0;
     if (settings.steering === 'gyro' && !enableGyro.listening) enableGyro();
     playMusic(); primeSpeech(); calibrateTilt(); applyScreenSetting(true); updateHUD();
+    if (!profile.tutorialDone && gameMode() === 'race') startTutorial(); else { tutorial = null; $('tutorial').classList.remove('visible'); }
     if (window.matchMedia?.('(pointer: coarse)').matches) { hintTime = 6; document.body.classList.add('hinting'); }
   }
   function pauseRace() {
@@ -123,6 +124,7 @@
     }
   }
   function garage() {
+    if (tutorial) { tutorial = null; $('tutorial').classList.remove('visible'); }
     clearFinale(); mode = 'menu'; keys.clear(); resetGesture(); speed = 0; playerX = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; boosting = false;
     explosions = []; laserShots = []; enemyShots = []; bombs = []; ufos = []; particles = []; screenFlash = 0;
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; callout = null; hyperTime = 0; boss = null; bossAttacks = []; document.body.classList.remove('hyper', 'boss');
@@ -135,6 +137,7 @@
     shake = Math.max(shake, .55 * size); screenFlash = Math.max(screenFlash, .26 * size);
   }
   function fireLaser() {
+    if (tutorial) tutorial.fired = true;
     if (laserAmmo <= 0 && !hyper()) { laserCooldown = .5; showMessage('LASER CELLS RECHARGING', .7); return; }
     const track = tracks[trackIndex];
     const reach = hyper() ? .6 : .32;

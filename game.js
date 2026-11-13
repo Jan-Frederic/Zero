@@ -13,6 +13,7 @@
   const profile = { credits: 0, upgrades: {}, unlocked: 1, achievements: {}, stats: {} };
   try { Object.assign(profile, JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}')); } catch { /* fresh pilot */ }
   profile.upgrades = Object.assign({ armor: 0, laser: 0, boost: 0 }, profile.upgrades);
+  if (profile.tutorialDone === undefined && (profile.credits > 0 || Object.keys(profile.achievements || {}).length)) profile.tutorialDone = true;
   // Existing pilots keep every circuit they already raced (from saved lap records).
   try { for (let i = 7; i > 0; i--) if (Number(localStorage.getItem(`chroma-best-${i}`)) > 0) { profile.unlocked = Math.max(profile.unlocked || 1, i + 1); break; } } catch { /* ignore */ }
   function saveProfile() { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch { /* storage unavailable */ } }
@@ -1783,6 +1784,7 @@
     $('race-message').classList.remove('visible'); messageTime = 0;
     if (settings.steering === 'gyro' && !enableGyro.listening) enableGyro();
     playMusic(); primeSpeech(); calibrateTilt(); applyScreenSetting(true); updateHUD();
+    if (!profile.tutorialDone && gameMode() === 'race') startTutorial(); else { tutorial = null; $('tutorial').classList.remove('visible'); }
     if (window.matchMedia?.('(pointer: coarse)').matches) { hintTime = 6; document.body.classList.add('hinting'); }
   }
   function pauseRace() {
@@ -1794,6 +1796,7 @@
     }
   }
   function garage() {
+    if (tutorial) { tutorial = null; $('tutorial').classList.remove('visible'); }
     clearFinale(); mode = 'menu'; keys.clear(); resetGesture(); speed = 0; playerX = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; boosting = false;
     explosions = []; laserShots = []; enemyShots = []; bombs = []; ufos = []; particles = []; screenFlash = 0;
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; callout = null; hyperTime = 0; boss = null; bossAttacks = []; document.body.classList.remove('hyper', 'boss');
@@ -1806,6 +1809,7 @@
     shake = Math.max(shake, .55 * size); screenFlash = Math.max(screenFlash, .26 * size);
   }
   function fireLaser() {
+    if (tutorial) tutorial.fired = true;
     if (laserAmmo <= 0 && !hyper()) { laserCooldown = .5; showMessage('LASER CELLS RECHARGING', .7); return; }
     const track = tracks[trackIndex];
     const reach = hyper() ? .6 : .32;
@@ -2087,6 +2091,7 @@
     const accelerate = (keys.has('ArrowUp') || keys.has('KeyW') || gesture.accel) && !brake;
     const keySteer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA'));
     const steer = keySteer || (gyroActive() ? tiltSteer() : gesture.steer);
+    updateTutorial(dt, steer);
     const boostHeld = keys.has('Space') || keys.has('ShiftLeft') || keys.has('ShiftRight') || gesture.boost;
     if (!boostHeld) boostLocked = false;
     const wasBoosting = boosting;
@@ -2149,6 +2154,7 @@
         if (laserAmmo === laserCap()) laserCharge = 0;
       }
       const id = Math.floor(distance / LENGTH) * COUNT + Math.floor(seg.index / track.padEvery);
+      if (tutorial) tutorial.pad = true;
       if (lastPad !== id) { lastPad = id; showMessage('RECHARGE  /  BOOST + SHIELD + LASER', 1.1); soundEffect(1000, .2); }
     }
     const firstHazardSegment = Math.floor((distance + 1050 - SEG * .5) / SEG);
@@ -2321,6 +2327,38 @@
       for (let i = 0; i < 10; i++) { const ph = mod(time * .7 + random(i + 70), 1), x = W * (.1 + random(i + 80) * .8) - ph * W * .25, y = -40 + ph * H * .6; ctx.globalAlpha = k * (1 - ph); line(x, y, x + 60, y - 90, '#ffb347', 3); ctx.fillStyle = '#fff1c2'; ctx.beginPath(); ctx.arc(x, y, 4, 0, TAU); ctx.fill(); }
     }
     ctx.restore();
+  }
+  // ---- First-run tutorial: short prompts during the first race that advance when you do the thing.
+  const touchUI = () => !!window.matchMedia?.('(pointer: coarse)').matches;
+  const TUTORIAL = [
+    { id: 'steer', text: () => touchUI() ? (settings.steering === 'gyro' ? 'TILT YOUR DEVICE TO STEER' : 'DRAG LEFT / RIGHT ON THE TRACK TO STEER') : 'STEER WITH  A / D  OR  ◀ ▶', done: t => t.steered > .8 },
+    { id: 'boost', text: () => touchUI() ? 'SLIDE UP (OR TAP ϟ) TO BOOST' : 'HOLD  SPACE  TO BOOST', done: t => t.boosted > .5 },
+    { id: 'laser', text: () => touchUI() ? 'TAP THE TRACK (OR ◎) TO FIRE YOUR LASER' : 'PRESS  X  TO FIRE YOUR LASER', done: t => t.fired },
+    { id: 'pads', text: () => 'CYAN PADS RECHARGE BOOST, SHIELD AND LASER', done: t => t.pad || t.stepTime > 7 },
+    { id: 'extras', text: () => 'GRAB POWER-UP BOXES  ·  FLY THROUGH ✦ STAR GATES FOR HYPERDRIVE', done: t => t.stepTime > 7 },
+    { id: 'goal', text: () => 'FINISH TOP 3 TO UNLOCK THE NEXT CIRCUIT  ·  WIN TO FACE THE INVASION!', done: t => t.stepTime > 6 },
+  ];
+  let tutorial = null;
+  function startTutorial() {
+    tutorial = { step: 0, stepTime: 0, steered: 0, boosted: 0, fired: false, pad: false };
+    $('tutorial').classList.add('visible'); document.body.classList.add('tutoring'); renderTutorial();
+  }
+  function endTutorial(skipped) {
+    tutorial = null; $('tutorial').classList.remove('visible'); document.body.classList.remove('tutoring'); profile.tutorialDone = true; saveProfile();
+    if (!skipped) { showMessage("YOU'RE READY, PILOT!", 1.4); playToneSweep(500, 1500, .3, 'triangle', .05); }
+  }
+  function renderTutorial() {
+    if (!tutorial) return;
+    const s = TUTORIAL[tutorial.step];
+    $('tutorial-step').textContent = `TUTORIAL ${tutorial.step + 1}/${TUTORIAL.length}`; $('tutorial-text').textContent = s.text();
+  }
+  function updateTutorial(dt, steer) {
+    if (!tutorial || mode !== 'racing') return;
+    tutorial.stepTime += dt; if (Math.abs(steer) > .3) tutorial.steered += dt; if (boosting) tutorial.boosted += dt;
+    if (TUTORIAL[tutorial.step].done(tutorial)) {
+      tutorial.step++; tutorial.stepTime = 0; playToneSweep(900, 1400, .12, 'square', .03);
+      if (tutorial.step >= TUTORIAL.length) endTutorial(false); else renderTutorial();
+    }
   }
   function nemesisTaunt(r) {
     if (time - (r.tauntAt || 0) < 8) return; r.tauntAt = time;
@@ -2940,6 +2978,8 @@
   document.querySelectorAll('[data-setting]').forEach(button => button.addEventListener('click', () => setSetting(button.dataset.setting, button.dataset.value)));
   settingHooks.gameMode = () => renderGameMode();
   renderGameMode(); renderDaily();
+  $('tutorial-skip').addEventListener('click', () => endTutorial(true));
+  $('tutorial-replay').addEventListener('click', () => { profile.tutorialDone = false; saveProfile(); setupNote('THE TUTORIAL RUNS IN YOUR NEXT GRAND PRIX'); });
   $('daily-go').addEventListener('click', () => { const d = dailyChallenge(); if (gameMode() !== 'race') setSetting('gameMode', 'race'); selectTrack(d.track - trackIndex); });
   settingHooks.difficulty = () => setupNote(`DIFFICULTY: ${diff().name} · ${diff().lives > 0 ? '+1 LIFE, ' : diff().lives < 0 ? '-1 LIFE, ' : ''}${Math.round(diff().credits * 100)}% CREDITS`);
   window.morbidSettings = { set: setSetting, get: () => settings };

@@ -13,6 +13,7 @@
   const profile = { credits: 0, upgrades: {}, unlocked: 1, achievements: {}, stats: {} };
   try { Object.assign(profile, JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}')); } catch { /* fresh pilot */ }
   profile.upgrades = Object.assign({ armor: 0, laser: 0, boost: 0 }, profile.upgrades);
+  if (profile.tutorialDone === undefined && (profile.credits > 0 || Object.keys(profile.achievements || {}).length)) profile.tutorialDone = true;
   // Existing pilots keep every circuit they already raced (from saved lap records).
   try { for (let i = 7; i > 0; i--) if (Number(localStorage.getItem(`chroma-best-${i}`)) > 0) { profile.unlocked = Math.max(profile.unlocked || 1, i + 1); break; } } catch { /* ignore */ }
   function saveProfile() { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch { /* storage unavailable */ } }
