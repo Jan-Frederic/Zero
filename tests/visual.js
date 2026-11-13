@@ -6,14 +6,14 @@
 // Run: npm run visual            (compare)
 //      npm run visual -- --update (write new baselines after an intended layout change)
 const { chromium } = require('playwright');
-const { spawn } = require('node:child_process');
+const serve = require('./serve');
 const fs = require('node:fs');
 const path = require('node:path');
 const { PNG } = require('pngjs');
 const pixelmatch = require('pixelmatch');
 
 const root = path.join(__dirname, '..'), baseDir = path.join(__dirname, 'visual'), diffDir = path.join(root, 'visual-diff');
-const update = process.argv.includes('--update'), port = 4700 + Math.floor(Math.random() * 500);
+const update = process.argv.includes('--update');
 const MAX_DIFF = 0.04, BLOCK = 4, LAYOUT_TOLERANCE = 4;
 const VIEWPORTS = [{ name: 'desktop', width: 1280, height: 760 }, { name: 'phone', width: 390, height: 844, mobile: true }];
 // The race HUD is captured in a time trial (no rivals or UFOs, so the bars stay full); values that change are masked.
@@ -30,10 +30,6 @@ const SCREENS = [
 const FREEZE = `*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}
 #game,#confetti{visibility:hidden!important}body{background:#0b0920!important}.modal{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}`;
 
-async function waitForServer() {
-  for (let i = 0; i < 50; i++) { try { if ((await fetch(`http://localhost:${port}/`)).ok) return; } catch { /* not up yet */ } await new Promise(r => setTimeout(r, 100)); }
-  throw new Error('server did not start');
-}
 // Average BLOCK×BLOCK pixel blocks: glyph rasterisation differences vanish, moved or missing elements stay visible.
 function downsample(img) {
   const w = Math.floor(img.width / BLOCK), h = Math.floor(img.height / BLOCK), out = new PNG({ width: w, height: h });
@@ -81,10 +77,9 @@ const LAYOUT = (root, skip = '#boot,#app-version,#music-status') => {
 
 (async () => {
   fs.mkdirSync(baseDir, { recursive: true }); fs.rmSync(diffDir, { recursive: true, force: true }); fs.mkdirSync(diffDir, { recursive: true });
-  const server = spawn(process.execPath, [path.join(root, 'server.js')], { stdio: 'ignore', env: { ...process.env, PORT: String(port) } });
+  const server = await serve();
   const results = [];
   try {
-    await waitForServer();
     // Font hinting decides glyph advances; machines default to different settings (the CI runner uses 'medium'), so pin it.
     const browser = await chromium.launch({ args: ['--font-render-hinting=none'] });
     for (const vp of VIEWPORTS) {
@@ -95,7 +90,7 @@ const LAYOUT = (root, skip = '#boot,#app-version,#music-status') => {
         localStorage.setItem('morbid-profile-v1', JSON.stringify({ unlocked: 3, credits: 1234, tutorialDone: true, achievements: { 'first-race': Date.UTC(2026, 2, 1) }, stats: { races: 12, wins: 3, podiums: 5, km: 321, seconds: 5400 } }));
         localStorage.setItem('morbid-settings-v2', JSON.stringify({ perf: 'full', lang: 'en', screen, steering: 'touch' }));
       }, vp.mobile ? 'portrait' : 'landscape');
-      await page.goto(`http://localhost:${port}/`);
+      await page.goto(server.url);
       // Load every font face up front: faces first used inside a dialog would otherwise still be loading on a slow machine.
       await page.evaluate(async () => { await Promise.all([...document.fonts].map(f => f.load().catch(() => {}))); await document.fonts.ready; });
       await page.click('#health-accept'); await page.addStyleTag({ content: FREEZE });
@@ -118,7 +113,7 @@ const LAYOUT = (root, skip = '#boot,#app-version,#music-status') => {
         localStorage.setItem('morbid-profile-v1', JSON.stringify({ unlocked: 3, tutorialDone: true }));
         localStorage.setItem('morbid-settings-v2', JSON.stringify({ perf: 'full', lang: 'en', screen, steering: 'touch', gameMode: 'trial' }));
       }, vp.width > vp.height ? 'landscape' : 'portrait');
-      await page.goto(`http://localhost:${port}/`);
+      await page.goto(server.url);
       await page.evaluate(async () => { await Promise.all([...document.fonts].map(f => f.load().catch(() => {}))); await document.fonts.ready; });
       await page.click('#health-accept'); await page.addStyleTag({ content: FREEZE });
       await page.click('#start');
@@ -131,7 +126,7 @@ const LAYOUT = (root, skip = '#boot,#app-version,#music-status') => {
       await ctx.close();
     }
     await browser.close();
-  } finally { server.kill(); }
+  } finally { server.stop(); }
   for (const r of results) console.log(`${r.status === 'FAIL' ? '✗' : '✓'} ${r.name}: ${r.status}${r.detail ? ' — ' + r.detail : ''}`);
   const failed = results.filter(r => r.status === 'FAIL').length;
   console.log(failed ? `\n${failed} screen(s) changed — see visual-diff/, or run npm run visual -- --update if intended` : '\nno visual changes');
