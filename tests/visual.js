@@ -82,7 +82,8 @@ const LAYOUT = root => {
   const results = [];
   try {
     await waitForServer();
-    const browser = await chromium.launch();
+    // Font hinting decides glyph advances; machines default to different settings (the CI runner uses 'medium'), so pin it.
+    const browser = await chromium.launch({ args: ['--font-render-hinting=none'] });
     for (const vp of VIEWPORTS) {
       const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1, hasTouch: !!vp.mobile, isMobile: !!vp.mobile, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'UTC' });
       const page = await ctx.newPage();
