@@ -1,3 +1,14 @@
+  // ==== Audio graph, soundtrack preloading, sound effects, robot voice, jets.
+  let jetSource, jetFilter, jetGain, jetWhine, jetWhineGain;
+  // Each kill call has a pre-rendered retro robot clip in voice/ (made by tools/make-voice.sh).
+  const KILL_CALLS = [['ALIEN KILLER!', 'alien-killer'], ['FATALITY!', 'fatality'], ['UFO OBLITERATED!', 'ufo-obliterated'], ['ABDUCT THIS!', 'abduct-this'],
+    ['INVASION CANCELLED!', 'invasion-cancelled'], ['CLOSE ENCOUNTER OF THE FATAL KIND!', 'close-encounter'], ['SAUCER SMASHED!', 'saucer-smashed'],
+    ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
+    ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
+    ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
+  const voiceBuffers = new Map();
+  let voiceSource = null;
   let subtitleAt = -9;
   function setupAudio() {
     if (audioContext) { audioContext.resume().catch(() => {}); return; }
@@ -137,10 +148,6 @@
     playToneSweep(480, 1120, .1, 'triangle', .06);
     playToneSweep(950, 530, .17, 'sine', .04);
   }
-  const UFO_COLORS = ['#a7ff4f', '#54f8ff', '#ff73dc', '#fff16b'];
-  function makeUfo(slot, seed, spawnedAt) {
-    return { slot, seed, distance: 0, lane: 0, dropCooldown: .8 + slot * 1.25 + (spawnedAt > 0 ? 1.6 : 0), color: UFO_COLORS[seed % 4], spawnedAt, screen: null };
-  }
   // Robot announcer: Web Speech with a low, flat pitch. Silently skipped where unsupported.
   // Voice clips are downloaded right away (no audio context needed) and decoded once audio is unlocked.
   const voiceData = new Map();
@@ -205,4 +212,30 @@
     // iOS only allows speech after it was started inside a user gesture once.
     if (!window.speechSynthesis || !window.SpeechSynthesisUtterance || primeSpeech.done) return;
     try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); primeSpeech.done = true; } catch { /* ignore */ }
+  }
+  function playFanfare() {
+    if (!audioContext || muted) return;
+    [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => setTimeout(() => playToneSweep(f, f * 1.01, i > 4 ? .5 : .18, 'square', .045), i * 130));
+  }
+  // Jet engine: looping filtered noise plus a turbine whine, swelled for boosts and ramp jumps.
+  function setupJet() {
+    const length = audioContext.sampleRate * 2, buffer = audioContext.createBuffer(1, length, audioContext.sampleRate), data = buffer.getChannelData(0);
+    let brown = 0; for (let i = 0; i < length; i++) { const white = Math.random() * 2 - 1; brown = (brown + .02 * white) / 1.02; data[i] = white * .6 + brown * 3; }
+    jetSource = audioContext.createBufferSource(); jetSource.buffer = buffer; jetSource.loop = true;
+    jetFilter = audioContext.createBiquadFilter(); jetFilter.type = 'bandpass'; jetFilter.frequency.value = 700; jetFilter.Q.value = .6;
+    jetGain = audioContext.createGain(); jetGain.gain.value = 0;
+    jetSource.connect(jetFilter); jetFilter.connect(jetGain); jetGain.connect(sfxBus); jetSource.start();
+    jetWhine = audioContext.createOscillator(); jetWhine.type = 'sawtooth'; jetWhine.frequency.value = 900;
+    const whineFilter = audioContext.createBiquadFilter(); whineFilter.type = 'highpass'; whineFilter.frequency.value = 600;
+    jetWhineGain = audioContext.createGain(); jetWhineGain.gain.value = 0;
+    jetWhine.connect(whineFilter); whineFilter.connect(jetWhineGain); jetWhineGain.connect(sfxBus); jetWhine.start();
+  }
+  function playJetBlast(power = 1) {
+    buzz([30, 30, Math.round(60 * power)]);
+    // Ignition: a roaring whoosh that tears upward, a deep rumble and a screaming turbine.
+    const v = power * .38;
+    playNoiseBurst(1.1 * power, .32 * v, 300, 6500);
+    playNoiseBurst(1.4 * power, .22 * v, 5200, 140);
+    playToneSweep(48, 160, .9 * power, 'sawtooth', .16 * v);
+    playToneSweep(700, 3200, .8 * power, 'sawtooth', .03 * v);
   }

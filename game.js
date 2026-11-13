@@ -8,6 +8,34 @@
   const TAU = Math.PI * 2, SEG = 200, COUNT = 1200, LENGTH = SEG * COUNT, ROAD = 1700, DEPTH = .88, PILOT_COUNT = 30, BASE_LASER_CAPACITY = 10;
   // One laser cell recharges every laserRecharge() seconds; hullStrength() > 1 makes the shield last that many times longer.
   const BASE_LASER_RECHARGE = 2.5, BASE_HULL_STRENGTH = 2;
+  const realTime = () => frameClock;
+  // Cyan pads refill shield and laser cells in proportion to each track's boost recharge rate.
+  const PAD_SHIELD = .45, PAD_LASER = .1;
+  let trackIndex = 0, shipIndex = 0, W = 0, H = 0, dpr = 1, time = 0;
+  let mode = 'menu', position = 0, playerX = 0, speed = 0, energy = 100, shield = 100, elapsed = 0, lap = 1, lapStart = 0;
+  let laps = [], rivals = [], ufos = [], bombs = [], segments = [], countdown = 3.6, messageTime = 0, collisionCooldown = 0, wallCooldown = 0, boosting = false;
+  let jumpHeight = 0, jumpVelocity = 0, jumpBoostTimer = 0;
+  // Shot-down UFOs fly wild screen-space crash paths; new UFOs warp in to replace them.
+  let musicHold = 0, lostLifeThisRace = false;
+  let frameClock = 0;
+  // Extra lives: one per difficulty step, shared by the race and the boss fights that follow it.
+  let lives = 0, raceRespawnAt = 0, raceInvulnUntil = 0;
+  let hyperTime = 0, hyperStarted = 0, hitGates = new Set();
+  // Mothership boss: appears after every 10 UFO kills. Races run LAP_COUNT laps.
+  const BOSS_EVERY = 10, BOSS_HP = 40, LAP_COUNT = 6;
+  let ufoKills = 0, boss = null, bossAttacks = [];
+  let crashingUfos = [], ufoRespawns = [], smoke = [], megaBlasts = [], confetti = [], callout = null;
+  const UFO_CRASH_TIME = 2.6, UFO_SLOTS_SPACING = 4300;
+  let shake = 0, steerVisual = 0, distance = 0, bestLap = 0, previousTime = 0, muted = false, beat = 0;
+  let audioContext, analyser, frequency, engineGain, engineOsc, musicSource, musicGain, sfxBus;
+  let particles = [], explosions = [], laserShots = [], enemyShots = [], hitHazards = new Set(), hitRamps = new Set(), rank = 20, lastPad = -1, launchGoTime = 0, boostLocked = false;
+  let laserAmmo = BASE_LASER_CAPACITY, laserCharge = 0, laserCooldown = 0, screenFlash = 0, wreckedAt = 0, wreckRank = PILOT_COUNT, wreckBurst = null;
+  const mod = (a, n) => ((a % n) + n) % n;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const random = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+  const formatTime = t => `${String(Math.floor(t / 60)).padStart(2, '0')}:${(t % 60).toFixed(3).padStart(6, '0')}`;
+  // ==== Saved pilot profile: credits, upgrades, paint jobs, lifetime stats.
   // ---- Pilot profile (saved on the device): credits, ship upgrades, unlocked circuits, achievements, stats.
   const PROFILE_KEY = 'morbid-profile-v1';
   const profile = { credits: 0, upgrades: {}, unlocked: 1, achievements: {}, stats: {} };
@@ -53,6 +81,13 @@
   const boostDrain = () => 1 - profile.upgrades.boost * .2;
   const topSpeed = () => 1 + profile.upgrades.boost * .03;
   let raceEarned = 0, creditPopAt = -9;
+  function stat(key, add = 1) { profile.stats[key] = (profile.stats[key] || 0) + add; saveProfile(); return profile.stats[key]; }
+  function addCredits(amount, why) {
+    amount = Math.round(amount * diff().credits); if (!amount) return;
+    profile.credits += amount; raceEarned += amount; saveProfile();
+    $('credit-pop').textContent = `+${amount} CR  ${why}`; creditPopAt = time; $('credit-pop').classList.add('visible');
+  }
+  // ==== Trophy cabinet and unlock pop-ups.
   // ---- Achievements (trophy cabinet).
   const ACHIEVEMENTS = [
     { id: 'first-race', icon: '🏁', name: 'LIGHTS OUT', info: 'Finish your first race.' },
@@ -76,7 +111,6 @@
   ];
   profile.achievements = profile.achievements || {}; profile.stats = Object.assign({ cats: 0, ufos: 0, rivals: 0, powerTypes: [] }, profile.stats);
   const achQueue = []; let achShownAt = -9;
-  const realTime = () => frameClock;
   function unlockAchievement(id) {
     if (profile.achievements[id]) return;
     const a = ACHIEVEMENTS.find(x => x.id === id); if (!a) return;
@@ -94,7 +128,6 @@
     if (el.classList.contains('visible') && realTime() - achShownAt > 3.2) { el.classList.remove('visible'); achShownAt = realTime(); }
     else if (!el.classList.contains('visible') && achQueue.length && realTime() - achShownAt > .45) showNextAchievement();
   }
-  function stat(key, add = 1) { profile.stats[key] = (profile.stats[key] || 0) + add; saveProfile(); return profile.stats[key]; }
   function renderTrophyButton() { const b = $('open-trophies'); if (b) b.textContent = `🏆 TROPHIES ${Object.keys(profile.achievements).length}/${ACHIEVEMENTS.length}`; }
   function renderTrophies() {
     $('trophy-count').textContent = `${Object.keys(profile.achievements).length} / ${ACHIEVEMENTS.length}`;
@@ -103,20 +136,309 @@
       return `<div class="trophy ${got ? 'got' : ''}"><i>${got ? a.icon : '🔒'}</i><span><b>${a.name}</b><em>${a.info}</em>${got ? `<small>${new Date(got).toLocaleDateString()}</small>` : ''}</span></div>`;
     }).join('');
   }
-  function addCredits(amount, why) {
-    amount = Math.round(amount * diff().credits); if (!amount) return;
-    profile.credits += amount; raceEarned += amount; saveProfile();
-    $('credit-pop').textContent = `+${amount} CR  ${why}`; creditPopAt = time; $('credit-pop').classList.add('visible');
+  // ==== Settings, difficulty, accessibility helpers, performance mode.
+  // ---- Setup: steering (touch or gyro) and screen orientation, chosen on the start screen and remembered.
+  // Defaults: gyro steering in landscape. (v2 key: earlier builds saved touch/portrait implicitly.)
+  const SETTINGS_KEY = 'morbid-settings-v2';
+  const reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const settings = { lang: /^de\b/i.test((typeof navigator !== 'undefined' && navigator.language) || '') ? 'de' : 'en', perf: 'auto', perfAuto: false, calm: reducedMotion, cb: false, subtitles: false, difficulty: 'normal', haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
+  try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch { /* defaults */ }
+  // Difficulty: rival pace, damage taken, extra lives and credit payout.
+  const DIFFICULTY = {
+    easy: { name: 'EASY', pace: .9, dmg: .6, lives: 1, credits: .75 },
+    normal: { name: 'NORMAL', pace: 1, dmg: 1, lives: 0, credits: 1 },
+    hard: { name: 'HARD', pace: 1.08, dmg: 1.4, lives: -1, credits: 1.5 },
+  };
+  const diff = () => DIFFICULTY[settings.difficulty] || DIFFICULTY.normal;
+  // Generic option buttons: <button data-setting="key" data-value="value">. Hooks run after a change.
+  const settingHooks = {};
+  function setSetting(key, raw) {
+    const value = raw === 'on' ? true : raw === 'off' ? false : raw;
+    settings[key] = value; saveSettings(); renderSettings();
+    if (settingHooks[key]) settingHooks[key](value);
   }
-  // Cyan pads refill shield and laser cells in proportion to each track's boost recharge rate.
-  const PAD_SHIELD = .45, PAD_LASER = .1;
-  const keys = new Set();
-  // Touch gestures: a floating stick anywhere on the track. Drag sideways to steer, slide up to boost,
-  // slide down to brake, tap (or touch with a second finger) to fire. Holding a finger accelerates.
-  const gesture = { id: null, originX: 0, originY: 0, x: 0, y: 0, startTime: 0, moved: false, steer: 0, accel: false, brake: false, boost: false, fire: false, fireQueued: false, extra: new Set() };
-  let hintTime = 0;
-  const STICK = 64, DEADZONE = 7, VERTICAL = 42;
-  function resetGesture() { gesture.id = null; gesture.steer = 0; gesture.accel = gesture.brake = gesture.boost = gesture.fire = gesture.fireQueued = false; gesture.extra.clear(); }
+  // Accessibility helpers: calm mode tones down shake and flashes, colour-blind marks danger with a pattern.
+  const shakeAmount = () => shake * (settings.calm ? .12 : 1);
+  const flashAmount = v => v * (settings.calm ? .18 : 1);
+  function cbMark(x, y, r) {
+    if (!settings.cb) return;
+    ctx.save(); ctx.setLineDash([r * .3, r * .2]); ctx.lineWidth = Math.max(2, r * .12); ctx.strokeStyle = '#ffe600';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = `bold ${Math.max(12, r * .9)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.strokeText('⚠', x, y); ctx.fillStyle = '#ffe600'; ctx.fillText('⚠', x, y); ctx.restore();
+  }
+  // Performance mode: 'auto' switches to low effects by itself when the frame rate stays low during a race.
+  const lowFx = () => settings.perf === 'low' || (settings.perf === 'auto' && settings.perfAuto);
+  const fpsMeter = { frames: 0, sum: 0, slow: 0 };
+  function measureFps(dt) {
+    if (settings.perf !== 'auto' || settings.perfAuto || mode !== 'racing' || countdown > 0) { fpsMeter.frames = 0; fpsMeter.sum = 0; return; }
+    fpsMeter.frames++; fpsMeter.sum += dt;
+    if (fpsMeter.sum < 2) return;
+    const fps = fpsMeter.frames / fpsMeter.sum; fpsMeter.frames = 0; fpsMeter.sum = 0;
+    fpsMeter.slow = fps < 38 ? fpsMeter.slow + 1 : 0;
+    if (fpsMeter.slow >= 2) { settings.perfAuto = true; saveSettings(); applyPerf(); showMessage('LOW FPS · PERFORMANCE MODE ON', 2.2); }
+  }
+  // Low effects: no canvas glow (shadowBlur is the big cost on phones), 1x resolution, fewer particles.
+  function applyPerf() {
+    const low = lowFx();
+    try {
+      if (low) Object.defineProperty(ctx, 'shadowBlur', { configurable: true, get: () => 0, set: () => {} });
+      else delete ctx.shadowBlur;
+    } catch { /* context without configurable props */ }
+    document.body.classList.toggle('lowfx', low);
+    if (typeof resize === 'function' && W) resize();
+  }
+  settingHooks.perf = v => { if (v !== 'auto') settings.perfAuto = false; saveSettings(); applyPerf(); };
+  function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ } }
+  function setupNote(text) { $('setup-note').textContent = text; }
+  function renderSettings() {
+    document.querySelectorAll('[data-steer]').forEach(b => b.classList.toggle('selected', b.dataset.steer === settings.steering));
+    document.querySelectorAll('[data-screen]').forEach(b => b.classList.toggle('selected', b.dataset.screen === settings.screen));
+    document.querySelectorAll('[data-haptics]').forEach(b => b.classList.toggle('selected', (b.dataset.haptics === 'on') === settings.haptics));
+    document.querySelectorAll('[data-setting]').forEach(b => { const v = b.dataset.value, cur = settings[b.dataset.setting]; b.classList.toggle('selected', String(cur) === (v === 'on' ? 'true' : v === 'off' ? 'false' : v)); });
+    document.body.classList.toggle('calm', !!settings.calm); if ($('perf-note')) $('perf-note').textContent = settings.perf === 'auto' ? (settings.perfAuto ? 'AUTO · LOW FPS DETECTED' : 'AUTO · WATCHING FPS') : settings.perf === 'low' ? 'FEWER EFFECTS' : 'ALL EFFECTS'; document.body.classList.toggle('cb', !!settings.cb);
+    if ($('difficulty-badge')) $('difficulty-badge').textContent = diff().name;
+    $('steer-hint').textContent = settings.steering === 'gyro' ? 'TILT ◀ ▶' : 'DRAG ◀ ▶';
+    document.body.classList.toggle('gyro', settings.steering === 'gyro');
+    checkOrientation();
+  }
+  // ==== Gyro steering and screen orientation.
+  const tilt = { x: 0, neutral: 0, live: false };
+  function screenAngle() { return (screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : Number(window.orientation) || 0) * Math.PI / 180; }
+  // Roll angle of the device relative to the screen's horizontal axis, from the gravity direction in device coordinates.
+  function onTilt(event) {
+    if (event.beta == null || event.gamma == null) return;
+    const b = event.beta * Math.PI / 180, g = event.gamma * Math.PI / 180, a = screenAngle();
+    const dx = Math.sin(g) * Math.cos(b), dy = -Math.sin(b);
+    tilt.x = Math.asin(clamp(dx * Math.cos(a) - dy * Math.sin(a), -1, 1)) * 180 / Math.PI; tilt.live = true;
+  }
+  // Touch steering stays available until the sensor actually delivers data.
+  const gyroActive = () => settings.steering === 'gyro' && tilt.live;
+  function calibrateTilt() { tilt.neutral = tilt.live ? tilt.x : 0; }
+  const TILT_FULL = 20, TILT_DEAD = 2.5;
+  function tiltSteer() {
+    if (!tilt.live) return 0;
+    const d = tilt.x - tilt.neutral;
+    return Math.abs(d) < TILT_DEAD ? 0 : clamp((d - Math.sign(d) * TILT_DEAD) / (TILT_FULL - TILT_DEAD), -1, 1);
+  }
+  async function enableGyro() {
+    if (!window.DeviceOrientationEvent) return false;
+    try {
+      if (typeof DeviceOrientationEvent.requestPermission === 'function' && await DeviceOrientationEvent.requestPermission() !== 'granted') return false;
+    } catch { return false; }
+    if (!enableGyro.listening) { window.addEventListener('deviceorientation', onTilt); enableGyro.listening = true; }
+    return true;
+  }
+  function currentOrientation() { return window.matchMedia?.('(orientation: landscape)')?.matches ? 'landscape' : 'portrait'; }
+  // Lock the orientation where the browser allows it (Android, installed app); everywhere else ask the player to rotate.
+  async function applyScreenSetting(fromGesture) {
+    if (!window.matchMedia?.('(pointer: coarse)').matches || !screen.orientation?.lock) { checkOrientation(); return; }
+    try {
+      if (fromGesture && !document.fullscreenElement && !matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches) await document.documentElement.requestFullscreen?.();
+      await screen.orientation.lock(settings.screen);
+    } catch { /* Not allowed here (e.g. iOS): the rotate prompt takes over. */ }
+    checkOrientation();
+  }
+  function checkOrientation() {
+    const overlay = $('rotate-overlay');
+    const wrong = !!window.matchMedia?.('(pointer: coarse)').matches && currentOrientation() !== settings.screen;
+    overlay.classList.toggle('hidden', !wrong);
+    if (wrong) {
+      $('rotate-title').textContent = `ROTATE TO ${settings.screen.toUpperCase()}`; $('rotate-setting').textContent = settings.screen.toUpperCase();
+      $('rotate-other').textContent = settings.screen === 'portrait' ? 'LANDSCAPE' : 'PORTRAIT';
+      if (mode === 'racing' || mode === 'countdown') pauseRace();
+    }
+  }
+  // ==== English → German translation (DOM and canvas text).
+  // ---- Language: English (source text) or German. DOM text is swapped by a MutationObserver, canvas text in fillText,
+  // so game code keeps writing English. Exact phrases first, then patterns for text with numbers, then " / " and " · " pieces.
+  const DE = {
+    // Home, modes, garage
+    'ANTI-GRAVITY RACING SYSTEM': 'ANTI-GRAVITATIONS-RENNSYSTEM', 'THE FUTURE HAS NO SPEED LIMIT': 'DIE ZUKUNFT KENNT KEIN TEMPOLIMIT',
+    'Zero gravity. Full throttle.': 'Null Schwerkraft. Vollgas.', 'Leave the ordinary in another dimension.': 'Lass das Gewöhnliche in einer anderen Dimension zurück.',
+    'ENTER THE RACE': 'ZUM RENNEN', 'ENTER': 'ENTER', 'TO LAUNCH': 'ZUM STARTEN', 'TAP TO LAUNCH': 'TIPPEN ZUM STARTEN', 'LOCKED CIRCUIT': 'STRECKE GESPERRT',
+    'GAME MODE': 'SPIELMODUS', '🏁 GRAND PRIX': '🏁 GRAND PRIX', '⏱ TIME TRIAL': '⏱ ZEITFAHREN', '☣ ENDLESS': '☣ ENDLOS', 'TIME TRIAL': 'ZEITFAHREN', 'GRAND PRIX': 'GRAND PRIX',
+    'YOUR MACHINE': 'DEIN GLEITER', 'SELECT LEVEL': 'STRECKE WÄHLEN', 'CLASS': 'KLASSE', 'DISTANCE': 'DISTANZ', 'DIFFICULTY': 'SCHWIERIGKEIT',
+    'BALANCED / PRECISION HANDLING': 'AUSGEWOGEN / PRÄZISES HANDLING', 'AGGRESSIVE / HIGH TOP SPEED': 'AGGRESSIV / HOHE SPITZE', 'AGILE / EXTENDED OVERDRIVE': 'WENDIG / LANGER OVERDRIVE',
+    'THE ELECTRIC METROPOLIS': 'DIE ELEKTRISCHE METROPOLE', 'BURN THROUGH THE AFTERGLOW': 'BRENN DURCH DAS ABENDROT', 'DIVE INTO THE ULTRAVIOLET': 'TAUCH INS ULTRAVIOLETT',
+    'THREAD THE FRACTURED SKYLINE': 'DURCH DIE ZERBROCHENE SKYLINE', 'LOW GRIP / ZERO MARGIN': 'WENIG GRIP / NULL SPIELRAUM', 'RIDE THE GRAVITY SHEAR': 'REITE DIE SCHWERKRAFTSCHERE',
+    'LASER GATES / NO BRAKES': 'LASERTORE / KEINE BREMSEN', 'THE FINAL IMPOSSIBLE LINE': 'DIE LETZTE UNMÖGLICHE LINIE',
+    '📅 DAILY CHALLENGE': '📅 TAGES-CHALLENGE', 'DAILY CHALLENGE': 'TAGES-CHALLENGE', 'GO ›': 'LOS ›', 'COME BACK TOMORROW': 'KOMM MORGEN WIEDER',
+    '📊 STATS': '📊 STATISTIK', '⚙ SETTINGS': '⚙ EINSTELLUNGEN', '☰ CHANGELOG': '☰ NEUIGKEITEN', 'LIVE CIRCUIT FEED': 'LIVE-STRECKENBILD',
+    'NO RIVALS, NO UFOS': 'KEINE RIVALEN, KEINE UFOS',
+    // HUD
+    'POSITION': 'PLATZ', 'LIVES': 'LEBEN', 'LIFE': 'LEBEN', 'LAP': 'RUNDE', 'PAUSE': 'PAUSE', 'CIRCUIT TELEMETRY': 'STRECKEN-TELEMETRIE', '✦ HYPERDRIVE': '✦ HYPERANTRIEB',
+    'ANTI-GRAVITY DRIVE ONLINE': 'ANTI-GRAVITATIONSANTRIEB AKTIV', 'LOW ENERGY / RECHARGING': 'WENIG ENERGIE / LÄDT', 'HULL SHIELD': 'RUMPFSCHILD', 'BOOST ENERGY': 'BOOST-ENERGIE',
+    'LASER CELLS': 'LASERZELLEN', 'UFO KILLS → MOTHERSHIP': 'UFO-ABSCHÜSSE → MUTTERSCHIFF', 'SPACE': 'LEER', 'BOOST': 'BOOST', 'LASER': 'LASER', '↟ CYAN PADS': '↟ CYAN-PADS',
+    'TUTORIAL': 'TUTORIAL', 'SKIP ›': 'ÜBERSPRINGEN ›', 'DRAG ◀ ▶': 'ZIEHEN ◀ ▶', 'TILT ◀ ▶': 'KIPPEN ◀ ▶', 'STEER': 'LENKEN', 'SLIDE ▲': 'WISCHEN ▲', 'SLIDE ▼': 'WISCHEN ▼',
+    'BRAKE': 'BREMSE', 'TAP': 'TIPPEN', 'ACCELERATE': 'GAS', 'ESC': 'ESC', 'BEST — —:—': 'BESTZEIT — —:—',
+    // Health warning
+    '⚠ PLEASE READ BEFORE PLAYING': '⚠ BITTE VOR DEM SPIELEN LESEN', 'HEALTH WARNING': 'GESUNDHEITSHINWEIS', 'Photosensitive seizures.': 'Lichtempfindliche Anfälle.',
+    'This game contains flashing lights, rapidly changing colours, strobe-like explosions and fast-moving patterns. A very small percentage of people may experience seizures or blackouts when exposed to such images, even without any history of epilepsy.':
+      'Dieses Spiel enthält Blitzlichter, schnell wechselnde Farben, stroboskopartige Explosionen und schnelle Muster. Bei einem sehr kleinen Teil der Menschen können solche Bilder Anfälle oder Bewusstseinsverlust auslösen, auch ohne bekannte Epilepsie.',
+    'Stop playing immediately and consult a doctor': 'Hör sofort auf zu spielen und suche einen Arzt auf,',
+    'if you or anyone watching experiences dizziness, altered vision, eye or muscle twitching, disorientation, involuntary movements or convulsions. Parents should supervise children while they play.':
+      'wenn du oder jemand, der zusieht, Schwindel, Sehstörungen, Augen- oder Muskelzucken, Orientierungslosigkeit, unwillkürliche Bewegungen oder Krämpfe bemerkt. Eltern sollten Kinder beim Spielen beaufsichtigen.',
+    'Play safely:': 'Sicher spielen:',
+    'sit at a distance from the screen, play in a well-lit room, take a 10–15 minute break every hour and do not play when tired. Motion steering (gyro) and the speed effects can cause motion sickness — switch to touch steering in Settings if you feel unwell. Keep the volume at a comfortable level, especially with headphones.':
+      'halte Abstand zum Bildschirm, spiele in einem hellen Raum, mach jede Stunde 10–15 Minuten Pause und spiele nicht, wenn du müde bist. Bewegungssteuerung (Gyro) und die Geschwindigkeitseffekte können Übelkeit verursachen — wechsle in den Einstellungen zur Touch-Steuerung, wenn dir unwohl ist. Halte die Lautstärke angenehm, besonders mit Kopfhörern.',
+    'I UNDERSTAND': 'VERSTANDEN',
+    // Shop, paints, trophies, stats
+    'GARAGE / SHIP UPGRADES': 'GARAGE / SCHIFFS-UPGRADES', 'UPGRADES': 'UPGRADES', 'CREDITS': 'CREDITS',
+    'Earn credits for finishing positions, podiums, rival and UFO kills, motherships and bosses.': 'Credits gibt es für Platzierungen, Podien, Abschüsse von Rivalen und UFOs, Mutterschiffe und Bosse.',
+    '🛡 HULL ARMOR': '🛡 RUMPFPANZER', '◎ LASER BANK': '◎ LASERSPEICHER', 'ϟ BOOST CORE': 'ϟ BOOST-KERN', 'MAX': 'MAX',
+    'PAINT SHOP': 'LACKIEREREI', 'Change the look of your ship. Trophy paint jobs unlock with the named trophy.': 'Ändere das Aussehen deines Schiffs. Trophäen-Lackierungen schaltest du mit der genannten Trophäe frei.',
+    'FACTORY': 'WERKSLACK', 'EQUIPPED': 'AUSGERÜSTET', 'STEALTH': 'TARNKAPPE', 'CHROME': 'CHROM', 'HOT RODS': 'FLAMMEN', 'RACING STRIPES': 'RENNSTREIFEN', '24K GOLD': '24K GOLD',
+    'NEON KITTY': 'NEON-KÄTZCHEN', 'HYPER RAINBOW': 'HYPER-REGENBOGEN', 'BACK TO THE GARAGE': 'ZURÜCK IN DIE GARAGE',
+    'HALL OF FAME': 'RUHMESHALLE', 'TROPHIES': 'TROPHÄEN', 'UNLOCKED': 'FREIGESCHALTET', 'ACHIEVEMENT UNLOCKED': 'ERFOLG FREIGESCHALTET',
+    'Finish your first race.': 'Beende dein erstes Rennen.', 'Finish in the top 3.': 'Komm unter die Top 3.', 'Win a race.': 'Gewinne ein Rennen.',
+    'Win a race without losing a life.': 'Gewinne ein Rennen, ohne ein Leben zu verlieren.', 'Pixel-poof 10 cats.': 'Pixel-poffe 10 Katzen.', 'Shoot down 25 UFOs.': 'Schieß 25 UFOs ab.',
+    'Destroy 50 rivals.': 'Zerstöre 50 Rivalen.', 'Destroy a mothership.': 'Zerstöre ein Mutterschiff.', 'Fly through a star gate.': 'Flieg durch ein Sternentor.',
+    'Collect all four power-up types.': 'Sammle alle vier Power-up-Arten.', 'Defeat the final boss and reach the disco.': 'Besiege den Endboss und erreiche die Disco.',
+    'Beat all six bosses of Singularity Run.': 'Besiege alle sechs Bosse von Singularity Run.', 'Buy your first upgrade.': 'Kauf dein erstes Upgrade.',
+    'Max out every upgrade.': 'Bau jedes Upgrade voll aus.', 'Unlock every circuit.': 'Schalte jede Strecke frei.', 'Find the secret on the title screen.': 'Finde das Geheimnis auf dem Startbildschirm.',
+    'Share a race result.': 'Teile ein Rennergebnis.', 'Destroy all three nemeses in one race.': 'Zerstöre alle drei Erzfeinde in einem Rennen.',
+    'PILOT RECORD': 'PILOTENAKTE', 'STATS': 'STATISTIK', 'RACES': 'RENNEN', 'WINS': 'SIEGE', 'PODIUMS': 'PODIEN', 'PLAY TIME': 'SPIELZEIT', 'FAVOURITE': 'LIEBLINGSSTRECKE',
+    'RIVALS DESTROYED': 'RIVALEN ZERSTÖRT', 'UFOs SHOT DOWN': 'UFOS ABGESCHOSSEN', 'CATS POPPED': 'KATZEN GEPOFFT', 'BOSSES DEFEATED': 'BOSSE BESIEGT',
+    'ENDLESS RECORD': 'ENDLOS-REKORD', 'DAILY STREAK': 'TAGESSERIE', 'MOVE YOUR PROGRESS': 'FORTSCHRITT ÜBERTRAGEN',
+    'Export a code on this device and import it on another one — credits, upgrades, paints, trophies, circuits, records and settings come along.':
+      'Exportiere auf diesem Gerät einen Code und importiere ihn auf einem anderen — Credits, Upgrades, Lackierungen, Trophäen, Strecken, Rekorde und Einstellungen kommen mit.',
+    '⤴ EXPORT CODE': '⤴ CODE EXPORTIEREN', '⤵ IMPORT CODE': '⤵ CODE IMPORTIEREN',
+    'CODE COPIED — PASTE IT ON YOUR OTHER DEVICE.': 'CODE KOPIERT — FÜGE IHN AUF DEINEM ANDEREN GERÄT EIN.', 'COPY THE CODE BELOW AND PASTE IT ON YOUR OTHER DEVICE.': 'KOPIERE DEN CODE UNTEN UND FÜGE IHN AUF DEINEM ANDEREN GERÄT EIN.',
+    'PASTE A PROFILE CODE INTO THE BOX FIRST.': 'FÜGE ZUERST EINEN PROFILCODE IN DAS FELD EIN.', 'THAT CODE DOES NOT LOOK RIGHT. CHECK IT AND TRY AGAIN.': 'DER CODE SIEHT NICHT RICHTIG AUS. PRÜFE IHN UND VERSUCH ES NOCHMAL.',
+    // Settings
+    'CONTROLS & DISPLAY': 'STEUERUNG & ANZEIGE', 'SETTINGS': 'EINSTELLUNGEN', 'STEERING': 'LENKUNG', '⟲ GYRO': '⟲ GYRO', '☝ TOUCH / KEYS': '☝ TOUCH / TASTEN',
+    'EASY': 'LEICHT', 'NORMAL': 'NORMAL', 'HARD': 'SCHWER', 'VIBRATION': 'VIBRATION', '〰 ON': '〰 AN', '∅ OFF': '∅ AUS', 'ON': 'AN', 'OFF': 'AUS',
+    'CALM MODE': 'RUHIGER MODUS', 'LESS SHAKE & FLASHING': 'WENIGER WACKELN & BLITZE', 'COLOUR-BLIND': 'FARBENBLIND', '⚠ DANGER MARKS': '⚠ GEFAHRENMARKER',
+    'PERFORMANCE': 'LEISTUNG', 'AUTO · WATCHING FPS': 'AUTO · BEOBACHTET FPS', 'AUTO · LOW FPS DETECTED': 'AUTO · NIEDRIGE FPS ERKANNT', 'FEWER EFFECTS': 'WENIGER EFFEKTE', 'ALL EFFECTS': 'ALLE EFFEKTE',
+    'AUTO': 'AUTO', 'LOW FX': 'WENIG FX', 'FULL': 'VOLL', 'SUBTITLES': 'UNTERTITEL', 'FOR VOICES': 'FÜR STIMMEN', '↺ PLAY IT AGAIN': '↺ NOCHMAL SPIELEN',
+    'SCREEN': 'BILDSCHIRM', '▭ LANDSCAPE': '▭ QUER', '▯ PORTRAIT': '▯ HOCH', 'LANDSCAPE': 'QUERFORMAT', 'PORTRAIT': 'HOCHFORMAT', 'DONE': 'FERTIG', 'LANGUAGE': 'SPRACHE',
+    "WHAT'S NEW": 'WAS IST NEU', 'CHANGELOG': 'NEUIGKEITEN', 'CLOSE': 'SCHLIESSEN',
+    'ASKING FOR MOTION SENSOR ACCESS…': 'FRAGE NACH ZUGRIFF AUF DEN BEWEGUNGSSENSOR…', 'GYRO NOT AVAILABLE — USING TOUCH': 'GYRO NICHT VERFÜGBAR — TOUCH WIRD GENUTZT',
+    'GYRO ON — HOLD YOUR DEVICE NEUTRAL WHEN THE RACE STARTS': 'GYRO AN — HALTE DEIN GERÄT BEIM START NEUTRAL', 'DRAG ON THE TRACK TO STEER': 'ZUM LENKEN AUF DER STRECKE ZIEHEN',
+    'VIBRATION ON': 'VIBRATION AN', 'VIBRATION OFF': 'VIBRATION AUS', 'THIS DEVICE CANNOT VIBRATE FROM THE WEB': 'DIESES GERÄT KANN IM BROWSER NICHT VIBRIEREN',
+    'THE TUTORIAL RUNS IN YOUR NEXT GRAND PRIX': 'DAS TUTORIAL LÄUFT IN DEINEM NÄCHSTEN GRAND PRIX', 'LOW FPS · PERFORMANCE MODE ON': 'NIEDRIGE FPS · LEISTUNGSMODUS AN',
+    // Pause, results, soundtrack, rotate
+    'TAKE A BREATH, PILOT': 'DURCHATMEN, PILOT', 'RACE PAUSED': 'RENNEN PAUSIERT', 'The future can wait a moment.': 'Die Zukunft kann einen Moment warten.',
+    'BACK TO OVERDRIVE': 'ZURÜCK IN DEN OVERDRIVE', 'RETURN TO GARAGE': 'ZURÜCK IN DIE GARAGE', 'NEON GRAND PRIX / RACE COMPLETE': 'NEON GRAND PRIX / RENNEN BEENDET',
+    'PODIUM FINISH.': 'PODIUMSPLATZ.', 'PODIUM FINISH': 'PODIUMSPLATZ', 'LIMITS REDEFINED.': 'GRENZEN NEU DEFINIERT.', 'PURE OVERDRIVE.': 'PURER OVERDRIVE.', 'SHIELDS DOWN.': 'SCHILDE WEG.',
+    'RACE TIME': 'RENNZEIT', 'BEST LAP': 'BESTE RUNDE', 'RACE AGAIN': 'NOCHMAL FAHREN', '⤴ SHARE RESULT': '⤴ ERGEBNIS TEILEN', 'NEW BEST TIME!': 'NEUE BESTZEIT!', 'TIME TRIAL DONE.': 'ZEITFAHREN BEENDET.',
+    'GALAXY SAVED.': 'GALAXIE GERETTET.', 'ABDUCTED.': 'ENTFÜHRT.', 'GALAXY SAVED': 'GALAXIE GERETTET', 'GALAXY SAVED · INVASION REPELLED': 'GALAXIE GERETTET · INVASION ABGEWEHRT',
+    'INTERGALACTIC CHAMPION / INVASION REPELLED': 'INTERGALAKTISCHER CHAMPION / INVASION ABGEWEHRT', 'GAME OVER / THE INVASION WON': 'GAME OVER / DIE INVASION HAT GESIEGT',
+    'ENDLESS BOSS RUSH / GAME OVER': 'ENDLOSER BOSS-ANSTURM / GAME OVER', 'TARGET ACQUIRED.': 'ZIEL ERFASST.',
+    'SOUNDTRACK / PRESS PLAY': 'SOUNDTRACK / PLAY DRÜCKEN', 'NOW PLAYING / LOCAL SOUNDTRACK': 'LÄUFT GERADE / LOKALER SOUNDTRACK', 'SOUNDTRACK / FILE UNAVAILABLE': 'SOUNDTRACK / DATEI FEHLT',
+    'SOUNDTRACK / MUTED': 'SOUNDTRACK / STUMM', 'SOUNDTRACK / TAP TO PLAY': 'SOUNDTRACK / TIPPEN ZUM ABSPIELEN',
+    'SYSTEM READY · SINGULARITY STABLE · GO RACE!': 'SYSTEM BEREIT · SINGULARITÄT STABIL · AB INS RENNEN!',
+    'ROTATE TO LANDSCAPE': 'INS QUERFORMAT DREHEN', 'ROTATE TO PORTRAIT': 'INS HOCHFORMAT DREHEN', 'Your screen setting is': 'Deine Bildschirm-Einstellung ist', '. Turn your device to play.': '. Dreh dein Gerät zum Spielen.',
+    'SWITCH TO': 'WECHSELN ZU', 'INSTEAD': '', 'CONGRATULATIONS!': 'GLÜCKWUNSCH!',
+    // Race messages
+    'BACK IN THE FIGHT!': 'ZURÜCK IM KAMPF!', 'BACK IN THE RACE!': 'ZURÜCK IM RENNEN!', 'BARRIER CONTACT': 'BANDENKONTAKT', 'BOMB DODGED!': 'BOMBE AUSGEWICHEN!',
+    'BOOST DEPLETED': 'BOOST LEER', 'BOOST RAM': 'BOOST-RAMME', 'RIVAL DESTROYED': 'RIVALE ZERSTÖRT', 'HULL CONTACT': 'RUMPFKONTAKT', 'HYPERDRIVE OFFLINE': 'HYPERANTRIEB AUS',
+    'HYPERDRIVE!': 'HYPERANTRIEB!', 'LASER CELLS RECHARGING': 'LASERZELLEN LADEN', 'LEGENDARY!  SHIELD + LASER RESTORED': 'LEGENDÄR!  SCHILD + LASER WIEDERHERGESTELLT',
+    'LIGHT SPEED': 'LICHTGESCHWINDIGKEIT', 'INVINCIBLE': 'UNVERWUNDBAR', 'MEGA LASER': 'MEGA-LASER', '∞ BOOST': '∞ BOOST', 'MEGA BLAST!': 'MEGA-EXPLOSION!',
+    'MOTHERSHIP DESTROYED!': 'MUTTERSCHIFF ZERSTÖRT!', 'NEW UFO INBOUND!': 'NEUES UFO IM ANFLUG!', 'RECHARGE': 'AUFLADEN', 'BOOST + SHIELD + LASER': 'BOOST + SCHILD + LASER',
+    'RIVAL LASER LOCK!  BREAK LINE OF SIGHT': 'RIVALE HAT DICH IM VISIER!  RAUS AUS DER SCHUSSLINIE', 'WARNING': 'WARNUNG', 'RIVAL LASER LOCK': 'RIVALE ZIELT',
+    'SHIELDS DOWN': 'SCHILDE WEG', 'TOTAL CHAIN REACTION': 'TOTALE KETTENREAKTION', 'SHIP DESTROYED!': 'SCHIFF ZERSTÖRT!', 'SMASHED THROUGH!': 'DURCHGEBROCHEN!',
+    'TARGET MISSED': 'DANEBEN', 'LASERS LOW': 'LASER FAST LEER', 'THE MOTHERSHIP HAS ARRIVED': 'DAS MUTTERSCHIFF IST DA', 'SHOOT IT DOWN!': 'SCHIESS ES AB!',
+    'THE SKY CLEARS': 'DER HIMMEL KLART AUF', 'TRAMPOLINE!  JUMP + BOOST!': 'TRAMPOLIN!  SPRUNG + BOOST!', 'UFO BOMB RUN!  DODGE OR JUMP!': 'UFO-BOMBENANGRIFF!  AUSWEICHEN ODER SPRINGEN!',
+    'UFO BOMB RUN': 'UFO-BOMBENANGRIFF', 'DODGE!': 'AUSWEICHEN!', 'UFO HIT': 'UFO GETROFFEN', 'IT IS GOING DOWN!': 'ES STÜRZT AB!', 'WARNING: MOTHERSHIP!': 'WARNUNG: MUTTERSCHIFF!',
+    'WEBBED!  SLOWED DOWN': 'EINGESPONNEN!  VERLANGSAMT', '🎮 GAMEPAD CONNECTED': '🎮 GAMEPAD VERBUNDEN', 'AIRBORNE': 'IN DER LUFT', 'TRAMPOLINE BOOST': 'TRAMPOLIN-BOOST',
+    'BUBBLE POPPED!': 'BLASE GEPLATZT!', 'CATASTROPHIC FAILURE / SHIELDS OFFLINE': 'TOTALAUSFALL / SCHILDE OFFLINE', 'CAT PIXEL-POOF!  LASER +1': 'KATZEN-PIXEL-POFF!  LASER +1',
+    'CAT PIXEL-POOF!  LASER FULL': 'KATZEN-PIXEL-POFF!  LASER VOLL', 'DRONE COLLISION': 'DROHNEN-KOLLISION', 'ENEMY LASER HIT': 'FEINDLICHER LASERTREFFER',
+    'FINAL LAP — MAKE IT COUNT': 'LETZTE RUNDE — JETZT ZÄHLT ES', 'FINISH TOP 3 TO UNLOCK THE NEXT CIRCUIT  ·  WIN TO FACE THE INVASION!': 'TOP 3 SCHALTET DIE NÄCHSTE STRECKE FREI  ·  SIEG FÜHRT ZUR INVASION!',
+    'HULL LOST / THE WHOLE PACK WENT NOVA': 'RUMPF VERLOREN / DAS GANZE FELD GING HOCH', 'LASER GATE HIT': 'LASERTOR GETROFFEN', 'MINE STRIKE': 'MINENTREFFER',
+    'MOTHERSHIP LASER': 'MUTTERSCHIFF-LASER', 'LIGHTNING STRIKE': 'BLITZEINSCHLAG', 'METEOR STRIKE!': 'METEORTREFFER!', 'UFO BOMB HIT!': 'UFO-BOMBENTREFFER!',
+    'RIVAL DESTROYED  /  +1 PLACE': 'RIVALE ZERSTÖRT  /  +1 PLATZ', 'BOSS DOWN': 'BOSS BESIEGT', 'RIVAL DOWN': 'RIVALE ERLEDIGT', 'UFO DOWN': 'UFO ERLEDIGT',
+    'MOTHERSHIP DOWN': 'MUTTERSCHIFF ERLEDIGT', 'NEMESIS DOWN': 'ERZFEIND ERLEDIGT', 'DAILY STREAK BONUS': 'TAGESSERIEN-BONUS',
+    'WATCH THE IMPACT MARKERS!': 'ACHTE AUF DIE EINSCHLAGMARKER!', 'VISIBILITY DROPPING': 'SICHT SINKT', 'THE TRACK PULLS YOU SIDEWAYS': 'DIE STRECKE ZIEHT DICH ZUR SEITE',
+    '☄ METEOR SHOWER': '☄ METEORSCHAUER', '🌪 SANDSTORM': '🌪 SANDSTURM', '〰 GRAVITY WAVES': '〰 SCHWERKRAFTWELLEN',
+    'MAGNET': 'MAGNET', 'SHIELD BUBBLE': 'SCHUTZBLASE', 'TIME WARP': 'ZEITLUPE', 'MULTI-LASER': 'MULTI-LASER',
+    'PULLS IN PADS, CATS, GATES AND POWER-UPS': 'ZIEHT PADS, KATZEN, TORE UND POWER-UPS AN', 'ABSORBS THE NEXT 3 HITS': 'FÄNGT DIE NÄCHSTEN 3 TREFFER AB',
+    'EVERYONE ELSE MOVES IN SLOW MOTION': 'ALLE ANDEREN FAHREN IN ZEITLUPE', 'EVERY SHOT HITS UP TO 3 TARGETS': 'JEDER SCHUSS TRIFFT BIS ZU 3 ZIELE',
+    // Tutorial
+    'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
+    'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
+    'TAP THE TRACK (OR ◎) TO FIRE YOUR LASER': 'TIPP AUF DIE STRECKE (ODER ◎) FÜR DEN LASER', 'PRESS  X  TO FIRE YOUR LASER': 'DRÜCKE  X  FÜR DEN LASER',
+    'CYAN PADS RECHARGE BOOST, SHIELD AND LASER': 'CYAN-PADS LADEN BOOST, SCHILD UND LASER', 'GRAB POWER-UP BOXES  ·  FLY THROUGH ✦ STAR GATES FOR HYPERDRIVE': 'SCHNAPP DIR POWER-UP-BOXEN  ·  FLIEG DURCH ✦ STERNENTORE FÜR DEN HYPERANTRIEB',
+    // Finale
+    '⚠ INVASION INCOMING ⚠': '⚠ INVASION IM ANMARSCH ⚠', '◀ ▶ MOVE  ·  FIRE: BLAST A HOLE IN THE WALL, THEN HIT THE OVERLORD': '◀ ▶ BEWEGEN  ·  FEUER: SPRENG EIN LOCH IN DIE WAND, DANN TRIFF DEN OBERHERRN',
+    '⚠ WORMHOLE — MOVE!': '⚠ WURMLOCH — WEG DA!', 'FINAL BOSS!': 'ENDBOSS!', 'OVERLORD SPLATTERED!': 'OBERHERR ZERMATSCHT!', 'ENDLESS BOSS RUSH — WAVE 1!': 'ENDLOSER BOSS-ANSTURM — WELLE 1!',
+    'HULL SHIELD ': 'RUMPFSCHILD ', 'SLIMED!': 'EINGESCHLEIMT!', 'ACID BURN!': 'SÄUREVERÄTZUNG!', 'MISSILE HIT!': 'RAKETENTREFFER!', 'CRYSTAL SHARD!': 'KRISTALLSPLITTER!', 'ZAPPED!': 'GEGRILLT!',
+    'CHOMP!': 'HAPPS!', 'DEATH RAY!': 'TODESSTRAHL!', 'NEXT ONE INCOMING': 'DER NÄCHSTE KOMMT', 'SHARK SPLATTERED!': 'HAI ZERMATSCHT!', 'SPIDER SHATTERED!': 'SPINNE ZERSPLITTERT!',
+    'MAGGOT SQUASHED!': 'MADE ZERQUETSCHT!', 'ROBOT SCRAPPED!': 'ROBOTER VERSCHROTTET!', 'CYCLOPS POPPED!': 'ZYKLOP GEPLATZT!',
+  };
+  const DE_RULES = [
+    [/^(\d+) LAPS · (\d+) PILOTS · NO LIMITS$/, '$1 RUNDEN · $2 PILOTEN · OHNE LIMIT'],
+    [/^(\d+) PILOTS · (\d+) LAPS · WIN TO FACE THE INVASION$/, '$1 PILOTEN · $2 RUNDEN · GEWINNE UND STELL DICH DER INVASION'],
+    [/^CIRCUITS UNLOCKED: (.+)$/, 'STRECKEN FREI: $1'], [/^REWARD (\d+) CR$/, 'BELOHNUNG $1 CR'], [/^🔥 STREAK (\d+)$/, '🔥 SERIE $1'],
+    [/^DESTROY (\d+) RIVALS ON (.+)$/, 'ZERSTÖRE $1 RIVALEN AUF $2'], [/^SHOOT DOWN (\d+) UFOs ON (.+)$/, 'SCHIESS $1 UFOS AB AUF $2'], [/^POP (\d+) CATS ON (.+)$/, 'POFFE $1 KATZEN AUF $2'],
+    [/^FINISH (.+) WITHOUT LOSING A LIFE$/, 'BEENDE $1 OHNE LEBENSVERLUST'], [/^TOP 3 ON (.+) WITHOUT BOOSTING$/, 'TOP 3 AUF $1 OHNE BOOST'], [/^PODIUM ON (.+) ON HARD$/, 'PODIUM AUF $1 AUF SCHWER'], [/^WIN (.+)$/, 'GEWINNE $1'],
+    [/^✓ DONE — (.+)$/, (m, a) => `✓ GESCHAFFT — ${tr(a)}`], [/^📅 DAILY CHALLENGE COMPLETE!  🔥 (\d+)-DAY STREAK$/, '📅 TAGES-CHALLENGE GESCHAFFT!  🔥 $1-TAGE-SERIE'],
+    [/^🛠 UPGRADES · (\d+) CR$/, '🛠 UPGRADES · $1 CR'], [/^🏆 TROPHIES (.+)$/, '🏆 TROPHÄEN $1'], [/^NOW: (.+)$/, (m, a) => `JETZT: ${tr(a)}`], [/^NEXT: (.+)$/, (m, a) => `NÄCHSTE: ${tr(a)}`],
+    [/^MAXED OUT — (.+)$/, (m, a) => `VOLL AUSGEBAUT — ${tr(a)}`], [/^takes (\d+)% less damage$/, 'nimmt $1 % weniger Schaden'], [/^(\d+) cells, recharge (\d+)% faster$/, '$1 Zellen, lädt $2 % schneller'],
+    [/^(\d+)% less drain, \+(\d+)% top speed$/, '$1 % weniger Verbrauch, +$2 % Spitze'], [/^UPGRADE · (\d+) CR$/, 'UPGRADE · $1 CR'], [/^BUY · (\d+) CR$/, 'KAUFEN · $1 CR'],
+    [/^(\d+) WAVES?\.?$/, (m, a) => `${a} ${a === '1' ? 'WELLE' : 'WELLEN'}${m.endsWith('.') ? '.' : ''}`], [/^(\d+) DAYS$/, '$1 TAGE'], [/^(\d+)H (\d+)M$/, '$1 STD $2 MIN'],
+    [/^BEST (.+)$/, 'BESTZEIT $1'], [/^LAP (\d+) \/ (\d+) — KEEP PUSHING$/, 'RUNDE $1 / $2 — WEITER SO'], [/^P(\d+) FINISH$/, 'PLATZ $1'], [/^TIME TRIAL \/ (.+)$/, 'ZEITFAHREN / $1'],
+    [/^\+(\d+) CR EARNED  ·  (\d+) CR TOTAL$/, '+$1 CR VERDIENT  ·  $2 CR GESAMT'], [/^DIFFICULTY: (\w+) · (.*?)(\d+)% CREDITS$/, (m, d, l, c) => `SCHWIERIGKEIT: ${tr(d)} · ${l.replace('+1 LIFE', '+1 LEBEN').replace('-1 LIFE', '-1 LEBEN')}${c} % CREDITS`],
+    [/^SHIP DESTROYED  \/  (\d+) LI(?:VES|FE) LEFT$/, 'SCHIFF ZERSTÖRT  /  NOCH $1 LEBEN'], [/^SHIP DESTROYED!  (\d+) LI(?:VES|FE) LEFT$/, 'SCHIFF ZERSTÖRT!  NOCH $1 LEBEN'],
+    [/^MOTHERSHIP HIT  \/  (\d+)%$/, 'MUTTERSCHIFF GETROFFEN  /  $1 %'], [/^RIVAL HIT  \/  HULL (.+)$/, 'RIVALE GETROFFEN  /  RUMPF $1'], [/^(.+) HIT  \/  HULL (\d\/6)$/, '$1 GETROFFEN  /  RUMPF $2'],
+    [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
+    [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
+    [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
+    [/^WAVE (\d+): (.+)$/, 'WELLE $1: $2'], [/^FINAL BOSS (\d+)\/(\d+)!$/, 'ENDBOSS $1/$2!'], [/^ALIEN WALL (.+)$/, 'ALIEN-WAND $1'], [/^LIVES (.*)$/, 'LEBEN $1'],
+    [/^(\d+)% CREDITS$/, '$1 % CREDITS'], [/^LOADING MUSIC (\d+)%$/, 'MUSIK LÄDT $1 %'], [/^SOUNDTRACK \/ LOADING (\d+)%$/, 'SOUNDTRACK / LÄDT $1 %'],
+    [/^ROTATE TO (\w+)$/, (m, a) => `INS ${a === 'LANDSCAPE' ? 'QUERFORMAT' : 'HOCHFORMAT'} DREHEN`], [/^SCREEN: (\w+)$/, (m, a) => `BILDSCHIRM: ${tr(a)}`],
+    [/^TUTORIAL (\d+)\/(\d+)$/, 'TUTORIAL $1/$2'], [/^🔒 LOCKED — FINISH TOP 3 ON (.+) TO UNLOCK$/, '🔒 GESPERRT — KOMM AUF $1 UNTER DIE TOP 3'], [/^🔓 NEW CIRCUIT UNLOCKED: (.+)!$/, '🔓 NEUE STRECKE FREI: $1!'],
+    [/^✦ NEW ENDLESS RECORD! \(previous best: (\d+)\)$/, '✦ NEUER ENDLOS-REKORD! (bisher: $1)'], [/^BOSS AFTER BOSS UNTIL YOU FALL · RECORD (\d+) WAVES$/, 'BOSS UM BOSS, BIS DU FÄLLST · REKORD $1 WELLEN'],
+    [/^(\d+) BOSS(?:ES)? SPLATTERED · (\d+) UFOs$/, '$1 BOSS(E) ZERMATSCHT · $2 UFOS'], [/^(\d+) UFOs SHOT DOWN · (\d+) TROPHIES$/, '$1 UFOS ABGESCHOSSEN · $2 TROPHÄEN'],
+    [/^TIME (.+)   BEST LAP (.+)$/, 'ZEIT $1   BESTE RUNDE $2'], [/^(.+)  \/  HYPER VELOCITY$/, '$1  /  HYPERTEMPO'], [/^(\d[\d.,]*) KM$/, '$1 KM'],
+    [/^☠ MOTHERSHIP  (\d+)%$/, '☠ MUTTERSCHIFF  $1 %'], [/^(.+) — UPGRADE$/, '$1 — UPGRADE'],
+  ];
+  const trCache = new Map();
+  function trCore(core) {
+    if (Object.prototype.hasOwnProperty.call(DE, core)) return DE[core];
+    for (const [re, rep] of DE_RULES) if (re.test(core)) return core.replace(re, rep);
+    return null;
+  }
+  function tr(text) {
+    if (settings.lang !== 'de' || typeof text !== 'string' || !/[A-Za-z]{2}/.test(text)) return text;
+    const hit = trCache.get(text); if (hit !== undefined) return hit;
+    const lead = text.match(/^\s*/)[0], core = text.trim(), trail = core ? text.slice(lead.length + core.length) : '';
+    let out = trCore(core);
+    // Composite messages: translate each piece between " / " and " · " separators.
+    if (out === null) out = /\s[\/·]\s/.test(core) ? core.split(/(\s+[\/·]\s+)/).map(p => /[\/·]/.test(p) && !p.trim().replace(/[\/·]/, '') ? p : (trCore(p.trim()) ?? p)).join('') : core;
+    out = lead + out + trail; if (trCache.size > 1500) trCache.clear(); trCache.set(text, out); return out;
+  }
+  // DOM: remember each text node's English source so switching back and forth works, and re-translate whenever code writes text.
+  const i18nNodes = new WeakMap();
+  function trNode(n) {
+    const rec = i18nNodes.get(n), cur = n.nodeValue, en = rec && cur === rec.out ? rec.en : cur, out = tr(en);
+    i18nNodes.set(n, { en, out }); if (cur !== out) n.nodeValue = out;
+  }
+  function trTree(root) {
+    if (!root || typeof document.createTreeWalker !== 'function') return;
+    if (root.nodeType === 3) { trNode(root); return; }
+    if (root.nodeType !== 1 || /^(SCRIPT|STYLE|TEXTAREA)$/.test(root.nodeName) || root.closest?.('[data-no-i18n]')) return;
+    const walker = document.createTreeWalker(root, 4); let n;
+    while ((n = walker.nextNode())) if (!/^(SCRIPT|STYLE|TEXTAREA)$/.test(n.parentNode.nodeName) && !n.parentNode.closest?.('[data-no-i18n]')) trNode(n);
+  }
+  function applyLanguage() {
+    trCache.clear();
+    try { document.documentElement.lang = settings.lang === 'de' ? 'de' : 'en'; } catch { /* ignore */ }
+    trTree(document.body);
+  }
+  if (typeof MutationObserver === 'function' && document.body) {
+    new MutationObserver(list => { for (const m of list) { if (m.type === 'characterData') trNode(m.target); else m.addedNodes.forEach(trTree); } })
+      .observe(document.body, { childList: true, characterData: true, subtree: true });
+  }
+  // Canvas text (callouts, finale, HUD on canvas) goes through the same table.
+  try {
+    const fill = ctx.fillText, stroke = ctx.strokeText;
+    if (typeof fill === 'function') { ctx.fillText = function (t, ...a) { return fill.call(this, tr(t), ...a); }; ctx.strokeText = function (t, ...a) { return stroke.call(this, tr(t), ...a); }; }
+  } catch { /* fixed context */ }
+  settingHooks.lang = applyLanguage;
+  window.morbidI18n = { tr, apply: applyLanguage };
+  // ==== Circuits, machines, track building and resizing.
   const tracks = [
     { name: 'NEON HORIZON', type: 'THE ELECTRIC METROPOLIS', feed: 'NIGHT CITY // 2097', sector: 'SECTOR 07 / NIGHTFALL', class: 'HYPER', difficulty: 3, sky: ['#090c32', '#442085', '#ed398f'], fog: '#743190', road: '#151033', edge: '#ff45ca', second: '#40f6ff', sun: '#ffb334', curve: 1, hill: 1, width: 1, grip: 1, bends: [[3, .75], [7, .32]], padEvery: 240, padStart: 155, padLength: 16, recharge: 90, hazards: 0, rivalPace: 1 },
     { name: 'SOLAR RIOT', type: 'BURN THROUGH THE AFTERGLOW', feed: 'SOLAR FIELDS // 2097', sector: 'SECTOR 12 / SOLAR STORM', class: 'INFERNO', difficulty: 4, sky: ['#23092d', '#9c1b61', '#ff8542'], fog: '#ba3b6a', road: '#291039', edge: '#ffb52e', second: '#eaff4d', sun: '#ffef82', curve: 1.3, hill: 1.3, width: .97, grip: .98, bends: [[2, .55], [5, .34], [9, .16]], padEvery: 260, padStart: 167, padLength: 14, recharge: 82, hazards: 2, hazardTypes: ['mine'], rivalPace: 1.02 },
@@ -132,58 +454,6 @@
     { color: '#ff4aa8', dark: '#851657', name: 'VIPER', info: 'AGGRESSIVE / HIGH TOP SPEED', handling: .88, top: 1.06, drain: 25 },
     { color: '#ddff46', dark: '#56751b', name: 'PULSE', info: 'AGILE / EXTENDED OVERDRIVE', handling: 1.2, top: .96, drain: 17 }
   ];
-  let trackIndex = 0, shipIndex = 0, W = 0, H = 0, dpr = 1, time = 0;
-  let mode = 'menu', position = 0, playerX = 0, speed = 0, energy = 100, shield = 100, elapsed = 0, lap = 1, lapStart = 0;
-  let laps = [], rivals = [], ufos = [], bombs = [], segments = [], countdown = 3.6, messageTime = 0, collisionCooldown = 0, wallCooldown = 0, boosting = false;
-  let jumpHeight = 0, jumpVelocity = 0, jumpBoostTimer = 0;
-  // Shot-down UFOs fly wild screen-space crash paths; new UFOs warp in to replace them.
-  let musicHold = 0, lostLifeThisRace = false;
-  let frameClock = 0;
-  // Extra lives: one per difficulty step, shared by the race and the boss fights that follow it.
-  let lives = 0, raceRespawnAt = 0, raceInvulnUntil = 0;
-  let hyperTime = 0, hyperStarted = 0, hitGates = new Set();
-  // Power-ups picked up on the track: magnet, shield bubble, time warp, multi-laser.
-  const POWERUPS = {
-    magnet: { name: 'MAGNET', icon: '🧲', color: '#ff5a5a', time: 10, info: 'PULLS IN PADS, CATS, GATES AND POWER-UPS' },
-    bubble: { name: 'SHIELD BUBBLE', icon: '◯', color: '#4df8ff', time: 15, info: 'ABSORBS THE NEXT 3 HITS' },
-    warp: { name: 'TIME WARP', icon: '⧗', color: '#a88aff', time: 7, info: 'EVERYONE ELSE MOVES IN SLOW MOTION' },
-    multi: { name: 'MULTI-LASER', icon: '⁂', color: '#ff4eb8', time: 10, info: 'EVERY SHOT HITS UP TO 3 TARGETS' },
-  };
-  const POWERUP_ORDER = ['magnet', 'bubble', 'warp', 'multi'];
-  let power = {}, bubbleHits = 0, hitPowerups = new Set();
-  const powerOn = type => (power[type] || 0) > time && (mode === 'racing' || mode === 'respawning');
-  const magnetReach = () => powerOn('magnet') ? 2.6 : 1;
-  const HYPER_TIME = 10;
-  // Mothership boss: appears after every 10 UFO kills. Races run LAP_COUNT laps.
-  const BOSS_EVERY = 10, BOSS_HP = 40, LAP_COUNT = 6;
-  let ufoKills = 0, boss = null, bossAttacks = [];
-  let crashingUfos = [], ufoRespawns = [], smoke = [], megaBlasts = [], confetti = [], callout = null;
-  let jetSource, jetFilter, jetGain, jetWhine, jetWhineGain;
-  const UFO_CRASH_TIME = 2.6, UFO_SLOTS_SPACING = 4300;
-  // Each kill call has a pre-rendered retro robot clip in voice/ (made by tools/make-voice.sh).
-  const KILL_CALLS = [['ALIEN KILLER!', 'alien-killer'], ['FATALITY!', 'fatality'], ['UFO OBLITERATED!', 'ufo-obliterated'], ['ABDUCT THIS!', 'abduct-this'],
-    ['INVASION CANCELLED!', 'invasion-cancelled'], ['CLOSE ENCOUNTER OF THE FATAL KIND!', 'close-encounter'], ['SAUCER SMASHED!', 'saucer-smashed'],
-    ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
-    ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
-    ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
-  const NEMESES = [
-    { id: 'vex', name: 'VEX', title: 'THE VIPER QUEEN', color: '#ff2a8a', dark: '#4a0420' },
-    { id: 'kronos', name: 'KRONOS', title: 'THE IRON TITAN', color: '#ffb347', dark: '#4a2a04' },
-    { id: 'null9', name: 'NULL-9', title: 'THE ROGUE AI', color: '#7dfcff', dark: '#06343a' },
-    { id: 'blaze', name: 'BLAZE', title: 'THE SHOW-OFF', color: '#ff5a1c', dark: '#3a0e02' },
-  ];
-  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
-  const voiceBuffers = new Map();
-  let voiceSource = null;
-  let shake = 0, steerVisual = 0, distance = 0, bestLap = 0, previousTime = 0, muted = false, beat = 0;
-  let audioContext, analyser, frequency, engineGain, engineOsc, musicSource, musicGain, sfxBus;
-  let particles = [], explosions = [], laserShots = [], enemyShots = [], hitHazards = new Set(), hitRamps = new Set(), rank = 20, lastPad = -1, launchGoTime = 0, boostLocked = false;
-  let laserAmmo = BASE_LASER_CAPACITY, laserCharge = 0, laserCooldown = 0, screenFlash = 0, wreckedAt = 0, wreckRank = PILOT_COUNT, wreckBurst = null;
-  const mod = (a, n) => ((a % n) + n) % n;
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const lerp = (a, b, t) => a + (b - a) * t;
-  const random = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
-  const formatTime = t => `${String(Math.floor(t / 60)).padStart(2, '0')}:${(t % 60).toFixed(3).padStart(6, '0')}`;
   function resize() {
     W = innerWidth; H = innerHeight; dpr = lowFx() ? 1 : Math.min(devicePixelRatio || 1, 1.6);
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
@@ -262,6 +532,29 @@
     document.querySelector('.map-line').style.stroke = t.second;
     document.querySelector('.map-glow').style.stroke = t.second;
   }
+  // ==== Named nemesis rivals (data is used by the voice clip list).
+  const NEMESES = [
+    { id: 'vex', name: 'VEX', title: 'THE VIPER QUEEN', color: '#ff2a8a', dark: '#4a0420' },
+    { id: 'kronos', name: 'KRONOS', title: 'THE IRON TITAN', color: '#ffb347', dark: '#4a2a04' },
+    { id: 'null9', name: 'NULL-9', title: 'THE ROGUE AI', color: '#7dfcff', dark: '#06343a' },
+    { id: 'blaze', name: 'BLAZE', title: 'THE SHOW-OFF', color: '#ff5a1c', dark: '#3a0e02' },
+  ];
+  function nemesisTaunt(r) {
+    if (time - (r.tauntAt || 0) < 8) return; r.tauntAt = time;
+    const lines = { vex: 'YOU ARE GOING DOWN, ROOKIE!', kronos: 'KRONOS OWNS THIS TRACK!', null9: 'TARGET ACQUIRED.', blaze: 'EAT MY EXHAUST!' };
+    showCallout(`${r.nemesis.name}: “${lines[r.nemesis.id]}”`, r.nemesis.color); robotSay(lines[r.nemesis.id], `taunt-${r.nemesis.id}`);
+  }
+  // ==== Audio graph, soundtrack preloading, sound effects, robot voice, jets.
+  let jetSource, jetFilter, jetGain, jetWhine, jetWhineGain;
+  // Each kill call has a pre-rendered retro robot clip in voice/ (made by tools/make-voice.sh).
+  const KILL_CALLS = [['ALIEN KILLER!', 'alien-killer'], ['FATALITY!', 'fatality'], ['UFO OBLITERATED!', 'ufo-obliterated'], ['ABDUCT THIS!', 'abduct-this'],
+    ['INVASION CANCELLED!', 'invasion-cancelled'], ['CLOSE ENCOUNTER OF THE FATAL KIND!', 'close-encounter'], ['SAUCER SMASHED!', 'saucer-smashed'],
+    ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
+    ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
+    ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
+  const voiceBuffers = new Map();
+  let voiceSource = null;
   let subtitleAt = -9;
   function setupAudio() {
     if (audioContext) { audioContext.resume().catch(() => {}); return; }
@@ -401,10 +694,6 @@
     playToneSweep(480, 1120, .1, 'triangle', .06);
     playToneSweep(950, 530, .17, 'sine', .04);
   }
-  const UFO_COLORS = ['#a7ff4f', '#54f8ff', '#ff73dc', '#fff16b'];
-  function makeUfo(slot, seed, spawnedAt) {
-    return { slot, seed, distance: 0, lane: 0, dropCooldown: .8 + slot * 1.25 + (spawnedAt > 0 ? 1.6 : 0), color: UFO_COLORS[seed % 4], spawnedAt, screen: null };
-  }
   // Robot announcer: Web Speech with a low, flat pitch. Silently skipped where unsupported.
   // Voice clips are downloaded right away (no audio context needed) and decoded once audio is unlocked.
   const voiceData = new Map();
@@ -470,7 +759,198 @@
     if (!window.speechSynthesis || !window.SpeechSynthesisUtterance || primeSpeech.done) return;
     try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); primeSpeech.done = true; } catch { /* ignore */ }
   }
+  function playFanfare() {
+    if (!audioContext || muted) return;
+    [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => setTimeout(() => playToneSweep(f, f * 1.01, i > 4 ? .5 : .18, 'square', .045), i * 130));
+  }
+  // Jet engine: looping filtered noise plus a turbine whine, swelled for boosts and ramp jumps.
+  function setupJet() {
+    const length = audioContext.sampleRate * 2, buffer = audioContext.createBuffer(1, length, audioContext.sampleRate), data = buffer.getChannelData(0);
+    let brown = 0; for (let i = 0; i < length; i++) { const white = Math.random() * 2 - 1; brown = (brown + .02 * white) / 1.02; data[i] = white * .6 + brown * 3; }
+    jetSource = audioContext.createBufferSource(); jetSource.buffer = buffer; jetSource.loop = true;
+    jetFilter = audioContext.createBiquadFilter(); jetFilter.type = 'bandpass'; jetFilter.frequency.value = 700; jetFilter.Q.value = .6;
+    jetGain = audioContext.createGain(); jetGain.gain.value = 0;
+    jetSource.connect(jetFilter); jetFilter.connect(jetGain); jetGain.connect(sfxBus); jetSource.start();
+    jetWhine = audioContext.createOscillator(); jetWhine.type = 'sawtooth'; jetWhine.frequency.value = 900;
+    const whineFilter = audioContext.createBiquadFilter(); whineFilter.type = 'highpass'; whineFilter.frequency.value = 600;
+    jetWhineGain = audioContext.createGain(); jetWhineGain.gain.value = 0;
+    jetWhine.connect(whineFilter); whineFilter.connect(jetWhineGain); jetWhineGain.connect(sfxBus); jetWhine.start();
+  }
+  function playJetBlast(power = 1) {
+    buzz([30, 30, Math.round(60 * power)]);
+    // Ignition: a roaring whoosh that tears upward, a deep rumble and a screaming turbine.
+    const v = power * .38;
+    playNoiseBurst(1.1 * power, .32 * v, 300, 6500);
+    playNoiseBurst(1.4 * power, .22 * v, 5200, 140);
+    playToneSweep(48, 160, .9 * power, 'sawtooth', .16 * v);
+    playToneSweep(700, 3200, .8 * power, 'sawtooth', .03 * v);
+  }
+  // ==== Race messages, callouts, explosions, confetti.
   function showCallout(text, color = '#ddff46') { callout = { text, color, started: time }; }
+  // Confetti runs on its own overlay canvas so it rains over the results screen too.
+  const confettiCanvas = $('confetti'), confettiCtx = confettiCanvas && confettiCanvas.getContext('2d');
+  function launchConfetti() {
+    const colors = ['#ddff46', '#ff4eb8', '#4df8ff', '#fff16b', '#a88aff', '#ff8a3d', '#ffffff'];
+    for (let i = 0, n = lowFx() ? 110 : 360; i < n; i++) {
+      const cannon = i % 3, fromSide = cannon < 2;
+      confetti.push({ x: fromSide ? (cannon ? W + 10 : -10) : Math.random() * W, y: fromSide ? H * (.55 + Math.random() * .3) : -20 - Math.random() * H * .6,
+        vx: fromSide ? (cannon ? -1 : 1) * (380 + Math.random() * 620) : (Math.random() - .5) * 120, vy: fromSide ? -(620 + Math.random() * 700) : 60 + Math.random() * 160,
+        w: 6 + Math.random() * 8, h: 3 + Math.random() * 6, rot: Math.random() * TAU, spin: (Math.random() - .5) * 14, flutter: Math.random() * TAU,
+        color: colors[i % colors.length], life: 5 + Math.random() * 3 });
+    }
+  }
+  function updateConfetti(dt) {
+    if (!confettiCtx) return;
+    if (confettiCanvas.width !== Math.floor(W * dpr) || confettiCanvas.height !== Math.floor(H * dpr)) { confettiCanvas.width = Math.floor(W * dpr); confettiCanvas.height = Math.floor(H * dpr); }
+    confettiCtx.setTransform(dpr, 0, 0, dpr, 0, 0); confettiCtx.clearRect(0, 0, W, H);
+    if (!confetti.length) return;
+    for (const c of confetti) {
+      c.vy += 520 * dt; c.vx *= Math.pow(.35, dt); c.vy = Math.min(c.vy, 170 + Math.sin(c.flutter) * 40); c.flutter += dt * 6;
+      c.x += (c.vx + Math.sin(c.flutter) * 45) * dt; c.y += c.vy * dt; c.rot += c.spin * dt; c.life -= dt;
+      confettiCtx.save(); confettiCtx.translate(c.x, c.y); confettiCtx.rotate(c.rot); confettiCtx.scale(1, Math.cos(c.flutter * 1.3));
+      confettiCtx.globalAlpha = clamp(c.life, 0, 1); confettiCtx.fillStyle = c.color; confettiCtx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h); confettiCtx.restore();
+    }
+    confetti = confetti.filter(c => c.life > 0 && c.y < H + 40);
+  }
+  function showMessage(text, duration = 1.5) { $('race-message').textContent = text; $('race-message').classList.add('visible'); messageTime = duration; }
+  function createExplosion(worldDistance, lane, color, size = 1, cartoon = false) {
+    explosions.push({ distance: worldDistance, lane, color, started: time, duration: cartoon ? .65 : .8, size, cartoon, seed: Math.floor(time * 1000) + explosions.length * 19 });
+    shake = Math.max(shake, .55 * size); screenFlash = Math.max(screenFlash, .26 * size);
+  }
+  // ==== Power-ups: magnet, shield bubble, time warp, multi-laser.
+  // Power-ups picked up on the track: magnet, shield bubble, time warp, multi-laser.
+  const POWERUPS = {
+    magnet: { name: 'MAGNET', icon: '🧲', color: '#ff5a5a', time: 10, info: 'PULLS IN PADS, CATS, GATES AND POWER-UPS' },
+    bubble: { name: 'SHIELD BUBBLE', icon: '◯', color: '#4df8ff', time: 15, info: 'ABSORBS THE NEXT 3 HITS' },
+    warp: { name: 'TIME WARP', icon: '⧗', color: '#a88aff', time: 7, info: 'EVERYONE ELSE MOVES IN SLOW MOTION' },
+    multi: { name: 'MULTI-LASER', icon: '⁂', color: '#ff4eb8', time: 10, info: 'EVERY SHOT HITS UP TO 3 TARGETS' },
+  };
+  const POWERUP_ORDER = ['magnet', 'bubble', 'warp', 'multi'];
+  let power = {}, bubbleHits = 0, hitPowerups = new Set();
+  const powerOn = type => (power[type] || 0) > time && (mode === 'racing' || mode === 'respawning');
+  const magnetReach = () => powerOn('magnet') ? 2.6 : 1;
+  const worldPace = () => powerOn('warp') ? .45 : 1;
+  function collectPowerup(type) {
+    if (!profile.stats.powerTypes.includes(type)) { profile.stats.powerTypes.push(type); saveProfile(); }
+    if (profile.stats.powerTypes.length >= 4) unlockAchievement('collector');
+    const p = POWERUPS[type];
+    power[type] = time + p.time; if (type === 'bubble') bubbleHits = 3;
+    showCallout(`${p.icon} ${p.name}!`, p.color); showMessage(p.info, 1.6);
+    playToneSweep(600, 1800, .25, 'square', .05); playToneSweep(900, 2400, .3, 'sine', .05); buzz([20, 30, 20]);
+    screenFlash = Math.max(screenFlash, .2);
+  }
+  function drawPowerupPickup(s) {
+    const a = s.p1, b = s.p2, pu = s.powerup, def = POWERUPS[pu.type], width = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + width * pu.lane, y = lerp(a.y, b.y, .5);
+    const r = width * .07; if (r < 2) return;
+    const cy = y - r * 1.6 - Math.sin(time * 4 + pu.index) * r * .3;
+    ctx.save(); ctx.translate(x, cy);
+    ctx.globalAlpha = .35; ctx.fillStyle = def.color; ctx.beginPath(); ctx.ellipse(0, r * 1.6, r * 1.1, r * .3, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.rotate(Math.sin(time * 2 + pu.index) * .25);
+    ctx.shadowColor = def.color; ctx.shadowBlur = 20; ctx.fillStyle = '#12102a'; ctx.strokeStyle = def.color; ctx.lineWidth = Math.max(1.5, r * .14);
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-r, -r, r * 2, r * 2, r * .45) : ctx.rect(-r, -r, r * 2, r * 2); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.fillStyle = def.color; ctx.font = `bold ${r * 1.25}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(def.icon, 0, r * .06);
+    ctx.restore();
+  }
+  function drawPowerupAura(x, y, size) {
+    if (powerOn('bubble')) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y - size * .3, size * .4, x, y - size * .3, size * 1.4);
+      g.addColorStop(0, 'rgba(77,248,255,0)'); g.addColorStop(.8, `rgba(77,248,255,${.18 + .06 * Math.sin(time * 6)})`); g.addColorStop(1, 'rgba(77,248,255,.5)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y - size * .3, size * 1.35, size * .95, 0, 0, TAU); ctx.fill(); ctx.restore();
+    }
+    if (powerOn('magnet')) {
+      ctx.save(); ctx.strokeStyle = '#ff5a5a'; ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) { const k = mod(time * 1.5 + i / 3, 1); ctx.globalAlpha = 1 - k; ctx.beginPath(); ctx.ellipse(x, y - size * .2, size * (1.6 - k), size * (.5 - k * .3), 0, 0, TAU); ctx.stroke(); }
+      ctx.restore();
+    }
+    if (powerOn('warp')) { ctx.save(); ctx.fillStyle = 'rgba(120,90,255,.12)'; ctx.fillRect(-60, -60, W + 120, H + 120); ctx.restore(); }
+  }
+  // ==== Star gates and the hyperdrive.
+  const HYPER_TIME = 10;
+  const hyper = () => hyperTime > 0 && mode === 'racing';
+  const shieldText = amount => hyper() ? 'INVINCIBLE' : 'SHIELD -' + hullLoss(amount);
+  function activateHyper() {
+    unlockAchievement('hyper');
+    const fresh = hyperTime <= 0;
+    hyperTime = HYPER_TIME; if (fresh) hyperStarted = time;
+    energy = 100; boostLocked = false; screenFlash = Math.max(screenFlash, 1); shake = Math.max(shake, 1.2);
+    showCallout('HYPERDRIVE!', '#7dfcff'); showMessage('LIGHT SPEED  /  INVINCIBLE  /  MEGA LASER  /  ∞ BOOST', 2.4);
+    robotSay('Hyperdrive initiated', 'hyperdrive-initiated');
+    playNoiseBurst(2.2, .25, 120, 9000); playToneSweep(80, 1800, 1.6, 'sawtooth', .07); playToneSweep(1200, 4200, 1.2, 'sine', .035);
+    [392, 523, 659, 784, 1047].forEach((f, i) => playToneSweepAt(f, i * .07));
+  }
+  function playToneSweepAt(freq, delay) {
+    if (!audioContext || muted) return;
+    setTimeout(() => playToneSweep(freq, freq * 2, .35, 'triangle', .04), delay * 1000);
+  }
+  function endHyper() {
+    hyperTime = 0; showMessage('HYPERDRIVE OFFLINE', 1.3);
+    playToneSweep(1400, 60, 1.1, 'sawtooth', .06); playNoiseBurst(.9, .12, 6000, 120);
+  }
+  // Light-speed space: nebulae, a ringed planet and star streaks rushing out of the vanishing point.
+  function hyperFade() { return clamp(Math.min((time - hyperStarted) * 2.5, hyperTime * 1.5), 0, 1); }
+  function drawHyperSpace() {
+    const k = hyperFade(), cx = W * .5 - playerX * 30, cy = H * .42, hue = (time * 90) % 360;
+    ctx.save(); ctx.globalAlpha = k;
+    const deep = ctx.createRadialGradient(cx, cy, 10, cx, cy, Math.max(W, H) * .9);
+    deep.addColorStop(0, '#ffffff'); deep.addColorStop(.04, `hsl(${hue},100%,70%)`); deep.addColorStop(.25, `hsl(${(hue + 60) % 360},90%,22%)`); deep.addColorStop(1, '#03010d');
+    ctx.fillStyle = deep; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 5; i++) {
+      const nx = W * (.15 + random(i + 300) * .7) + Math.sin(time * .3 + i) * 40, ny = H * (.1 + random(i + 310) * .35), nr = Math.max(W, H) * (.18 + random(i + 320) * .2);
+      const neb = ctx.createRadialGradient(nx, ny, 1, nx, ny, nr); neb.addColorStop(0, `hsla(${(hue + i * 70) % 360},100%,60%,.45)`); neb.addColorStop(1, 'hsla(0,0%,0%,0)');
+      ctx.fillStyle = neb; ctx.fillRect(nx - nr, ny - nr, nr * 2, nr * 2);
+    }
+    for (let i = 0; i < 160; i++) {
+      const angle = random(i * 3.1) * TAU, phase = mod(time * (1.2 + random(i) * 1.6) + random(i + 7), 1), r0 = phase * phase * Math.max(W, H) * .8;
+      const len = 10 + phase * phase * 220, x = cx + Math.cos(angle) * r0, y = cy + Math.sin(angle) * r0 * .7;
+      ctx.globalAlpha = k * phase; line(x, y, x + Math.cos(angle) * len, y + Math.sin(angle) * len * .7, `hsl(${(hue + i * 9) % 360},100%,${70 + phase * 25}%)`, .6 + phase * 2.4);
+    }
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = k;
+    const px = W * .78 - playerX * 50, py = H * .2, pr = Math.min(W, H) * .08;
+    const planet = ctx.createRadialGradient(px - pr * .4, py - pr * .4, 2, px, py, pr); planet.addColorStop(0, `hsl(${(hue + 180) % 360},90%,75%)`); planet.addColorStop(1, `hsl(${(hue + 240) % 360},80%,25%)`);
+    ctx.fillStyle = planet; ctx.beginPath(); ctx.arc(px, py, pr, 0, TAU); ctx.fill();
+    ctx.translate(px, py); ctx.rotate(-.4); ctx.scale(1, .28); ctx.beginPath(); ctx.arc(0, 0, pr * 1.8, 0, TAU); ctx.strokeStyle = `hsla(${(hue + 30) % 360},100%,70%,.8)`; ctx.lineWidth = pr * .18; ctx.stroke();
+    ctx.restore();
+  }
+  function drawWarpOverlay() {
+    const k = hyperFade(), cx = W * .5, cy = H * .45, hue = (time * 140) % 360;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 70; i++) {
+      const angle = random(i * 5.7 + 11) * TAU, phase = mod(time * 2.6 + random(i + 3), 1), r0 = Math.max(W, H) * (.12 + phase * .9);
+      ctx.globalAlpha = k * phase * .55;
+      line(cx + Math.cos(angle) * r0, cy + Math.sin(angle) * r0, cx + Math.cos(angle) * (r0 + 60 + phase * 260), cy + Math.sin(angle) * (r0 + 60 + phase * 260), `hsl(${(hue + i * 13) % 360},100%,72%)`, 1 + phase * 3);
+    }
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = k * .5;
+    const tunnel = ctx.createRadialGradient(cx, cy, Math.min(W, H) * .3, cx, cy, Math.max(W, H) * .75);
+    tunnel.addColorStop(0, 'hsla(0,0%,0%,0)'); tunnel.addColorStop(1, `hsla(${hue},100%,45%,.55)`); ctx.fillStyle = tunnel; ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
+  function drawStarGate(s, t) {
+    const a = s.p1, b = s.p2, g = s.stargate, width = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + width * g.lane, y = lerp(a.y, b.y, .5);
+    const r = width * .26; if (r < 3) return;
+    const cy = y - r * 1.05, hue = (time * 160 + g.index) % 360, active = hyperTime <= 0;
+    ctx.save(); ctx.translate(x, cy); ctx.globalCompositeOperation = 'lighter';
+    const core = ctx.createRadialGradient(0, 0, 1, 0, 0, r); core.addColorStop(0, `hsla(${hue},100%,85%,${active ? .55 : .18})`); core.addColorStop(.7, `hsla(${(hue + 90) % 360},100%,55%,.25)`); core.addColorStop(1, 'hsla(0,0%,0%,0)');
+    ctx.fillStyle = core; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
+    for (let ring = 0; ring < 3; ring++) {
+      ctx.beginPath(); ctx.ellipse(0, 0, r * (1 - ring * .14), r * (1 - ring * .14), time * (ring % 2 ? -1.5 : 1.2), 0, TAU);
+      ctx.strokeStyle = `hsl(${(hue + ring * 100) % 360},100%,${active ? 65 : 40}%)`; ctx.lineWidth = Math.max(1.5, r * .07); ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 18; ctx.stroke();
+    }
+    ctx.rotate(time * 2);
+    for (let i = 0; i < 8; i++) {
+      const ang = i / 8 * TAU, sx = Math.cos(ang) * r * 1.12, sy = Math.sin(ang) * r * 1.12, sr = r * .13;
+      ctx.fillStyle = i % 2 ? '#fff6a0' : `hsl(${(hue + i * 45) % 360},100%,70%)`; ctx.beginPath();
+      for (let j = 0; j < 10; j++) { const rr = j % 2 ? sr * .45 : sr, aa = j / 10 * TAU; ctx.lineTo(sx + Math.cos(aa) * rr, sy + Math.sin(aa) * rr); }
+      ctx.fill();
+    }
+    ctx.restore();
+    roadStrip(a, b, g.lane - .3, g.lane + .3, `hsla(${hue},100%,60%,.35)`);
+  }
+  // ==== UFOs, bombs, crash paths and the mothership.
+  const UFO_COLORS = ['#a7ff4f', '#54f8ff', '#ff73dc', '#fff16b'];
+  function makeUfo(slot, seed, spawnedAt) {
+    return { slot, seed, distance: 0, lane: 0, dropCooldown: .8 + slot * 1.25 + (spawnedAt > 0 ? 1.6 : 0), color: UFO_COLORS[seed % 4], spawnedAt, screen: null };
+  }
   function shootDownUfo(ufo) {
     if (stat('ufos') >= 25) unlockAchievement('ufo25');
     if (mode === 'racing') raceStats.ufos++;
@@ -736,188 +1216,730 @@
     }
     ctx.restore();
   }
-  // Confetti runs on its own overlay canvas so it rains over the results screen too.
-  const confettiCanvas = $('confetti'), confettiCtx = confettiCanvas && confettiCanvas.getContext('2d');
-  function launchConfetti() {
-    const colors = ['#ddff46', '#ff4eb8', '#4df8ff', '#fff16b', '#a88aff', '#ff8a3d', '#ffffff'];
-    for (let i = 0, n = lowFx() ? 110 : 360; i < n; i++) {
-      const cannon = i % 3, fromSide = cannon < 2;
-      confetti.push({ x: fromSide ? (cannon ? W + 10 : -10) : Math.random() * W, y: fromSide ? H * (.55 + Math.random() * .3) : -20 - Math.random() * H * .6,
-        vx: fromSide ? (cannon ? -1 : 1) * (380 + Math.random() * 620) : (Math.random() - .5) * 120, vy: fromSide ? -(620 + Math.random() * 700) : 60 + Math.random() * 160,
-        w: 6 + Math.random() * 8, h: 3 + Math.random() * 6, rot: Math.random() * TAU, spin: (Math.random() - .5) * 14, flutter: Math.random() * TAU,
-        color: colors[i % colors.length], life: 5 + Math.random() * 3 });
+  function drawUfo(s, ufo) {
+    const a = s.p1, b = s.p2, f = mod(ufo.distance, SEG) / SEG, width = lerp(a.w, b.w, f);
+    const arrive = ufo.spawnedAt > 0 ? clamp((time - ufo.spawnedAt) / 1.2, 0, 1) : 1;
+    const x = lerp(a.x, b.x, f) + width * ufo.lane, roadY = lerp(a.y, b.y, f), size = width * .17, y = roadY - width * .43 - (1 - arrive) * (1 - arrive) * H * .6;
+    if (size < 2) return;
+    ufo.screen = { x, y, size, at: time };
+    ctx.save(); ctx.translate(x, y); ctx.globalAlpha = .82; ctx.shadowColor = ufo.color; ctx.shadowBlur = Math.min(25, size * .55);
+    ctx.globalAlpha = .12; polygon([[-size * .4, size * .12], [-size * 1.8, size * 2.3], [size * 1.8, size * 2.3], [size * .4, size * .12]], ufo.color);
+    ctx.globalAlpha = .94 * arrive;
+    drawUfoShape(size, ufo.color);
+    ctx.restore();
+  }
+  function drawBomb(s, bomb, t) {
+    const a = s.p1, b = s.p2, worldPosition = mod(bomb.distance, LENGTH), f = worldPosition % SEG / SEG, width = lerp(a.w, b.w, f);
+    const x = lerp(a.x, b.x, f) + width * bomb.lane, roadY = lerp(a.y, b.y, f), fall = clamp((time - bomb.droppedAt) / bomb.fallTime, 0, 1);
+    const size = width * (.075 + fall * .025), y = roadY - (1 - fall) * width * .62;
+    if (size < 1.5) return;
+    ctx.save(); ctx.translate(x, y); ctx.globalAlpha = .7 + Math.sin(time * 18 + bomb.seed) * .2; ctx.shadowColor = bomb.color; ctx.shadowBlur = Math.min(24, size * .7);
+    if (bomb.landed) { ctx.beginPath(); ctx.ellipse(0, size * .2, size * 1.8, size * .55, 0, 0, TAU); ctx.strokeStyle = '#ff6d3f'; ctx.lineWidth = Math.max(1, size * .06); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(0, 0, size * .66, 0, TAU); ctx.fillStyle = '#292435'; ctx.fill(); ctx.strokeStyle = bomb.color; ctx.lineWidth = Math.max(1, size * .11); ctx.stroke();
+    line(0, -size * .55, size * .2, -size * .95, '#fff2a1', Math.max(1, size * .08));
+    ctx.fillStyle = '#fff1a0'; ctx.beginPath(); ctx.arc(size * .23, -size, Math.max(1, size * .09), 0, TAU); ctx.fill();
+    ctx.restore();
+    if (bomb.landed) cbMark(x, roadY, Math.max(10, size * 1.6));
+  }
+  // ==== Circuit unlocks, game modes, lifetime race stats.
+  // ---- Campaign: circuit n+1 unlocks with a podium (top 3) on circuit n.
+  const trackLocked = i => i >= (profile.unlocked || 1);
+  function renderLock() {
+    const locked = trackLocked(trackIndex), el = $('track-lock');
+    document.body.classList.toggle('track-locked', locked);
+    if (el) el.textContent = locked ? `🔒 LOCKED — FINISH TOP 3 ON ${tracks[trackIndex - 1].name} TO UNLOCK` : `CIRCUITS UNLOCKED: ${Math.min(profile.unlocked || 1, tracks.length)}/${tracks.length}`;
+    const start = $('start'); if (start.firstElementChild) start.firstElementChild.textContent = locked ? 'LOCKED CIRCUIT' : 'ENTER THE RACE';
+  }
+  function showLockedHint() { const el = $('track-lock'); if (el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); } }
+  // ---- Game modes: RACE (grand prix), TIME TRIAL (alone against the clock) and ENDLESS (boss after boss).
+  let trialRun = false;
+  // ---- Lifetime statistics.
+  function recordRaceStats(finished) {
+    const st = profile.stats;
+    st.races = (st.races || 0) + 1; st.km = (st.km || 0) + distance / LENGTH * 7.2;
+    st.perTrack = st.perTrack || {}; st.perTrack[trackIndex] = (st.perTrack[trackIndex] || 0) + 1;
+    if (finished && !trialRun) { if (rank === 1) st.wins = (st.wins || 0) + 1; if (rank <= 3) st.podiums = (st.podiums || 0) + 1; }
+    saveProfile();
+  }
+  const GAME_MODES = { race: 'GRAND PRIX', trial: 'TIME TRIAL', endless: 'ENDLESS BOSSES' };
+  const gameMode = () => GAME_MODES[settings.gameMode] ? settings.gameMode : 'race';
+  function renderGameMode() {
+    document.body.classList.toggle('mode-trial', gameMode() === 'trial'); document.body.classList.toggle('mode-endless', gameMode() === 'endless');
+    const best = profile.stats.trial && profile.stats.trial[trackIndex];
+    if ($('mode-info')) $('mode-info').textContent = gameMode() === 'trial' ? `NO RIVALS, NO UFOS · BEST ${best ? formatTime(best) : '— —:—'}` : gameMode() === 'endless' ? `BOSS AFTER BOSS UNTIL YOU FALL · RECORD ${profile.stats.endlessBest || 0} WAVES` : `${PILOT_COUNT} PILOTS · ${LAP_COUNT} LAPS · WIN TO FACE THE INVASION`;
+    renderLock();
+  }
+  // ==== Daily challenge and streak.
+  // ---- Daily challenge: one goal per calendar day (same for everyone), bonus credits and a day streak.
+  let raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 };
+  const DAILY_GOALS = [
+    { id: 'win', text: t => `WIN ${t}`, check: () => rank === 1 },
+    { id: 'noboost', text: t => `TOP 3 ON ${t} WITHOUT BOOSTING`, check: () => rank <= 3 && raceStats.boost === 0 },
+    { id: 'ufos', n: [6, 12], text: (t, n) => `SHOOT DOWN ${n} UFOs ON ${t}`, check: n => raceStats.ufos >= n },
+    { id: 'rivals', n: [8, 16], text: (t, n) => `DESTROY ${n} RIVALS ON ${t}`, check: n => raceStats.rivals >= n },
+    { id: 'flawless', text: t => `FINISH ${t} WITHOUT LOSING A LIFE`, check: () => raceStats.lives === 0 },
+    { id: 'cats', n: [3, 6], text: (t, n) => `POP ${n} CATS ON ${t}`, check: n => raceStats.cats >= n },
+    { id: 'podium', text: t => `PODIUM ON ${t} ON HARD`, check: () => rank <= 3 && settings.difficulty === 'hard' },
+  ];
+  const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  function dailyChallenge(key = dayKey()) {
+    let h = 2166136261; for (const c of key) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
+    // The circuit is fixed the first time the day's challenge is shown, so unlocking a circuit mid-day cannot move it.
+    if (!profile.daily.pick || profile.daily.pick.key !== key) { profile.daily.pick = { key, track: (h >>> 8) % Math.max(1, Math.min(profile.unlocked || 1, tracks.length)) }; saveProfile(); }
+    const goal = DAILY_GOALS[h % DAILY_GOALS.length], track = profile.daily.pick.track;
+    const n = goal.n ? goal.n[0] + (h >>> 16) % (goal.n[1] - goal.n[0] + 1) : 0;
+    return { key, goal, track, n, text: goal.text(tracks[track].name, n) };
+  }
+  profile.daily = Object.assign({ done: '', last: '', streak: 0 }, profile.daily);
+  const dailyReward = () => 300 + 50 * Math.min(10, profile.daily.streak);
+  function renderDaily() {
+    const d = dailyChallenge(), done = profile.daily.done === d.key, el = $('daily'); if (!el) return;
+    el.classList.toggle('done', done);
+    $('daily-text').textContent = done ? `✓ DONE — ${d.text}` : d.text;
+    $('daily-meta').textContent = `${done ? 'COME BACK TOMORROW' : `REWARD ${dailyReward()} CR`}  ·  🔥 STREAK ${profile.daily.streak}`;
+  }
+  function checkDaily() {
+    const d = dailyChallenge();
+    if (gameMode() !== 'race' || trackIndex !== d.track || profile.daily.done === d.key || !d.goal.check(d.n)) return;
+    const yesterday = dayKey(new Date(Date.now() - 864e5));
+    profile.daily.streak = profile.daily.last === yesterday ? profile.daily.streak + 1 : 1;
+    profile.daily.last = d.key; profile.daily.done = d.key; saveProfile();
+    addCredits(dailyReward() - 50, 'DAILY CHALLENGE');
+    $('result-record').textContent = `📅 DAILY CHALLENGE COMPLETE!  🔥 ${profile.daily.streak}-DAY STREAK`;
+    renderDaily();
+  }
+  // ==== Race start/pause/garage, lasers, wrecks, lives, results.
+  function startRace() {
+    if (gameMode() === 'endless') { startEndless(); return; }
+    if (trackLocked(trackIndex)) { renderLock(); playToneSweep(220, 120, .25, 'square', .05); showLockedHint(); return; }
+    mode = 'countdown'; position = 0; distance = 0; playerX = 0; speed = 0; energy = 100; elapsed = 0; lap = 1; lapStart = 0;
+    laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = laserCap(); laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
+    const track = tracks[trackIndex];
+    const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
+    rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace * diff().pace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
+    ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
+    // Three named nemeses race at the front of the grid: tougher hulls, they hunt the player and talk trash.
+    const nemesisPick = [0, 1, 2, 3].filter(i => i !== trackIndex % 4).slice(0, 3);
+    nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
+    if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
+    endlessRun = false; trialRun = gameMode() === 'trial';
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
+    musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
+    $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
+    $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
+    $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE';
+    $('race-message').classList.remove('visible'); messageTime = 0;
+    if (settings.steering === 'gyro' && !enableGyro.listening) enableGyro();
+    playMusic(); primeSpeech(); calibrateTilt(); applyScreenSetting(true); updateHUD();
+    if (!profile.tutorialDone && gameMode() === 'race') startTutorial(); else { tutorial = null; $('tutorial').classList.remove('visible'); }
+    if (window.matchMedia?.('(pointer: coarse)').matches) { hintTime = 6; document.body.classList.add('hinting'); }
+  }
+  function pauseRace() {
+    if (mode === 'racing' || mode === 'countdown') {
+      $('pause-screen').dataset.previous = mode; mode = 'paused'; keys.clear(); resetGesture();
+      $('pause-screen').classList.remove('hidden'); document.body.classList.add('paused');
+    } else if (mode === 'paused') {
+      mode = $('pause-screen').dataset.previous || 'racing'; $('pause-screen').classList.add('hidden'); document.body.classList.remove('paused'); calibrateTilt();
     }
   }
-  function updateConfetti(dt) {
-    if (!confettiCtx) return;
-    if (confettiCanvas.width !== Math.floor(W * dpr) || confettiCanvas.height !== Math.floor(H * dpr)) { confettiCanvas.width = Math.floor(W * dpr); confettiCanvas.height = Math.floor(H * dpr); }
-    confettiCtx.setTransform(dpr, 0, 0, dpr, 0, 0); confettiCtx.clearRect(0, 0, W, H);
-    if (!confetti.length) return;
-    for (const c of confetti) {
-      c.vy += 520 * dt; c.vx *= Math.pow(.35, dt); c.vy = Math.min(c.vy, 170 + Math.sin(c.flutter) * 40); c.flutter += dt * 6;
-      c.x += (c.vx + Math.sin(c.flutter) * 45) * dt; c.y += c.vy * dt; c.rot += c.spin * dt; c.life -= dt;
-      confettiCtx.save(); confettiCtx.translate(c.x, c.y); confettiCtx.rotate(c.rot); confettiCtx.scale(1, Math.cos(c.flutter * 1.3));
-      confettiCtx.globalAlpha = clamp(c.life, 0, 1); confettiCtx.fillStyle = c.color; confettiCtx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h); confettiCtx.restore();
+  function garage() {
+    if (tutorial) { tutorial = null; $('tutorial').classList.remove('visible'); }
+    clearFinale(); mode = 'menu'; keys.clear(); resetGesture(); speed = 0; playerX = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; boosting = false;
+    explosions = []; laserShots = []; enemyShots = []; bombs = []; ufos = []; particles = []; screenFlash = 0;
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; callout = null; hyperTime = 0; boss = null; bossAttacks = []; document.body.classList.remove('hyper', 'boss');
+    $('menu').classList.remove('hidden'); ['hud', 'pause-screen', 'results'].forEach(id => $(id).classList.add('hidden'));
+    document.body.classList.remove('racing', 'paused', 'boosting', 'critical', 'destroyed', 'hinting'); hintTime = 0;
+  }
+  function fireLaser() {
+    if (tutorial) tutorial.fired = true;
+    if (laserAmmo <= 0 && !hyper()) { laserCooldown = .5; showMessage('LASER CELLS RECHARGING', .7); return; }
+    const track = tracks[trackIndex];
+    const reach = hyper() ? .6 : .32;
+    const target = rivals.filter(r => r.alive && r.distance > distance + 1350 && r.distance < distance + (hyper() ? 26000 : 19000) && Math.abs(r.x * track.width - playerX) < track.width * reach)
+      .sort((a, b) => a.distance - b.distance)[0];
+    const shipScreenX = W * .5 + steerVisual * 12;
+    if (boss && !boss.dying && time > boss.arrived - .6 && Math.abs(boss.x - shipScreenX) < boss.size * (hyper() ? 1.2 : .85)) {
+      if (!hyper()) laserAmmo--; laserCooldown = hyper() ? .1 : .24;
+      const offset = clamp((shipScreenX - boss.x) / boss.size, -.6, .6) * .5;
+      laserShots.push({ screen: true, offset, color: track.second, mega: hyper(), started: time, duration: .32, x: boss.x + offset * boss.size, y: boss.y + boss.size * .08 });
+      playLaserSound(); hitBoss(hyper() ? 3 : 1); return;
     }
-    confetti = confetti.filter(c => c.life > 0 && c.y < H + 40);
+    const ufoTarget = ufos.filter(u => time - u.spawnedAt > 1 && u.distance < distance + 19000 && Math.abs(u.lane * track.width - playerX) < track.width * (hyper() ? .62 : .34))
+      .sort((a, b) => a.distance - b.distance)[0];
+    if (ufoTarget && (!target || ufoTarget.distance < target.distance + 6000)) {
+      if (!hyper()) laserAmmo--; laserCooldown = hyper() ? .1 : .24;
+      laserShots.push({ distance: ufoTarget.distance, lane: ufoTarget.lane * track.width, air: true, color: track.second, mega: hyper(), started: time, duration: .2, x: W * .5, y: H * .79 });
+      playLaserSound(); shootDownUfo(ufoTarget); return;
+    }
+    const lane = target ? target.x * track.width : clamp(playerX, -track.width * .85, track.width * .85);
+    const targetDistance = target ? target.distance : distance + 9000;
+    if (!hyper()) laserAmmo--; laserCooldown = hyper() ? .1 : .24;
+    laserShots.push({ distance: targetDistance, lane, color: track.second, mega: hyper(), started: time, duration: hyper() ? .28 : .2, x: W * .5, y: H * .79 });
+    playLaserSound();
+    if (target && powerOn('multi')) {
+      // Multi-laser: two more beams fan out to the next rivals in a wide cone.
+      const extra = rivals.filter(r => r !== target && r.alive && r.distance > distance + 1350 && r.distance < distance + 22000 && Math.abs(r.x * track.width - playerX) < track.width * .75)
+        .sort((a, b) => a.distance - b.distance).slice(0, 2);
+      for (const r of extra) {
+        laserShots.push({ distance: r.distance, lane: r.x * track.width, color: POWERUPS.multi.color, started: time, duration: .2, x: W * .5, y: H * .79 });
+        r.hull -= 1; createExplosion(r.distance, r.x * track.width, r.color, r.hull > 0 ? .3 : .45);
+        if (r.hull <= 0) knockOut(r);
+      }
+    }
+    if (target) {
+      target.hull = hyper() ? 0 : target.hull - 1; target.stunnedUntil = time + .32;
+      createExplosion(target.distance, lane, target.color, target.hull > 0 ? .3 : .45);
+      if (target.hull <= 0) {
+        knockOut(target); showMessage(target.nemesis ? `NEMESIS ${target.nemesis.name} DESTROYED!` : 'RIVAL DESTROYED  /  +1 PLACE', 1.1);
+      } else {
+        showMessage(target.nemesis ? `${target.nemesis.name} HIT  /  HULL ${target.hull}/6` : `RIVAL HIT  /  HULL ${target.hull}/3`, .8); playImpactSound(.48);
+      }
+    } else if (laserAmmo === 0) showMessage('TARGET MISSED  /  LASERS LOW', .65);
   }
-  function playFanfare() {
-    if (!audioContext || muted) return;
-    [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => setTimeout(() => playToneSweep(f, f * 1.01, i > 4 ? .5 : .18, 'square', .045), i * 130));
+  // A beaten rival does not vanish at once: it trails smoke, spins out of control and only then explodes.
+  const WRECK_TIME = 1.5;
+  // A beaten rival is flung off the track: it careens across the whole screen, smoking and spinning, then explodes.
+  function knockOut(rival) {
+    if (rival.nemesis) {
+      raceStats.nemeses = (raceStats.nemeses || 0) + 1; showCallout(`${rival.nemesis.name} IS OUT!`, rival.nemesis.color);
+      robotSay(`${rival.nemesis.name} is out`, `down-${rival.nemesis.id}`); if (mode === 'racing') addCredits(100, 'NEMESIS DOWN');
+      if (raceStats.nemeses >= 3) unlockAchievement('nemesis');
+    }
+    if (stat('rivals') >= 50) unlockAchievement('rivals50');
+    if (mode === 'racing') raceStats.rivals++;
+    if (mode === 'racing') addCredits(15, 'RIVAL DOWN');
+    rival.alive = false; rival.boosting = false; rival.dying = null;
+    const start = rival.screen && time - rival.screen.at < .3 ? rival.screen : { x: W * .5, y: H * .5, size: Math.min(W, H) * .04 };
+    const seed = Math.floor(time * 991) + rival.seed * 17;
+    const points = [[start.x, start.y]];
+    for (let i = 0; i < 4; i++) points.push([W * (.08 + random(seed + i * 3) * .84), H * (.14 + random(seed + i * 3 + 1) * .6)]);
+    points.push([W * (.3 + random(seed + 40) * .4), H * (.3 + random(seed + 41) * .25)]);
+    crashingUfos.push({ kind: 'racer', color: rival.color, seed: rival.seed, started: time, points, startSize: start.size, spinDir: random(seed + 9) > .5 ? 1 : -1, x: start.x, y: start.y, size: start.size, angle: 0 });
+    playImpactSound(.7); playNoiseBurst(.9, .1, 2600, 260);
   }
-  // Jet engine: looping filtered noise plus a turbine whine, swelled for boosts and ramp jumps.
-  function setupJet() {
-    const length = audioContext.sampleRate * 2, buffer = audioContext.createBuffer(1, length, audioContext.sampleRate), data = buffer.getChannelData(0);
-    let brown = 0; for (let i = 0; i < length; i++) { const white = Math.random() * 2 - 1; brown = (brown + .02 * white) / 1.02; data[i] = white * .6 + brown * 3; }
-    jetSource = audioContext.createBufferSource(); jetSource.buffer = buffer; jetSource.loop = true;
-    jetFilter = audioContext.createBiquadFilter(); jetFilter.type = 'bandpass'; jetFilter.frequency.value = 700; jetFilter.Q.value = .6;
-    jetGain = audioContext.createGain(); jetGain.gain.value = 0;
-    jetSource.connect(jetFilter); jetFilter.connect(jetGain); jetGain.connect(sfxBus); jetSource.start();
-    jetWhine = audioContext.createOscillator(); jetWhine.type = 'sawtooth'; jetWhine.frequency.value = 900;
-    const whineFilter = audioContext.createBiquadFilter(); whineFilter.type = 'highpass'; whineFilter.frequency.value = 600;
-    jetWhineGain = audioContext.createGain(); jetWhineGain.gain.value = 0;
-    jetWhine.connect(whineFilter); whineFilter.connect(jetWhineGain); jetWhineGain.connect(sfxBus); jetWhine.start();
+  function updateWreck(rival, dt, track) {
+    const t = (time - rival.dying.started) / WRECK_TIME;
+    // Coast just below the player's pace so the wreck stays in view ahead instead of being overtaken at once.
+    rival.speed += (Math.max(speed * .9, 2500) - rival.speed) * Math.min(1, dt * 3); rival.distance += rival.speed * dt;
+    rival.x = clamp(rival.x + rival.dying.spin * dt * (.12 + t * .35), -1.05, 1.05);
+    if (t >= 1) {
+      rival.dying = null;
+      createExplosion(rival.distance, rival.x * track.width, rival.color, 1.4);
+      createExplosion(rival.distance + 160, rival.x * track.width + .06, '#ffb347', .8);
+      if (Math.abs(rival.distance - distance) < 15000) playExplosionSound(1.1);
+    }
   }
-  function playJetBlast(power = 1) {
-    buzz([30, 30, Math.round(60 * power)]);
-    // Ignition: a roaring whoosh that tears upward, a deep rumble and a screaming turbine.
-    const v = power * .38;
-    playNoiseBurst(1.1 * power, .32 * v, 300, 6500);
-    playNoiseBurst(1.4 * power, .22 * v, 5200, 140);
-    playToneSweep(48, 160, .9 * power, 'sawtooth', .16 * v);
-    playToneSweep(700, 3200, .8 * power, 'sawtooth', .03 * v);
+  function drawSmoke(x, y, width, rival) {
+    const t = clamp((time - rival.dying.started) / WRECK_TIME, 0, 1);
+    ctx.save();
+    for (let i = 0; i < 14; i++) {
+      const phase = mod(time * 1.7 + i / 14 + rival.seed * .13, 1);
+      const drift = Math.sin(i * 2.3 + time * 3 + rival.seed) * width * (.12 + phase * .45);
+      const px = x + drift, py = y - width * (.2 + phase * 1.6), r = width * (.14 + phase * .42) * (.75 + t * .7);
+      ctx.globalAlpha = (1 - phase) * (.5 + t * .35);
+      ctx.fillStyle = phase < .14 ? '#ff9a3d' : i % 3 ? '#8a8399' : '#b4adc2';
+      ctx.beginPath(); ctx.arc(px, py, r, 0, TAU); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 5; i++) {
+      const phase = mod(time * 4.1 + i / 5 + rival.seed, 1);
+      ctx.globalAlpha = (1 - phase) * .9; ctx.fillStyle = i % 2 ? '#ffd35a' : '#ff6b2e';
+      ctx.beginPath(); ctx.arc(x + Math.sin(i * 7.7 + time * 9) * width * .3, y - width * phase * .6, width * .06, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
   }
-  // ---- Setup: steering (touch or gyro) and screen orientation, chosen on the start screen and remembered.
-  // Defaults: gyro steering in landscape. (v2 key: earlier builds saved touch/portrait implicitly.)
-  const SETTINGS_KEY = 'morbid-settings-v2';
-  const reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const settings = { lang: /^de\b/i.test((typeof navigator !== 'undefined' && navigator.language) || '') ? 'de' : 'en', perf: 'auto', perfAuto: false, calm: reducedMotion, cb: false, subtitles: false, difficulty: 'normal', haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
-  try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch { /* defaults */ }
-  const tilt = { x: 0, neutral: 0, live: false };
-  // Difficulty: rival pace, damage taken, extra lives and credit payout.
-  const DIFFICULTY = {
-    easy: { name: 'EASY', pace: .9, dmg: .6, lives: 1, credits: .75 },
-    normal: { name: 'NORMAL', pace: 1, dmg: 1, lives: 0, credits: 1 },
-    hard: { name: 'HARD', pace: 1.08, dmg: 1.4, lives: -1, credits: 1.5 },
+  function destroyPlayer() {
+    if (mode !== 'racing') return;
+    if (lives > 0) { loseRaceLife(); return; }
+    mode = 'wrecked'; wreckedAt = time;
+    wreckRank = 1 + rivals.filter(r => r.alive && r.distance > distance + 1050).length;
+    boosting = false; document.body.classList.remove('boosting'); document.body.classList.add('paused', 'destroyed');
+    laserShots = []; enemyShots = []; wreckBurst = { started: time, duration: 1.6, color: '#ffec87', size: 5, seed: Math.floor(time * 1000), cartoon: false };
+    const shipSize = Math.min(W * .074, 110);
+    megaBlasts.push({ x: W * .5, y: H * .79, started: time, duration: 2, color: '#ffec87', seed: 5, scale: 1 });
+    megaBlasts.push({ x: W * .5 - shipSize, y: H * .72, started: time + .2, duration: 1.6, color: machines[shipIndex].color, seed: 9, scale: .65 });
+    megaBlasts.push({ x: W * .5 + shipSize, y: H * .75, started: time + .35, duration: 1.6, color: '#ff4eb8', seed: 21, scale: .65 });
+    for (const rival of rivals) {
+      if (!rival.alive && !rival.dying) continue;
+      rival.alive = false; rival.dying = null; createExplosion(rival.distance, rival.x * tracks[trackIndex].width, rival.color, .85 + random(rival.seed + time) * .45);
+    }
+    for (const bomb of bombs) if (!bomb.exploded) createExplosion(bomb.distance, bomb.lane * tracks[trackIndex].width, '#ff9b42', .95);
+    bombs = [];
+    for (const ufo of ufos) createExplosion(ufo.distance, ufo.lane * tracks[trackIndex].width, ufo.color, 1.2);
+    ufos = []; ufoRespawns = []; crashingUfos = []; hyperTime = 0; bossAttacks = []; if (boss) { megaBlasts.push({ x: boss.x, y: boss.y, started: time, duration: 1.6, color: '#ff4eb8', seed: 7 }); boss = null; }
+    document.body.classList.remove('hyper', 'boss');
+    for (let i = 0; i < 4; i++) createExplosion(distance + 900 + i * 620, playerX + (i % 2 ? .3 : -.3), i % 2 ? '#49f8ff' : '#ff54c8', 1.1 + i * .12);
+    showMessage('SHIELDS DOWN  /  TOTAL CHAIN REACTION', 1.3);
+    playExplosionSound(1.65); updateHUD();
+  }
+  const hullLoss = amount => Math.round(amount / hullStrength());
+  // Shield gone but a life left: the ship blows up big, and after a moment it is back at the same spot on the track.
+  function loseRaceLife() {
+    lostLifeThisRace = true; raceStats.lives++;
+    lives--; mode = 'respawning'; raceRespawnAt = time + 2.4; boosting = false; jumpHeight = 0; jumpVelocity = 0;
+    document.body.classList.remove('boosting'); laserShots = []; enemyShots = [];
+    const shipSize = Math.min(W * .074, 110), m = machines[shipIndex];
+    megaBlasts.push({ x: W * .5, y: H * .79, started: time, duration: 2, color: '#ffec87', seed: 5, scale: 1 });
+    megaBlasts.push({ x: W * .5 - shipSize, y: H * .72, started: time + .2, duration: 1.6, color: m.color, seed: 9, scale: .65 });
+    megaBlasts.push({ x: W * .5 + shipSize, y: H * .75, started: time + .35, duration: 1.6, color: '#ff4eb8', seed: 21, scale: .65 });
+    for (let i = 0; i < 40; i++) particles.push({ x: W * .5, y: H * .78, vx: (Math.random() - .5) * 1600, vy: -Math.random() * 1100, life: 1.2, color: i % 3 ? m.color : '#ffec87' });
+    shake = 3.4; screenFlash = 1;
+    playExplosionSound(3); playToneSweep(90, 18, 2.2, 'sawtooth', .2); playNoiseBurst(2.4, .32, 2400, 40);
+    showMessage(`SHIP DESTROYED  /  ${lives + 1} ${lives ? 'LIVES' : 'LIFE'} LEFT`, 2.2); updateHUD();
+  }
+  function damageShield(amount) {
+    if (hyper() || time < raceInvulnUntil) return false;
+    if (bubbleHits > 0 && powerOn('bubble')) {
+      bubbleHits--; screenFlash = Math.max(screenFlash, .25); playToneSweep(900, 1500, .2, 'sine', .07);
+      if (!bubbleHits) power.bubble = 0;
+      showMessage(bubbleHits ? `BUBBLE ABSORBED IT  /  ${bubbleHits} LEFT` : 'BUBBLE POPPED!', .9); return false;
+    }
+    shield = Math.max(0, shield - amount * diff().dmg / hullStrength());
+    if (shield <= 25) screenFlash = Math.max(screenFlash, .08 + (25 - shield) * .005);
+    if (shield === 0) { destroyPlayer(); return true; }
+    return false;
+  }
+  function showWreckResults() {
+    recordRaceStats(false);
+    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
+    mode = 'finished';
+    $('result-eyebrow').textContent = 'CATASTROPHIC FAILURE / SHIELDS OFFLINE';
+    $('result-title').textContent = 'SHIELDS DOWN.';
+    $('result-position').textContent = String(wreckRank).padStart(2, '0');
+    $('result-time').textContent = formatTime(elapsed);
+    $('result-lap').textContent = laps.length ? formatTime(Math.min(...laps)) : '— —:—';
+    $('result-record').textContent = 'HULL LOST / THE WHOLE PACK WENT NOVA';
+    $('results').classList.remove('hidden');
+  }
+  function finishTrial() {
+    mode = 'finished'; boosting = false; document.body.classList.remove('boosting'); document.body.classList.add('paused');
+    profile.stats.trial = profile.stats.trial || {};
+    const best = profile.stats.trial[trackIndex], record = !best || elapsed < best;
+    if (record) profile.stats.trial[trackIndex] = elapsed;
+    saveProfile(); addCredits(80, 'TIME TRIAL');
+    const fastest = Math.min(...laps); if (!bestLap || fastest < bestLap) { bestLap = fastest; try { localStorage.setItem(`chroma-best-${trackIndex}`, String(bestLap)); } catch {} }
+    $('result-eyebrow').textContent = `TIME TRIAL / ${tracks[trackIndex].name}`; $('result-title').textContent = record ? 'NEW BEST TIME!' : 'TIME TRIAL DONE.';
+    $('result-position').textContent = '⏱'; $('result-time').textContent = formatTime(elapsed); $('result-lap').textContent = formatTime(fastest);
+    $('result-record').textContent = record ? (best ? `✦ ${formatTime(best - elapsed)} faster than your old best` : '✦ First time set — now beat it!') : `Best: ${formatTime(best)}  ·  +${formatTime(elapsed - best)} behind`;
+    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
+    $('results').classList.remove('hidden'); invasionArmed = false; soundEffect(880, .6); if (record) playFanfare();
+  }
+  function finishRace() {
+    recordRaceStats(true);
+    if (trialRun) { finishTrial(); return; }
+    addCredits(Math.max(0, (PILOT_COUNT + 1 - rank) * 10) + (rank <= 3 ? 100 : 0) + (rank === 1 ? 150 : 0), `P${rank} FINISH`);
+    unlockAchievement('first-race'); if (rank <= 3) unlockAchievement('podium'); if (rank === 1) { unlockAchievement('win'); if (!lostLifeThisRace) unlockAchievement('flawless'); }
+    let unlockedNow = '';
+    if (rank <= 3 && trackIndex + 1 < tracks.length && trackLocked(trackIndex + 1)) { profile.unlocked = trackIndex + 2; saveProfile(); unlockedNow = tracks[trackIndex + 1].name; }
+    if ((profile.unlocked || 1) >= tracks.length) unlockAchievement('unlock-all');
+    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
+    mode = 'finished'; boosting = false; document.body.classList.remove('boosting'); document.body.classList.add('paused');
+    $('results').classList.remove('hidden'); $('result-position').textContent = String(rank).padStart(2, '0');
+    $('result-title').textContent = rank === 1 ? 'PURE OVERDRIVE.' : rank <= 3 ? 'PODIUM FINISH.' : 'LIMITS REDEFINED.';
+    $('result-time').textContent = formatTime(elapsed); const fastest = Math.min(...laps);
+    $('result-lap').textContent = formatTime(fastest);
+    const record = !bestLap || fastest < bestLap;
+    $('result-record').textContent = record ? '✦ NEW CIRCUIT LAP RECORD' : 'Chase the perfect line. The next podium is yours.';
+    if (unlockedNow) $('result-record').textContent = `🔓 NEW CIRCUIT UNLOCKED: ${unlockedNow}!` + (record ? '  ·  ✦ NEW LAP RECORD' : '');
+    if (record) { bestLap = fastest; try { localStorage.setItem(`chroma-best-${trackIndex}`, String(bestLap)); } catch {} }
+    soundEffect(880, .6);
+    invasionArmed = rank === 1;
+    if (rank === 1) { launchConfetti(); playFanfare(); robotSay('First place. Flawless victory', 'first-place'); }
+    checkDaily();
+  }
+  // ==== Playful boot panel on the start screen.
+  // ---- Playful boot screen on the start page while the soundtrack and voices download.
+  const BOOT_LINES = [
+    'BOOTSTRAPPING THE SINGULARITY…', 'UPDATING THE SOLAR SYSTEM — DO NOT UNPLUG THE SUN…', 'RETICULATING HYPERSPACE SPLINES…',
+    'CALIBRATING ANTI-GRAVITY. HOLD ON TO SOMETHING…', 'DEFRAGMENTING BLACK HOLES…', 'DOWNLOADING MORE RAM FOR THE MOTHERSHIP…',
+    'FEEDING THE ALIEN OVERLORD…', 'POLISHING THE DISCO BALL…', 'TEACHING ROBOTS TO SCREAM…', 'TUNING MORBID FINGERS’ GUITAR AMPS…',
+    'CONVINCING CATS TO CROSS THE TRACK…', 'REBOOTING THE BIG BANG (ATTEMPT 2 OF 3)…', 'WAXING THE MAGGOT QUEEN… EW.', 'COMPRESSING SPACETIME, ALMOST DONE…',
+  ];
+  let bootLine = -1, bootLineAt = -9, bootDoneAt = 0;
+  const bootProgress = () => clamp(soundtrackProgress * .85 + voicesLoaded / VOICE_CLIPS.length * .15, 0, 1);
+  // In portrait the boot panel sits under the start button; elsewhere it takes the middle of the bottom bar.
+  function placeBoot() {
+    const box = $('boot'), note = document.querySelector('.start-note'), bar = document.querySelector('.bottom-bar'), controls = document.querySelector('.bottom-bar .controls');
+    if (!box || !note || !bar || !window.matchMedia) return;
+    const portrait = matchMedia('(max-width:600px) and (orientation:portrait)').matches;
+    if (portrait && box.previousElementSibling !== note) note.after(box);
+    else if (!portrait && box.parentElement !== bar) bar.insertBefore(box, controls || null);
+  }
+  if (window.matchMedia) { placeBoot(); matchMedia('(max-width:600px) and (orientation:portrait)').addEventListener?.('change', placeBoot); }
+  function updateBoot() {
+    const box = $('boot'); if (!box) return;
+    document.body.classList.toggle('booting', !box.classList.contains('gone'));
+    const done = soundtrackReady && voicesLoaded >= VOICE_CLIPS.length, pct = done ? 100 : Math.min(99, Math.round(bootProgress() * 100));
+    if (done) {
+      if (!bootDoneAt) { bootDoneAt = time || .001; $('boot-text').textContent = 'SYSTEM READY · SINGULARITY STABLE · GO RACE!'; box.classList.add('done'); }
+      if (time - bootDoneAt > 3.5) box.classList.add('gone');
+    } else if (time - bootLineAt > 1.8) {
+      bootLine = (bootLine + 1) % BOOT_LINES.length; bootLineAt = time; bootDoneAt = 0;
+      $('boot-text').textContent = BOOT_LINES[bootLine]; box.classList.remove('done', 'gone');
+    }
+    $('boot-pct').textContent = pct + '%'; $('boot-fill').style.width = pct + '%';
+  }
+  // ==== Weather and track events.
+  // ---- Weather and track events: a random event every 20-35 s of racing, lasting about 9 s.
+  const WEATHER = {
+    meteors: { name: '☄ METEOR SHOWER', info: 'WATCH THE IMPACT MARKERS!', color: '#ff8a2e' },
+    sandstorm: { name: '🌪 SANDSTORM', info: 'VISIBILITY DROPPING', color: '#e0b070' },
+    gravity: { name: '〰 GRAVITY WAVES', info: 'THE TRACK PULLS YOU SIDEWAYS', color: '#a88aff' },
   };
-  const diff = () => DIFFICULTY[settings.difficulty] || DIFFICULTY.normal;
-  // Generic option buttons: <button data-setting="key" data-value="value">. Hooks run after a change.
-  const settingHooks = {};
-  function setSetting(key, raw) {
-    const value = raw === 'on' ? true : raw === 'off' ? false : raw;
-    settings[key] = value; saveSettings(); renderSettings();
-    if (settingHooks[key]) settingHooks[key](value);
+  let weather = null, nextWeatherAt = 25;
+  function updateWeather(dt, track) {
+    if (!weather && time >= nextWeatherAt) {
+      const types = Object.keys(WEATHER), type = types[Math.floor(random(Math.floor(time * 3) + trackIndex) * types.length) % types.length];
+      weather = { type, started: time, until: time + 9, nextMeteor: time + .6 };
+      showCallout(WEATHER[type].name, WEATHER[type].color); showMessage(WEATHER[type].info, 2); playToneSweep(200, 600, .6, 'sawtooth', .04);
+    }
+    if (!weather) return;
+    if (weather.type === 'meteors' && time >= weather.nextMeteor) {
+      weather.nextMeteor = time + .55 + Math.random() * .5;
+      const lane = clamp(playerX / track.width + (Math.random() - .5) * .9, -.75, .75);
+      bombs.push({ distance: distance + Math.max(4800, speed * .7 + 1200), lane, droppedAt: time, fallTime: .7, landed: false, exploded: false, seed: Math.floor(time * 10), color: '#ff8a2e', meteor: true });
+    }
+    if (time >= weather.until) { weather = null; nextWeatherAt = time + 20 + Math.random() * 15; showMessage('THE SKY CLEARS', 1); }
   }
-  // Accessibility helpers: calm mode tones down shake and flashes, colour-blind marks danger with a pattern.
-  const shakeAmount = () => shake * (settings.calm ? .12 : 1);
-  const flashAmount = v => v * (settings.calm ? .18 : 1);
-  function cbMark(x, y, r) {
-    if (!settings.cb) return;
-    ctx.save(); ctx.setLineDash([r * .3, r * .2]); ctx.lineWidth = Math.max(2, r * .12); ctx.strokeStyle = '#ffe600';
-    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
-    ctx.font = `bold ${Math.max(12, r * .9)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.strokeText('⚠', x, y); ctx.fillStyle = '#ffe600'; ctx.fillText('⚠', x, y); ctx.restore();
+  function drawWeather() {
+    if (!weather || mode === 'menu') return;
+    const k = clamp(Math.min((time - weather.started) * 1.5, (weather.until - time) * 1.5), 0, 1);
+    ctx.save();
+    if (weather.type === 'sandstorm') {
+      const g = ctx.createLinearGradient(0, H * .2, 0, H * .75); g.addColorStop(0, `rgba(180,130,70,${.75 * k})`); g.addColorStop(.7, `rgba(150,100,50,${.45 * k})`); g.addColorStop(1, 'rgba(150,100,50,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = `rgba(240,200,140,${.55 * k})`;
+      for (let i = 0; i < 160; i++) { const x = mod(random(i + 900) * W - time * (300 + random(i) * 500), W), y = random(i + 910) * H * .85; ctx.fillRect(x, y, 2 + random(i) * 10, 1.5); }
+    } else if (weather.type === 'gravity') {
+      ctx.strokeStyle = '#b89cff'; ctx.lineWidth = 5; ctx.shadowColor = '#a88aff'; ctx.shadowBlur = 14;
+      for (let i = 0; i < 4; i++) { const ph = mod(time * .8 + i / 4, 1); ctx.globalAlpha = (1 - ph) * k; ctx.beginPath(); ctx.ellipse(W / 2 + Math.sin((time - weather.started) * 1.4) * W * .2, H * .6, W * (.1 + ph * .7), H * (.03 + ph * .2), 0, 0, TAU); ctx.stroke(); }
+    } else if (weather.type === 'meteors') {
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 10; i++) { const ph = mod(time * .7 + random(i + 70), 1), x = W * (.1 + random(i + 80) * .8) - ph * W * .25, y = -40 + ph * H * .6; ctx.globalAlpha = k * (1 - ph); line(x, y, x + 60, y - 90, '#ffb347', 3); ctx.fillStyle = '#fff1c2'; ctx.beginPath(); ctx.arc(x, y, 4, 0, TAU); ctx.fill(); }
+    }
+    ctx.restore();
   }
-  // Performance mode: 'auto' switches to low effects by itself when the frame rate stays low during a race.
-  const lowFx = () => settings.perf === 'low' || (settings.perf === 'auto' && settings.perfAuto);
-  const fpsMeter = { frames: 0, sum: 0, slow: 0 };
-  function measureFps(dt) {
-    if (settings.perf !== 'auto' || settings.perfAuto || mode !== 'racing' || countdown > 0) { fpsMeter.frames = 0; fpsMeter.sum = 0; return; }
-    fpsMeter.frames++; fpsMeter.sum += dt;
-    if (fpsMeter.sum < 2) return;
-    const fps = fpsMeter.frames / fpsMeter.sum; fpsMeter.frames = 0; fpsMeter.sum = 0;
-    fpsMeter.slow = fps < 38 ? fpsMeter.slow + 1 : 0;
-    if (fpsMeter.slow >= 2) { settings.perfAuto = true; saveSettings(); applyPerf(); showMessage('LOW FPS · PERFORMANCE MODE ON', 2.2); }
+  // ==== First-run tutorial.
+  // ---- First-run tutorial: short prompts during the first race that advance when you do the thing.
+  const touchUI = () => !!window.matchMedia?.('(pointer: coarse)').matches;
+  const TUTORIAL = [
+    { id: 'steer', text: () => touchUI() ? (settings.steering === 'gyro' ? 'TILT YOUR DEVICE TO STEER' : 'DRAG LEFT / RIGHT ON THE TRACK TO STEER') : 'STEER WITH  A / D  OR  ◀ ▶', done: t => t.steered > .8 },
+    { id: 'boost', text: () => touchUI() ? 'SLIDE UP (OR TAP ϟ) TO BOOST' : 'HOLD  SPACE  TO BOOST', done: t => t.boosted > .5 },
+    { id: 'laser', text: () => touchUI() ? 'TAP THE TRACK (OR ◎) TO FIRE YOUR LASER' : 'PRESS  X  TO FIRE YOUR LASER', done: t => t.fired },
+    { id: 'pads', text: () => 'CYAN PADS RECHARGE BOOST, SHIELD AND LASER', done: t => t.pad || t.stepTime > 7 },
+    { id: 'extras', text: () => 'GRAB POWER-UP BOXES  ·  FLY THROUGH ✦ STAR GATES FOR HYPERDRIVE', done: t => t.stepTime > 7 },
+    { id: 'goal', text: () => 'FINISH TOP 3 TO UNLOCK THE NEXT CIRCUIT  ·  WIN TO FACE THE INVASION!', done: t => t.stepTime > 6 },
+  ];
+  let tutorial = null;
+  function startTutorial() {
+    tutorial = { step: 0, stepTime: 0, steered: 0, boosted: 0, fired: false, pad: false };
+    $('tutorial').classList.add('visible'); document.body.classList.add('tutoring'); renderTutorial();
   }
-  // Low effects: no canvas glow (shadowBlur is the big cost on phones), 1x resolution, fewer particles.
-  function applyPerf() {
-    const low = lowFx();
-    try {
-      if (low) Object.defineProperty(ctx, 'shadowBlur', { configurable: true, get: () => 0, set: () => {} });
-      else delete ctx.shadowBlur;
-    } catch { /* context without configurable props */ }
-    document.body.classList.toggle('lowfx', low);
-    if (typeof resize === 'function' && W) resize();
+  function endTutorial(skipped) {
+    tutorial = null; $('tutorial').classList.remove('visible'); document.body.classList.remove('tutoring'); profile.tutorialDone = true; saveProfile();
+    if (!skipped) { showMessage("YOU'RE READY, PILOT!", 1.4); playToneSweep(500, 1500, .3, 'triangle', .05); }
   }
-  settingHooks.perf = v => { if (v !== 'auto') settings.perfAuto = false; saveSettings(); applyPerf(); };
-  function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ } }
-  function screenAngle() { return (screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : Number(window.orientation) || 0) * Math.PI / 180; }
-  // Roll angle of the device relative to the screen's horizontal axis, from the gravity direction in device coordinates.
-  function onTilt(event) {
-    if (event.beta == null || event.gamma == null) return;
-    const b = event.beta * Math.PI / 180, g = event.gamma * Math.PI / 180, a = screenAngle();
-    const dx = Math.sin(g) * Math.cos(b), dy = -Math.sin(b);
-    tilt.x = Math.asin(clamp(dx * Math.cos(a) - dy * Math.sin(a), -1, 1)) * 180 / Math.PI; tilt.live = true;
+  function renderTutorial() {
+    if (!tutorial) return;
+    const s = TUTORIAL[tutorial.step];
+    $('tutorial-step').textContent = `TUTORIAL ${tutorial.step + 1}/${TUTORIAL.length}`; $('tutorial-text').textContent = s.text();
   }
-  // Touch steering stays available until the sensor actually delivers data.
-  const gyroActive = () => settings.steering === 'gyro' && tilt.live;
-  function calibrateTilt() { tilt.neutral = tilt.live ? tilt.x : 0; }
-  const TILT_FULL = 20, TILT_DEAD = 2.5;
-  function tiltSteer() {
-    if (!tilt.live) return 0;
-    const d = tilt.x - tilt.neutral;
-    return Math.abs(d) < TILT_DEAD ? 0 : clamp((d - Math.sign(d) * TILT_DEAD) / (TILT_FULL - TILT_DEAD), -1, 1);
-  }
-  async function enableGyro() {
-    if (!window.DeviceOrientationEvent) return false;
-    try {
-      if (typeof DeviceOrientationEvent.requestPermission === 'function' && await DeviceOrientationEvent.requestPermission() !== 'granted') return false;
-    } catch { return false; }
-    if (!enableGyro.listening) { window.addEventListener('deviceorientation', onTilt); enableGyro.listening = true; }
-    return true;
-  }
-  function setupNote(text) { $('setup-note').textContent = text; }
-  function renderSettings() {
-    document.querySelectorAll('[data-steer]').forEach(b => b.classList.toggle('selected', b.dataset.steer === settings.steering));
-    document.querySelectorAll('[data-screen]').forEach(b => b.classList.toggle('selected', b.dataset.screen === settings.screen));
-    document.querySelectorAll('[data-haptics]').forEach(b => b.classList.toggle('selected', (b.dataset.haptics === 'on') === settings.haptics));
-    document.querySelectorAll('[data-setting]').forEach(b => { const v = b.dataset.value, cur = settings[b.dataset.setting]; b.classList.toggle('selected', String(cur) === (v === 'on' ? 'true' : v === 'off' ? 'false' : v)); });
-    document.body.classList.toggle('calm', !!settings.calm); if ($('perf-note')) $('perf-note').textContent = settings.perf === 'auto' ? (settings.perfAuto ? 'AUTO · LOW FPS DETECTED' : 'AUTO · WATCHING FPS') : settings.perf === 'low' ? 'FEWER EFFECTS' : 'ALL EFFECTS'; document.body.classList.toggle('cb', !!settings.cb);
-    if ($('difficulty-badge')) $('difficulty-badge').textContent = diff().name;
-    $('steer-hint').textContent = settings.steering === 'gyro' ? 'TILT ◀ ▶' : 'DRAG ◀ ▶';
-    document.body.classList.toggle('gyro', settings.steering === 'gyro');
-    checkOrientation();
-  }
-  function currentOrientation() { return window.matchMedia?.('(orientation: landscape)')?.matches ? 'landscape' : 'portrait'; }
-  // Lock the orientation where the browser allows it (Android, installed app); everywhere else ask the player to rotate.
-  async function applyScreenSetting(fromGesture) {
-    if (!window.matchMedia?.('(pointer: coarse)').matches || !screen.orientation?.lock) { checkOrientation(); return; }
-    try {
-      if (fromGesture && !document.fullscreenElement && !matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches) await document.documentElement.requestFullscreen?.();
-      await screen.orientation.lock(settings.screen);
-    } catch { /* Not allowed here (e.g. iOS): the rotate prompt takes over. */ }
-    checkOrientation();
-  }
-  function checkOrientation() {
-    const overlay = $('rotate-overlay');
-    const wrong = !!window.matchMedia?.('(pointer: coarse)').matches && currentOrientation() !== settings.screen;
-    overlay.classList.toggle('hidden', !wrong);
-    if (wrong) {
-      $('rotate-title').textContent = `ROTATE TO ${settings.screen.toUpperCase()}`; $('rotate-setting').textContent = settings.screen.toUpperCase();
-      $('rotate-other').textContent = settings.screen === 'portrait' ? 'LANDSCAPE' : 'PORTRAIT';
-      if (mode === 'racing' || mode === 'countdown') pauseRace();
+  function updateTutorial(dt, steer) {
+    if (!tutorial || mode !== 'racing') return;
+    tutorial.stepTime += dt; if (Math.abs(steer) > .3) tutorial.steered += dt; if (boosting) tutorial.boosted += dt;
+    if (TUTORIAL[tutorial.step].done(tutorial)) {
+      tutorial.step++; tutorial.stepTime = 0; playToneSweep(900, 1400, .12, 'square', .03);
+      if (tutorial.step >= TUTORIAL.length) endTutorial(false); else renderTutorial();
     }
   }
-  const hyper = () => hyperTime > 0 && mode === 'racing';
-  const shieldText = amount => hyper() ? 'INVINCIBLE' : 'SHIELD -' + hullLoss(amount);
-  function activateHyper() {
-    unlockAchievement('hyper');
-    const fresh = hyperTime <= 0;
-    hyperTime = HYPER_TIME; if (fresh) hyperStarted = time;
-    energy = 100; boostLocked = false; screenFlash = Math.max(screenFlash, 1); shake = Math.max(shake, 1.2);
-    showCallout('HYPERDRIVE!', '#7dfcff'); showMessage('LIGHT SPEED  /  INVINCIBLE  /  MEGA LASER  /  ∞ BOOST', 2.4);
-    robotSay('Hyperdrive initiated', 'hyperdrive-initiated');
-    playNoiseBurst(2.2, .25, 120, 9000); playToneSweep(80, 1800, 1.6, 'sawtooth', .07); playToneSweep(1200, 4200, 1.2, 'sine', .035);
-    [392, 523, 659, 784, 1047].forEach((f, i) => playToneSweepAt(f, i * .07));
+  // ==== Per-frame update loop and HUD.
+  let playClock = 0;
+  function update(dt) {
+    time += dt; screenFlash = Math.max(0, screenFlash - dt * 2.4);
+    updateBoot(); tickAchievement();
+    if (frameClock - subtitleAt > 2.8 && $('subtitle')) $('subtitle').classList.remove('visible');
+    if (['racing', 'final', 'respawning', 'countdown'].includes(mode)) { playClock += dt; if (playClock > 15) { profile.stats.seconds = (profile.stats.seconds || 0) + playClock; playClock = 0; saveProfile(); } }
+    if (analyser && !audio.paused && !muted) { analyser.getByteFrequencyData(frequency); beat = lerp(beat, frequency.slice(0, 12).reduce((a, b) => a + b, 0) / (12 * 255), .2); } else beat *= .95;
+    if (engineGain) {
+      engineGain.gain.setTargetAtTime(mode === 'racing' && !muted ? .013 + speed / 15000 * .027 : 0, audioContext.currentTime, .1);
+      engineOsc.frequency.setTargetAtTime(35 + speed / 85 + (boosting ? 35 : 0), audioContext.currentTime, .08);
+    }
+    if (jetGain) {
+      const jet = mode === 'racing' && !muted ? (jumpBoostTimer > 0 ? 1 : boosting ? .8 : 0) : 0, now = audioContext.currentTime;
+      jetGain.gain.setTargetAtTime(jet * .16, now, jet ? .05 : .25);
+      jetFilter.frequency.setTargetAtTime(500 + speed / 9 + (jumpBoostTimer > 0 ? 900 : 0), now, .1);
+      jetWhineGain.gain.setTargetAtTime(jet * .007, now, jet ? .08 : .3);
+      jetWhine.frequency.setTargetAtTime(700 + speed / 8 + (jumpBoostTimer > 0 ? 600 : 0), now, .15);
+    }
+    if (mode === 'menu') { position = mod(position + dt * 2900, LENGTH); playerX = Math.sin(time * .14) * .18; return; }
+    if (mode === 'invasion' || mode === 'final' || mode === 'disco') { updateFinale(dt); return; }
+    if (mode === 'paused' || mode === 'finished') return;
+    if (hintTime > 0) { hintTime -= dt; if (hintTime <= 0 || gesture.moved) { hintTime = 0; document.body.classList.remove('hinting'); } }
+    if (mode === 'countdown') {
+      // Hold the countdown until the soundtrack is fully downloaded (at most 15 s), then start the music with it.
+      if (!soundtrackReady && musicHold < 15) {
+        musicHold += dt; $('countdown').textContent = `LOADING MUSIC ${Math.round(soundtrackProgress * 100)}%`; document.body.classList.add('buffering');
+        updateHUD(); return;
+      }
+      if (document.body.classList.contains('buffering')) { document.body.classList.remove('buffering'); if (audio.paused && !muted) playMusic(); }
+      const old = Math.ceil(countdown); countdown -= dt;
+      $('countdown').textContent = countdown > 0 ? Math.ceil(countdown) : 'GO!';
+      if (Math.ceil(countdown) !== old && countdown > 0) soundEffect(440, .13);
+      if (countdown <= 0) { mode = 'racing'; launchGoTime = .8; soundEffect(880, .35); calibrateTilt(); }
+      updateHUD(); return;
+    }
+    if (mode === 'respawning') {
+      elapsed += dt; shake *= Math.pow(.05, dt);
+      for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 450 * dt; p.life -= dt; }
+      particles = particles.filter(p => p.life > 0);
+      if (messageTime > 0) { messageTime -= dt; if (messageTime <= 0) $('race-message').classList.remove('visible'); }
+      if (time >= raceRespawnAt) {
+        mode = 'racing'; shield = 100; speed = Math.min(speed, 4500); playerX = 0; raceInvulnUntil = time + 2.5;
+        bombs = []; collisionCooldown = 1; showMessage('BACK IN THE RACE!', 1.2); playToneSweep(300, 1200, .5, 'sine', .07);
+      }
+      updateHUD(); return;
+    }
+    if (mode === 'wrecked') {
+      shake *= Math.pow(.025, dt);
+      explosions = explosions.filter(explosion => time - explosion.started < explosion.duration);
+      if (time - wreckedAt > 1.15) showWreckResults();
+      return;
+    }
+    if (launchGoTime > 0) { launchGoTime -= dt; if (launchGoTime <= 0) $('countdown').textContent = ''; }
+    elapsed += dt; collisionCooldown = Math.max(0, collisionCooldown - dt); wallCooldown = Math.max(0, wallCooldown - dt); laserCooldown = Math.max(0, laserCooldown - dt); shake *= Math.pow(.008, dt);
+    if (messageTime > 0) { messageTime -= dt; if (messageTime <= 0) $('race-message').classList.remove('visible'); }
+    const machine = machines[shipIndex], track = tracks[trackIndex];
+    const brake = keys.has('ArrowDown') || keys.has('KeyS') || gesture.brake;
+    const accelerate = (keys.has('ArrowUp') || keys.has('KeyW') || gesture.accel) && !brake;
+    const keySteer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA')) || padSteer;
+    const steer = keySteer || (gyroActive() ? tiltSteer() : gesture.steer);
+    updateTutorial(dt, steer);
+    const boostHeld = keys.has('Space') || keys.has('ShiftLeft') || keys.has('ShiftRight') || gesture.boost;
+    if (!boostHeld) boostLocked = false;
+    const wasBoosting = boosting;
+    if (hyper()) { energy = 100; boostLocked = false; }
+    boosting = boostHeld && !boostLocked && energy > 0 && speed > 2500 && !brake;
+    if (boosting && !wasBoosting) { playBoostSound(1); playJetBlast(.75); raceStats.boost++; }
+    if (boosting) {
+      speed = Math.min((hyper() ? 19800 : 14900) * machine.top * topSpeed(), speed + (hyper() ? 14000 : 9000) * dt); if (!hyper()) energy = Math.max(0, energy - machine.drain * boostDrain() * dt);
+      if (energy <= 0) { boostLocked = true; showMessage('BOOST DEPLETED', 1); }
+    } else {
+      const target = brake ? 3000 : accelerate ? 10700 * machine.top * topSpeed() : 6500;
+      speed += clamp(target - speed, -(brake ? 10500 : 2200) * dt, (accelerate ? 5300 : 2900) * dt);
+      energy = Math.min(100, energy + dt * 7);
+    }
+    jumpBoostTimer = Math.max(0, jumpBoostTimer - dt);
+    if (hyperTime > 0) { hyperTime -= dt; if (hyperTime <= 0) endHyper(); }
+    updateWeather(dt, track);
+    if (jumpHeight > 0 || jumpVelocity > 0) {
+      jumpHeight = Math.max(0, jumpHeight + jumpVelocity * dt);
+      jumpVelocity -= 1450 * dt;
+      if (jumpHeight === 0 && jumpVelocity < 0) jumpVelocity = 0;
+    }
+    updateCrashingUfos(dt); updateBoss(dt);
+    if (mode !== 'racing') { updateHUD(); return; }
+    for (const ufo of ufos) {
+      ufo.distance = distance + 6900 + ufo.slot * UFO_SLOTS_SPACING + Math.sin(time * .38 + ufo.seed) * 280;
+      ufo.lane = Math.sin(time * .8 + ufo.seed * 2.1) * .58;
+      ufo.dropCooldown -= dt * worldPace();
+      if (ufo.dropCooldown <= 0) {
+        const laneOffset = (random(Math.floor(time * 13) + ufo.seed * 77) - .5) * .62;
+        const bombLane = clamp(playerX / track.width + laneOffset, -.68, .68);
+        bombs.push({ distance: distance + Math.max(5300, speed * .72 + 1300) + ufo.seed * 360, lane: bombLane,
+          droppedAt: time, fallTime: .72, landed: false, exploded: false, seed: ufo.seed + Math.floor(time * 10), color: '#ff9b42' });
+        ufo.dropCooldown = 2.8 + random(Math.floor(time * 7) + ufo.seed * 19) * 2.1;
+        showMessage('UFO BOMB RUN!  DODGE OR JUMP!', 1);
+        playToneSweep(820, 260, .34, 'sawtooth', .045);
+      }
+    }
+    const seg = segments[Math.floor(mod(position + 1050, LENGTH) / SEG)];
+    playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip;
+    if (weather && weather.type === 'gravity') playerX += Math.sin((time - weather.started) * 1.4) * dt * .55 * track.width;
+    playerX -= seg.curve * dt * speed / 10700 * .62;
+    steerVisual = lerp(steerVisual, steer, Math.min(1, dt * 9));
+    const edgeLimit = .93 * track.width;
+    if (Math.abs(playerX) > edgeLimit) {
+      const side = Math.sign(playerX); playerX = side * edgeLimit; speed = Math.max(2800, speed - dt * 15500); energy = Math.max(0, energy - dt * 10); shake = .5; screenFlash = Math.max(screenFlash, .08);
+      for (let i = 0; i < 3; i++) particles.push({ x: W * .5 + side * 65, y: H * .81, vx: (random(time * 200 + i) - .5) * 600, vy: -random(time * 300 + i) * 260, life: .4, color: '#ffbd45' });
+      if (wallCooldown <= 0) {
+        wallCooldown = .85; showMessage('BARRIER CONTACT  /  ' + shieldText(10), .7); playImpactSound(.65);
+        if (damageShield(10)) { updateHUD(); return; }
+      }
+    }
+    if (seg.pad && Math.abs(playerX - seg.padLane * track.width) < .31 * track.width * magnetReach()) {
+      // Cyan pads recharge everything: boost energy, hull shield and laser cells.
+      energy = Math.min(100, energy + dt * track.recharge); speed = Math.min(15000, speed + dt * 6000);
+      shield = Math.min(100, shield + dt * track.recharge * PAD_SHIELD);
+      if (laserAmmo < laserCap()) {
+        laserCharge += dt * track.recharge * PAD_LASER;
+        while (laserCharge >= 1 && laserAmmo < laserCap()) { laserCharge -= 1; laserAmmo++; }
+        if (laserAmmo === laserCap()) laserCharge = 0;
+      }
+      const id = Math.floor(distance / LENGTH) * COUNT + Math.floor(seg.index / track.padEvery);
+      if (tutorial) tutorial.pad = true;
+      if (lastPad !== id) { lastPad = id; showMessage('RECHARGE  /  BOOST + SHIELD + LASER', 1.1); soundEffect(1000, .2); }
+    }
+    const firstHazardSegment = Math.floor((distance + 1050 - SEG * .5) / SEG);
+    const lastHazardSegment = Math.floor((distance + speed * dt + 1050 + SEG * .5) / SEG);
+    for (let worldSegment = firstHazardSegment; worldSegment <= lastHazardSegment; worldSegment++) {
+      const roadSegment = segments[mod(worldSegment, COUNT)], hazard = roadSegment.hazard;
+      const id = Math.floor(worldSegment / COUNT) * COUNT + roadSegment.index;
+      if (hazard && !hitHazards.has(id)) {
+        const lane = hazardLane(hazard), jumpedClear = jumpHeight > 110 && hazard.type !== 'gate' && hazard.type !== 'drone';
+        if (jumpedClear) hitHazards.add(id);
+        else if (Math.abs(playerX - lane * track.width) < hazard.radius * track.width * (hazard.type === 'cat' ? magnetReach() : 1)) {
+          hitHazards.add(id);
+          if (hyper() && hazard.type !== 'cat') {
+            createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, '#7dfcff', 1); showMessage('SMASHED THROUGH!', .7); playExplosionSound(.7);
+          } else if (hazard.type === 'cat') {
+            speed = Math.max(3500, speed * .92); shake = Math.max(shake, .3); screenFlash = Math.max(screenFlash, .13);
+            const previousAmmo = laserAmmo;
+            laserAmmo = Math.min(laserCap(), laserAmmo + 1);
+            createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, hazard.color || '#ff9bf2', .82, true);
+            if (stat('cats') >= 10) unlockAchievement('cats10'); raceStats.cats++;
+            showMessage(laserAmmo > previousAmmo ? 'CAT PIXEL-POOF!  LASER +1' : 'CAT PIXEL-POOF!  LASER FULL', 1.05);
+            playCatPopSound();
+            if (damageShield(4)) { updateHUD(); return; }
+          } else {
+            speed = Math.max(2500, speed * (1 - (track.hazardPenalty || .24)));
+            energy = Math.max(0, energy - (12 + trackIndex * 1.4)); shake = .9; screenFlash = Math.max(screenFlash, .3);
+            if (energy <= 0 && boostHeld) boostLocked = true;
+            showMessage(hazard.type === 'gate' ? 'LASER GATE HIT  /  ' + shieldText(17 + trackIndex * 1.5) : hazard.type === 'drone' ? 'DRONE COLLISION  /  ' + shieldText(17 + trackIndex * 1.5) : 'MINE STRIKE  /  ' + shieldText(17 + trackIndex * 1.5), 1.1);
+            playImpactSound(1 + trackIndex * .055); playExplosionSound(.85); collisionCooldown = Math.max(collisionCooldown, .55);
+            createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, hazard.type === 'gate' ? '#ff456d' : track.edge, .75);
+            if (damageShield(17 + trackIndex * 1.5)) { updateHUD(); return; }
+            for (let i = 0; i < 7; i++) particles.push({ x: W * .5, y: H * .78, vx: (random(time * 200 + i) - .5) * 740, vy: -random(time * 300 + i) * 460, life: .65, color: track.edge });
+          }
+        }
+      }
+      const gate = roadSegment.stargate;
+      if (gate && !hitGates.has(id) && Math.abs(playerX - gate.lane * track.width) < .3 * track.width * magnetReach()) { hitGates.add(id); activateHyper(); }
+      const pickup = roadSegment.powerup;
+      if (pickup && !hitPowerups.has(id) && Math.abs(playerX - pickup.lane * track.width) < .26 * track.width * magnetReach()) { hitPowerups.add(id); collectPowerup(pickup.type); }
+      const trampoline = roadSegment.trampoline;
+      if (trampoline && !hitRamps.has(id) && jumpHeight < 1 && jumpVelocity <= 0 && Math.abs(playerX - trampoline.lane * track.width) < .27 * track.width) {
+        hitRamps.add(id); jumpHeight = 2; jumpVelocity = 850; jumpBoostTimer = 1.25; playJetBlast(1.25);
+        speed = Math.min(14900 * machine.top * topSpeed(), speed + 2200); energy = Math.min(100, energy + 24);
+        shake = Math.max(shake, .28); screenFlash = Math.max(screenFlash, .12);
+        showMessage('TRAMPOLINE!  JUMP + BOOST!', 1.2); playToneSweep(250, 1300, .28, 'sine', .07); playBoostSound(.8);
+        for (let i = 0; i < 12; i++) particles.push({ x: W * .5 + (random(time * 200 + i) - .5) * 120, y: H * .79, vx: (random(i + 9) - .5) * 340, vy: -random(i + 2) * 480, life: .55, color: i % 2 ? track.second : track.edge });
+      }
+    }
+    for (const bomb of bombs) {
+      if (time - bomb.droppedAt >= bomb.fallTime) bomb.landed = true;
+      if (!bomb.landed || bomb.distance > distance + speed * dt + 1050 + SEG * .5) continue;
+      const nearImpact = bomb.distance >= distance + 1050 - SEG * .5;
+      const hit = nearImpact && jumpHeight < 105 && Math.abs(playerX - bomb.lane * track.width) < .2 * track.width;
+      bomb.exploded = true; createExplosion(bomb.distance, bomb.lane * track.width, bomb.color, 1.05);
+      if (hit) {
+        if (!hyper()) speed = Math.max(2600, speed * .7); shake = 1; screenFlash = Math.max(screenFlash, .38);
+        showMessage((bomb.meteor ? 'METEOR STRIKE!  ' : 'UFO BOMB HIT!  ') + shieldText(22), 1.1); playImpactSound(1.2); playExplosionSound(1.15);
+        if (damageShield(22)) { updateHUD(); return; }
+      } else if (nearImpact) showMessage('BOMB DODGED!', .65);
+      else playExplosionSound(.55);
+    }
+    bombs = bombs.filter(bomb => !bomb.exploded && bomb.distance > distance - 1200);
+    const prevDistance = distance; distance += speed * dt; position = mod(distance, LENGTH);
+    for (const r of rivals) {
+      if (r.dying) { updateWreck(r, dt, track); continue; }
+      if (!r.alive) continue;
+      if (r.boosting) {
+        r.boostRemaining -= dt;
+        if (r.boostRemaining <= 0) { r.boosting = false; r.boostCooldown = 1.2 + random(Math.floor(time * 11) + r.seed) * 2.1; }
+      } else {
+        r.boostCooldown -= dt;
+        if (r.boostCooldown <= 0) {
+          r.boosting = true; r.boostRemaining = .82 + random(Math.floor(time * 7) + r.seed * 3) * .72;
+          if (Math.abs(r.distance - distance) < 5200) playBoostSound(.42);
+        }
+      }
+      r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt * worldPace();
+      r.x = r.lane + .13 * Math.sin(time * .8 + r.seed * 2);
+      if (r.nemesis) {
+        // Hunt the player: drift towards the player's lane when close, and taunt when overtaking.
+        const gap = r.distance - distance;
+        if (Math.abs(gap) < 9000) r.lane = lerp(r.lane, clamp(playerX / track.width, -.6, .6), dt * .6);
+        if (gap > 0 && gap < 2200 && time - r.tauntAt > 25) nemesisTaunt(r);
+      }
+      r.laserCooldown -= dt * worldPace() * (r.nemesis ? 1.6 : 1);
+      if (r.laserCooldown <= 0) {
+        r.laserCooldown = 4.4 + random(Math.floor(time * 5) + r.seed * 31) * 3.2;
+        if (r.distance > distance + 1700 && r.distance < distance + 17000 && Math.abs(r.x * track.width - playerX) < track.width * .48) {
+          enemyShots.push({ from: r, sourceDistance: r.distance, sourceLane: r.x, targetLane: clamp(playerX / track.width, -.85, .85), color: r.color,
+            started: time, impactAt: time + .46, expires: time + .76, resolved: false, x: W * .5, y: H * .5 });
+          showMessage('RIVAL LASER LOCK!  BREAK LINE OF SIGHT', .9); playLaserSound();
+        }
+      }
+      if (Math.abs(r.distance - (distance + 1050)) < 340 && Math.abs(r.x * track.width - playerX) < .2 * track.width && collisionCooldown <= 0 && jumpHeight < 90) {
+        if (boosting || hyper()) {
+          knockOut(r); createExplosion(r.distance, r.x * track.width, r.color, .5); if (!hyper()) speed *= .94; collisionCooldown = .45;
+          showMessage('BOOST RAM  /  RIVAL DESTROYED  /  ' + shieldText(6), 1.15); playExplosionSound(1.35);
+          if (damageShield(6)) { updateHUD(); return; }
+        } else {
+          playerX = clamp(playerX + (playerX >= r.x * track.width ? .15 : -.15) * track.width, -edgeLimit, edgeLimit); speed *= .78; shake = .8; collisionCooldown = 1;
+          showMessage('HULL CONTACT  /  ' + shieldText(14), .7); playImpactSound(.9);
+          if (damageShield(14)) { updateHUD(); return; }
+        }
+      }
+    }
+    for (const shot of enemyShots) {
+      if (shot.resolved || time < shot.impactAt) continue;
+      shot.resolved = true;
+      if (jumpHeight < 105 && Math.abs(playerX - shot.targetLane * track.width) < .21 * track.width) {
+        shake = Math.max(shake, .55); screenFlash = Math.max(screenFlash, .18);
+        const nem = shot.from && shot.from.nemesis;
+        showMessage((nem ? `${nem.name} HIT YOU  /  ` : 'ENEMY LASER HIT  /  ') + shieldText(nem ? 11 : 8), .95); playImpactSound(.68);
+        if (nem) nemesisTaunt(shot.from);
+        if (damageShield(nem ? 11 : 8)) { updateHUD(); return; }
+      }
+    }
+    enemyShots = enemyShots.filter(shot => time < shot.expires);
+    if (laserAmmo < laserCap()) {
+      laserCharge += dt / laserRecharge();
+      if (laserCharge >= 1) { laserCharge -= 1; laserAmmo++; if (laserAmmo === laserCap()) laserCharge = 0; }
+    } else laserCharge = 0;
+    if ((keys.has('KeyX') || keys.has('KeyF') || gesture.fire || gesture.fireQueued) && laserCooldown <= 0) { gesture.fireQueued = false; fireLaser(); }
+    laserShots = laserShots.filter(shot => time - shot.started < shot.duration);
+    explosions = explosions.filter(explosion => time - explosion.started < explosion.duration);
+    rank = 1 + rivals.filter(r => r.alive && r.distance > distance + 1050).length;
+    if (Math.floor(distance / LENGTH) > Math.floor(prevDistance / LENGTH)) {
+      laps.push(elapsed - lapStart); lapStart = elapsed;
+      if (laps.length === LAP_COUNT) { finishRace(); } else { lap = laps.length + 1; showMessage(lap === LAP_COUNT ? 'FINAL LAP — MAKE IT COUNT' : `LAP ${String(lap).padStart(2, '0')} / ${String(LAP_COUNT).padStart(2, '0')} — KEEP PUSHING`, 2.2); soundEffect(660, .4); }
+    }
+    for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 450 * dt; p.life -= dt; }
+    particles = particles.filter(p => p.life > 0).slice(lowFx() ? -30 : -100);
+    document.body.classList.toggle('boosting', boosting || jumpBoostTimer > 0); updateHUD();
   }
-  function playToneSweepAt(freq, delay) {
-    if (!audioContext || muted) return;
-    setTimeout(() => playToneSweep(freq, freq * 2, .35, 'triangle', .04), delay * 1000);
+  let powerChipsHtml = '';
+  function updateHUD() {
+    if (time - creditPopAt > 1.4) $('credit-pop').classList.remove('visible');
+    const chips = POWERUP_ORDER.filter(powerOn).map(t => `<span style="--c:${POWERUPS[t].color}">${POWERUPS[t].icon} ${POWERUPS[t].name}${t === 'bubble' ? ' ×' + bubbleHits : ''} <b>${Math.max(0, power[t] - time).toFixed(1)}</b></span>`).join('');
+    if (chips !== powerChipsHtml) { powerChipsHtml = chips; $('powerups').innerHTML = chips; }
+    $('race-lives').textContent = '♥'.repeat(lives + (mode === 'respawning' ? 0 : 1));
+    $('ufo-kills').textContent = `${String(ufoKills % BOSS_EVERY).padStart(2, '0')}/${BOSS_EVERY}`;
+    document.body.classList.toggle('boss', !!boss);
+    document.body.classList.toggle('hyper', hyper());
+    if (hyper()) {
+      $('hyper-time').textContent = hyperTime.toFixed(1); $('hyper-fill').style.width = (hyperTime / HYPER_TIME * 100) + '%';
+      document.body.classList.toggle('hyper-ending', hyperTime < 3);
+    } else document.body.classList.remove('hyper-ending');
+    $('speed').textContent = String(Math.round(speed / 11.5)).padStart(3, '0');
+    $('energy-fill').style.width = energy + '%'; $('energy-fill').style.background = energy < 20 ? '#ff4b85' : 'var(--acid)';
+    $('shield-fill').style.width = shield + '%'; $('shield-fill').style.background = shield < 26 ? '#ff426e' : 'var(--cyan)';
+    $('shield-text').textContent = Math.round(shield) + '%'; document.body.classList.toggle('critical', shield <= 25 && mode !== 'wrecked');
+    $('energy-text').textContent = Math.round(energy) + '%'; $('position').textContent = String(rank).padStart(2, '0');
+    $('laser-count').textContent = String(laserAmmo).padStart(2, '0');
+    $('laser-fill').style.width = Math.min(100, (laserAmmo + laserCharge) / laserCap() * 100) + '%';
+    document.body.classList.toggle('lasers-empty', laserAmmo === 0);
+    $('lap').textContent = String(lap).padStart(2, '0'); $('timer').textContent = formatTime(elapsed);
+    $('progress').style.width = Math.min(100, distance / (LENGTH * LAP_COUNT) * 100) + '%';
+    const laserIncoming = enemyShots.some(shot => !shot.resolved && shot.impactAt - time < .55);
+    const bombIncoming = bombs.some(bomb => !bomb.exploded && bomb.distance - (distance + 1050) < 4200);
+    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
+    document.body.classList.toggle('air-raid', laserIncoming || bombIncoming);
+    drawMap();
   }
-  function endHyper() {
-    hyperTime = 0; showMessage('HYPERDRIVE OFFLINE', 1.3);
-    playToneSweep(1400, 60, 1.1, 'sawtooth', .06); playNoiseBurst(.9, .12, 6000, 120);
-  }
+  // ==== Invasion, boss chain, final fight flow and disco.
   // ===================== FINALE: the alien invasion after a first-place finish =====================
   // RACE AGAIN after winning triggers an alarm and a 10 s countdown; the screen shatters into space,
   // the player blasts a hole through a wall of aliens and kills the overlord (10 hits); then: disco.
@@ -1017,185 +2039,6 @@
     else if (kind === 'cyclops') { playToneSweep(1400, 300, 1.8, 'triangle', .07); playToneSweep(1700, 420, 1.6, 'sawtooth', .03); }
     else if (kind === 'maggot') { playToneSweep(2200, 900, 1.2, 'square', .03); playNoiseBurst(1.1, .18, 500, 120); playToneSweep(120, 30, 1.2, 'sine', .14); }
     else { playToneSweep(880, 40, 2.6, 'square', .06); playToneSweep(660, 25, 2.8, 'sawtooth', .05); playNoiseBurst(.6, .1, 9000, 2000); }
-  }
-  function drawJets(s, jx, jy, color, scale = 1) {
-    for (const side of [-1, 1]) {
-      const x = side * jx, flame = s * (.45 + Math.random() * .3) * scale;
-      const g = ctx.createLinearGradient(0, jy, 0, jy + flame); g.addColorStop(0, '#ffffff'); g.addColorStop(.25, color); g.addColorStop(.7, 'rgba(138,91,255,.5)'); g.addColorStop(1, 'rgba(138,91,255,0)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - s * .08 * scale, jy); ctx.lineTo(x + s * .08 * scale, jy); ctx.lineTo(x, jy + flame); ctx.fill();
-      ctx.fillStyle = '#3b3550'; ctx.strokeStyle = '#9b8cff'; ctx.lineWidth = Math.max(1, s * .02); ctx.beginPath(); ctx.ellipse(x, jy - s * .06, s * .1 * scale, s * .13 * scale, 0, 0, TAU); ctx.fill(); ctx.stroke();
-    }
-  }
-  function drawHitFlash(s, flash, rx = .55, ry = .45) {
-    if (flash <= 0) return;
-    ctx.globalAlpha = flash * .7; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(0, 0, s * rx, s * ry, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
-  }
-  // A one-eyed commander peering through a brass monocle (with a little top hat, of course).
-  function drawCyclops(x, y, s, flash, look) {
-    ctx.save(); ctx.translate(x, y);
-    drawJets(s, s * .5, s * .3, '#ff9bf2', .9);
-    for (let i = 0; i < 7; i++) { // tentacle beard
-      const bx = (i - 3) * s * .09, ph = time * 2.6 + i;
-      for (let k = 1; k <= 7; k++) { const t = k / 7, px = bx + Math.sin(ph + t * 3) * s * .07 * t, py = s * .3 + t * s * .38; ctx.fillStyle = k % 2 ? '#4a1d6e' : '#5c2688'; ctx.beginPath(); ctx.arc(px, py, s * .05 * (1 - t * .75), 0, TAU); ctx.fill(); }
-    }
-    const head = ctx.createRadialGradient(-s * .15, -s * .2, s * .05, 0, 0, s * .55); head.addColorStop(0, '#e2b8ff'); head.addColorStop(.5, '#8a45d0'); head.addColorStop(1, '#2a0d4a');
-    ctx.fillStyle = head; ctx.shadowColor = '#c38bff'; ctx.shadowBlur = 28; ctx.beginPath(); ctx.ellipse(0, 0, s * .5, s * .44, 0, 0, TAU); ctx.fill(); ctx.shadowBlur = 0;
-    ctx.strokeStyle = 'rgba(40,0,60,.55)'; ctx.lineWidth = Math.max(1, s * .012);
-    for (let w = 0; w < 4; w++) { ctx.beginPath(); ctx.arc(0, -s * .05, s * (.3 + w * .04), Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); }
-    ctx.fillStyle = '#111'; ctx.fillRect(-s * .14, -s * .66, s * .28, s * .24); ctx.fillRect(-s * .22, -s * .44, s * .44, s * .05); // top hat
-    ctx.fillStyle = '#ff4eb8'; ctx.fillRect(-s * .14, -s * .49, s * .28, s * .04);
-    const er = s * .2, px = look * er * .35;
-    ctx.fillStyle = '#fffbe6'; ctx.beginPath(); ctx.arc(0, -s * .03, er, 0, TAU); ctx.fill();
-    ctx.strokeStyle = '#ff3b3b'; ctx.lineWidth = Math.max(.7, s * .006);
-    for (let v = 0; v < 7; v++) { const a = v * .9 + .2; ctx.beginPath(); ctx.moveTo(Math.cos(a) * er, -s * .03 + Math.sin(a) * er); ctx.quadraticCurveTo(Math.cos(a + .2) * er * .7, -s * .03 + Math.sin(a + .2) * er * .7, Math.cos(a) * er * .5, -s * .03 + Math.sin(a) * er * .5); ctx.stroke(); }
-    const iris = ctx.createRadialGradient(px, -s * .03, 1, px, -s * .03, er * .55); iris.addColorStop(0, '#ffd34d'); iris.addColorStop(1, '#d0400f');
-    ctx.fillStyle = iris; ctx.beginPath(); ctx.arc(px, -s * .03, er * .55, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(px, -s * .03, er * .12, er * .45, 0, 0, TAU); ctx.fill();
-    // the monocle: brass ring, crosshair, glint and chain
-    const ring = ctx.createLinearGradient(-er, -er, er, er); ring.addColorStop(0, '#ffe08a'); ring.addColorStop(.5, '#c48a1a'); ring.addColorStop(1, '#7a520c');
-    ctx.strokeStyle = ring; ctx.lineWidth = s * .045; ctx.beginPath(); ctx.arc(0, -s * .03, er * 1.18, 0, TAU); ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,40,40,.55)'; ctx.lineWidth = Math.max(.8, s * .006); line(-er, -s * .03, er, -s * .03, 'rgba(255,40,40,.55)', Math.max(.8, s * .006)); line(0, -s * .03 - er, 0, -s * .03 + er, 'rgba(255,40,40,.55)', Math.max(.8, s * .006));
-    ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = s * .02; ctx.beginPath(); ctx.arc(0, -s * .03, er * .9, Math.PI * 1.1, Math.PI * 1.45); ctx.stroke();
-    ctx.fillStyle = '#d9a43a';
-    for (let k = 0; k < 9; k++) { const t = k / 8; ctx.beginPath(); ctx.arc(er * 1.05 + t * s * .18, -s * .03 + er * .6 + Math.sin(t * Math.PI) * s * .12 + t * s * .12, s * .014, 0, TAU); ctx.fill(); }
-    ctx.fillStyle = '#2a0418'; ctx.beginPath(); ctx.ellipse(0, s * .27, s * .17, s * .05, 0, 0, TAU); ctx.fill(); // grin
-    ctx.fillStyle = '#fff6d0'; for (let t = 0; t < 7; t++) { const tx = (t - 3) * s * .045; ctx.beginPath(); ctx.moveTo(tx - s * .015, s * .23); ctx.lineTo(tx + s * .015, s * .23); ctx.lineTo(tx, s * .27); ctx.fill(); }
-    drawHitFlash(s, flash, .52, .46);
-    ctx.restore();
-  }
-  // A pulsating larva with an exposed brain, a lamprey mouth, dozens of beady eyes, dripping pus and flies.
-  function drawMaggot(x, y, s, flash, look) {
-    ctx.save(); ctx.translate(x, y);
-    for (let i = 4; i >= 0; i--) { // translucent segmented body
-      const sy = s * (.36 - i * .02) - i * s * .02, sw = s * (.34 + i * .045) * (1 + Math.sin(time * 4 + i) * .04), sh = s * .14;
-      ctx.fillStyle = i % 2 ? '#efd9a0' : '#f6e6b8'; ctx.beginPath(); ctx.ellipse(0, sy + i * s * .09, sw, sh, 0, 0, TAU); ctx.fill();
-      ctx.strokeStyle = 'rgba(120,80,40,.5)'; ctx.lineWidth = Math.max(1, s * .01); ctx.stroke();
-      ctx.fillStyle = 'rgba(90,50,30,.35)'; ctx.beginPath(); ctx.ellipse(Math.sin(time * 2 + i) * s * .06, sy + i * s * .09, sw * .4, sh * .45, 0, 0, TAU); ctx.fill();
-    }
-    const head = ctx.createRadialGradient(-s * .1, -s * .15, s * .04, 0, 0, s * .5); head.addColorStop(0, '#fff3c8'); head.addColorStop(.6, '#e6c47a'); head.addColorStop(1, '#8a6a2a');
-    ctx.fillStyle = head; ctx.shadowColor = '#f2e85a'; ctx.shadowBlur = 24; ctx.beginPath(); ctx.ellipse(0, -s * .02, s * .42, s * .34, 0, 0, TAU); ctx.fill(); ctx.shadowBlur = 0;
-    ctx.fillStyle = '#ff9fb8'; ctx.beginPath(); ctx.ellipse(0, -s * .28, s * .3, s * .17, 0, Math.PI, TAU); ctx.fill(); // exposed brain
-    ctx.strokeStyle = '#c4566f'; ctx.lineWidth = Math.max(1, s * .012);
-    for (let k = 0; k < 6; k++) { ctx.beginPath(); for (let t = 0; t <= 10; t++) { const bx = -s * .26 + t / 10 * s * .52, by = -s * .3 - k * s * .02 + Math.sin(t * 2.2 + k + time * 3) * s * .015; if (t) ctx.lineTo(bx, by); else ctx.moveTo(bx, by); } ctx.stroke(); }
-    const mr = s * .17, mx = look * s * .03, my = s * .06; // lamprey mouth with rotating rings of teeth
-    ctx.fillStyle = '#5a0614'; ctx.beginPath(); ctx.arc(mx, my, mr, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#2a0008'; ctx.beginPath(); ctx.arc(mx, my, mr * .35, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#fff2c8';
-    for (let ringN = 0; ringN < 3; ringN++) {
-      const rr = mr * (.92 - ringN * .22), n = 14 - ringN * 3, rot = time * (ringN % 2 ? -1.5 : 1.2);
-      for (let t = 0; t < n; t++) { const a = t / n * TAU + rot; ctx.beginPath(); ctx.moveTo(mx + Math.cos(a - .12) * rr, my + Math.sin(a - .12) * rr); ctx.lineTo(mx + Math.cos(a + .12) * rr, my + Math.sin(a + .12) * rr); ctx.lineTo(mx + Math.cos(a) * rr * .72, my + Math.sin(a) * rr * .72); ctx.fill(); }
-    }
-    for (let e = 0; e < 14; e++) { // beady eyes
-      const a = Math.PI * (1.05 + e / 13 * .9), d = s * (.27 + (e % 3) * .035), ex = Math.cos(a) * d * 1.2, ey = Math.sin(a) * d * .55 - s * .02;
-      ctx.fillStyle = '#0b0b0b'; ctx.beginPath(); ctx.arc(ex, ey, s * (.018 + (e % 3) * .006), 0, TAU); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex - s * .005, ey - s * .006, s * .005, 0, TAU); ctx.fill();
-    }
-    ctx.fillStyle = '#e6f04a'; // pustules and pus drips
-    for (let p = 0; p < 6; p++) { const a = random(p + 300) * TAU, r = s * (.15 + random(p + 310) * .2); ctx.beginPath(); ctx.arc(Math.cos(a) * r, Math.sin(a) * r * .7, s * (.02 + random(p + 320) * .02), 0, TAU); ctx.fill(); }
-    for (let d = 0; d < 4; d++) { const dx = (d - 1.5) * s * .14, ph = mod(time * .9 + d * .27, 1), dy = s * (.2 + ph * .55); ctx.globalAlpha = 1 - ph; ctx.beginPath(); ctx.ellipse(dx, dy, s * .018, s * .03, 0, 0, TAU); ctx.fill(); }
-    ctx.globalAlpha = 1;
-    for (let fl = 0; fl < 6; fl++) { // flies
-      const a = time * (3 + fl * .4) + fl * 1.1, fx = Math.cos(a) * s * (.55 + fl * .03), fy = Math.sin(a * 1.3) * s * .35 - s * .1;
-      ctx.fillStyle = 'rgba(200,230,255,.6)'; ctx.beginPath(); ctx.ellipse(fx - s * .012, fy - s * .012, s * .014, s * .008, -.5, 0, TAU); ctx.ellipse(fx + s * .012, fy - s * .012, s * .014, s * .008, .5, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(fx, fy, s * .012, 0, TAU); ctx.fill();
-    }
-    drawHitFlash(s, flash, .46, .5);
-    ctx.restore();
-  }
-  // A chrome war machine: plated skull, scanning red visor, grille jaw, cannon arms and big thrusters.
-  function drawRobot(x, y, s, flash, look) {
-    ctx.save(); ctx.translate(x, y);
-    drawJets(s, s * .32, s * .38, '#7dfcff', 1.25);
-    for (const side of [-1, 1]) { // cannon arms
-      ctx.save(); ctx.translate(side * s * .52, s * .02); ctx.rotate(side * (.25 + Math.sin(time * 1.5) * .08));
-      ctx.fillStyle = '#6b7385'; ctx.fillRect(-s * .06, -s * .05, s * .12, s * .36);
-      ctx.fillStyle = '#2b2f3a'; ctx.fillRect(-s * .045, s * .3, s * .09, s * .14);
-      ctx.fillStyle = '#ff3b3b'; ctx.beginPath(); ctx.arc(0, s * .44, s * .03 + Math.abs(Math.sin(time * 6)) * s * .01, 0, TAU); ctx.fill();
-      ctx.strokeStyle = '#c8ced8'; ctx.lineWidth = Math.max(1, s * .012); ctx.beginPath(); ctx.arc(0, 0, s * .07, time * 3, time * 3 + 4.5); ctx.stroke();
-      ctx.restore();
-    }
-    const plate = ctx.createLinearGradient(0, -s * .45, 0, s * .35); plate.addColorStop(0, '#e6ebf2'); plate.addColorStop(.5, '#8a93a6'); plate.addColorStop(1, '#3d4352');
-    ctx.fillStyle = plate; ctx.shadowColor = '#ff3b3b'; ctx.shadowBlur = 22;
-    ctx.beginPath(); ctx.moveTo(-s * .38, -s * .3); ctx.lineTo(-s * .26, -s * .44); ctx.lineTo(s * .26, -s * .44); ctx.lineTo(s * .38, -s * .3); ctx.lineTo(s * .42, s * .14); ctx.lineTo(s * .24, s * .34); ctx.lineTo(-s * .24, s * .34); ctx.lineTo(-s * .42, s * .14); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
-    ctx.strokeStyle = 'rgba(30,34,44,.7)'; ctx.lineWidth = Math.max(1, s * .01);
-    line(-s * .4, -s * .1, s * .4, -s * .1, 'rgba(30,34,44,.7)', Math.max(1, s * .01)); line(0, -s * .44, 0, -s * .2, 'rgba(30,34,44,.7)', Math.max(1, s * .01));
-    ctx.fillStyle = '#3d4352';
-    for (const [rx, ry] of [[-.32, -.26], [.32, -.26], [-.36, .1], [.36, .1], [-.2, .28], [.2, .28]]) { ctx.beginPath(); ctx.arc(rx * s, ry * s, s * .016, 0, TAU); ctx.fill(); }
-    ctx.fillStyle = '#1a0006'; ctx.fillRect(-s * .32, -s * .2, s * .64, s * .12); // visor
-    const scan = Math.sin(time * 2.5) * .5 + .5, vg = ctx.createLinearGradient(-s * .32, 0, s * .32, 0);
-    vg.addColorStop(0, '#5a0010'); vg.addColorStop(clamp(scan - .15, 0, 1), '#ff2030'); vg.addColorStop(clamp(scan, 0, 1), '#ffffff'); vg.addColorStop(clamp(scan + .15, 0, 1), '#ff2030'); vg.addColorStop(1, '#5a0010');
-    ctx.fillStyle = vg; ctx.shadowColor = '#ff2030'; ctx.shadowBlur = 18; ctx.fillRect(-s * .3, -s * .18, s * .6, s * .08); ctx.shadowBlur = 0;
-    for (const side of [-1, 1]) { ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(side * s * .14 + look * s * .05, -s * .14, s * .025, 0, TAU); ctx.fill(); }
-    const open = Math.max(0, Math.sin(time * 3)) * s * .05; // grille jaw
-    ctx.fillStyle = '#20232c'; ctx.fillRect(-s * .2, s * .06 + open * .3, s * .4, s * .16 + open);
-    ctx.fillStyle = '#c8ced8'; for (let b = 0; b < 7; b++) ctx.fillRect(-s * .18 + b * s * .06, s * .08 + open * .3, s * .025, s * .12 + open);
-    line(0, -s * .44, 0, -s * .62, '#c8ced8', Math.max(1, s * .015)); // antenna
-    ctx.fillStyle = Math.sin(time * 8) > 0 ? '#ff2030' : '#5a0010'; ctx.beginPath(); ctx.arc(0, -s * .64, s * .03, 0, TAU); ctx.fill();
-    drawHitFlash(s, flash, .44, .42);
-    ctx.restore();
-  }
-  // A faceted ice-crystal spider: prism body, eight jointed legs, a cluster of glowing eyes and dripping fangs.
-  function drawSpider(x, y, s, flash, look) {
-    ctx.save(); ctx.translate(x, y);
-    for (const side of [-1, 1]) for (let i = 0; i < 4; i++) { // legs
-      const base = -.3 + i * .2, swing = Math.sin(time * 4 + i + (side > 0 ? 1.5 : 0)) * .12;
-      const kx = side * s * (.45 + i * .04), ky = s * (base - .25 + swing), fx = side * s * (.72 + i * .02), fy = s * (base + .35 + swing * .5);
-      ctx.strokeStyle = '#2b4d6b'; ctx.lineWidth = s * .05; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(side * s * .18, s * base * .6); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
-      ctx.strokeStyle = '#9ff4ff'; ctx.lineWidth = s * .018; ctx.stroke();
-      ctx.fillStyle = '#e6fbff'; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + side * s * .03, fy + s * .1); ctx.lineTo(fx - side * s * .02, fy + s * .02); ctx.fill();
-    }
-    const facets = [[-.32, 0], [-.18, -.28], [.18, -.28], [.32, 0], [.18, .3], [-.18, .3]];
-    ctx.shadowColor = '#7dfcff'; ctx.shadowBlur = 28;
-    for (let k = 0; k < 6; k++) { // abdomen made of crystal facets
-      const [ax, ay] = facets[k], [bx, by] = facets[(k + 1) % 6];
-      ctx.fillStyle = `hsla(${190 + k * 8},90%,${55 + (k % 3) * 12}%,.9)`; ctx.beginPath(); ctx.moveTo(0, s * .02); ctx.lineTo(ax * s, ay * s); ctx.lineTo(bx * s, by * s); ctx.fill();
-    }
-    ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = Math.max(1, s * .008);
-    ctx.beginPath(); facets.forEach(([fx, fy], k) => ctx[k ? 'lineTo' : 'moveTo'](fx * s, fy * s)); ctx.closePath(); ctx.stroke();
-    ctx.fillStyle = '#132a3d'; ctx.beginPath(); ctx.ellipse(0, s * .38, s * .2, s * .14, 0, 0, TAU); ctx.fill(); // head
-    for (let e = 0; e < 8; e++) { // eye cluster
-      const ex = (e % 4 - 1.5) * s * .07, ey = s * (.33 + Math.floor(e / 4) * .07), er = s * (e % 4 === 1 || e % 4 === 2 ? .035 : .022);
-      ctx.fillStyle = '#ff2a5a'; ctx.shadowColor = '#ff2a5a'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(ex + look * s * .01, ey, er, 0, TAU); ctx.fill();
-    }
-    ctx.shadowBlur = 0;
-    for (const side of [-1, 1]) { // fangs with dripping venom
-      ctx.fillStyle = '#e6fbff'; ctx.beginPath(); ctx.moveTo(side * s * .06, s * .48); ctx.lineTo(side * s * .1, s * .62); ctx.lineTo(side * s * .02, s * .5); ctx.fill();
-      const drip = mod(time * .8 + (side > 0 ? .5 : 0), 1); ctx.fillStyle = '#9dff5a'; ctx.globalAlpha = 1 - drip; ctx.beginPath(); ctx.arc(side * s * .09, s * (.63 + drip * .3), s * .015, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
-    }
-    drawHitFlash(s, flash, .4, .45);
-    ctx.restore();
-  }
-  // A space shark that swims through wormholes: gills, rows of teeth, a dead eye and jet fins.
-  function drawShark(x, y, s, flash, look, attacking = false) {
-    ctx.save(); ctx.translate(x, y); if (attacking) ctx.rotate(-Math.PI / 2);
-    if (!attacking) { // swirling wormhole behind it
-      for (let r = 4; r > 0; r--) { ctx.strokeStyle = `hsla(${(time * 120 + r * 50) % 360},100%,60%,${.12 + r * .05})`; ctx.lineWidth = s * .03; ctx.beginPath(); ctx.ellipse(0, 0, s * (.45 + r * .14), s * (.2 + r * .07), time * (r % 2 ? 1 : -1) * .7, 0, TAU); ctx.stroke(); }
-      drawJets(s, s * .38, s * .2, '#ffb347', .8);
-    }
-    const wag = Math.sin(time * 5) * .12;
-    ctx.fillStyle = '#4a5a72'; ctx.beginPath(); ctx.moveTo(s * .45, 0); ctx.lineTo(s * .75, -s * .22 + wag * s); ctx.lineTo(s * .66, 0); ctx.lineTo(s * .75, s * .2 + wag * s); ctx.closePath(); ctx.fill(); // tail
-    ctx.beginPath(); ctx.moveTo(-s * .02, -s * .14); ctx.lineTo(s * .12, -s * .42); ctx.lineTo(s * .2, -s * .14); ctx.fill(); // dorsal fin
-    const body = ctx.createLinearGradient(0, -s * .2, 0, s * .2); body.addColorStop(0, '#7b8ca8'); body.addColorStop(.55, '#4a5a72'); body.addColorStop(.56, '#e9edf2'); body.addColorStop(1, '#c9d0da');
-    ctx.fillStyle = body; ctx.shadowColor = '#ff6a3d'; ctx.shadowBlur = attacking ? 0 : 24;
-    ctx.beginPath(); ctx.moveTo(-s * .55, s * .02); ctx.quadraticCurveTo(-s * .4, -s * .22, s * .1, -s * .17); ctx.quadraticCurveTo(s * .45, -s * .12, s * .5, 0); ctx.quadraticCurveTo(s * .4, s * .16, 0, s * .18); ctx.quadraticCurveTo(-s * .45, s * .2, -s * .55, s * .02); ctx.fill(); ctx.shadowBlur = 0;
-    ctx.strokeStyle = '#2b3445'; ctx.lineWidth = Math.max(1, s * .012); for (let gl = 0; gl < 4; gl++) { ctx.beginPath(); ctx.moveTo(-s * (.18 - gl * .05), -s * .08); ctx.quadraticCurveTo(-s * (.21 - gl * .05), 0, -s * (.18 - gl * .05), s * .08); ctx.stroke(); }
-    const open = attacking ? .9 : .4 + Math.sin(time * 3) * .3; // jaws
-    ctx.fillStyle = '#5a0614'; ctx.beginPath(); ctx.moveTo(-s * .55, s * .02); ctx.lineTo(-s * .3, -s * .02); ctx.lineTo(-s * .3, s * (.05 + open * .12)); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#fffbe6'; for (let t = 0; t < 6; t++) { const tx = -s * (.52 - t * .04); ctx.beginPath(); ctx.moveTo(tx, s * .0); ctx.lineTo(tx + s * .02, s * .0); ctx.lineTo(tx + s * .01, s * .045); ctx.fill(); ctx.beginPath(); ctx.moveTo(tx, s * (.05 + open * .1)); ctx.lineTo(tx + s * .02, s * (.05 + open * .1)); ctx.lineTo(tx + s * .01, s * (.01 + open * .1)); ctx.fill(); }
-    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(-s * .36 + look * s * .005, -s * .06, s * .035, 0, TAU); ctx.fill(); // dead eye
-    ctx.fillStyle = '#ff3b3b'; ctx.beginPath(); ctx.arc(-s * .365, -s * .065, s * .01, 0, TAU); ctx.fill();
-    if (!attacking) drawHitFlash(s, flash, .55, .25);
-    ctx.restore();
-  }
-  function drawFinalBoss(L, look) {
-    const f = finale, kind = f.cfg.type.kind, y = L.bossY;
-    if (kind === 'cyclops') drawCyclops(L.bossX, y, L.bs, f.boss.flash, look);
-    else if (kind === 'maggot') drawMaggot(L.bossX, y, L.bs, f.boss.flash, look);
-    else if (kind === 'robot') drawRobot(L.bossX, y, L.bs, f.boss.flash, look);
-    else if (kind === 'spider') drawSpider(L.bossX, y, L.bs, f.boss.flash, look);
-    else if (kind === 'shark') drawShark(L.bossX, y, L.bs, f.boss.flash, look);
-    else drawOverlord(L.bossX, y, L.bs, f.boss.flash, look);
   }
   function bossAttack(L, shipPx) {
     const f = finale, mx = L.bossX, my = L.bossY + L.bs * .22, dx = shipPx - mx, dy = L.shipY - my, aim = Math.atan2(dy, dx), attack = f.cfg.type.attack;
@@ -1424,6 +2267,186 @@
       if (f.lives > 0) { f.phase = 'respawn'; f.lives--; lives = f.lives; showCallout(`SHIP DESTROYED!  ${f.lives + 1} ${f.lives ? 'LIVES' : 'LIFE'} LEFT`, '#ff3b6b'); }
       else { f.phase = 'lost'; showCallout('SHIP DESTROYED!', '#ff3b6b'); }
     }
+  }
+  // ==== Boss and finale drawing.
+  function drawJets(s, jx, jy, color, scale = 1) {
+    for (const side of [-1, 1]) {
+      const x = side * jx, flame = s * (.45 + Math.random() * .3) * scale;
+      const g = ctx.createLinearGradient(0, jy, 0, jy + flame); g.addColorStop(0, '#ffffff'); g.addColorStop(.25, color); g.addColorStop(.7, 'rgba(138,91,255,.5)'); g.addColorStop(1, 'rgba(138,91,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - s * .08 * scale, jy); ctx.lineTo(x + s * .08 * scale, jy); ctx.lineTo(x, jy + flame); ctx.fill();
+      ctx.fillStyle = '#3b3550'; ctx.strokeStyle = '#9b8cff'; ctx.lineWidth = Math.max(1, s * .02); ctx.beginPath(); ctx.ellipse(x, jy - s * .06, s * .1 * scale, s * .13 * scale, 0, 0, TAU); ctx.fill(); ctx.stroke();
+    }
+  }
+  function drawHitFlash(s, flash, rx = .55, ry = .45) {
+    if (flash <= 0) return;
+    ctx.globalAlpha = flash * .7; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(0, 0, s * rx, s * ry, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  // A one-eyed commander peering through a brass monocle (with a little top hat, of course).
+  function drawCyclops(x, y, s, flash, look) {
+    ctx.save(); ctx.translate(x, y);
+    drawJets(s, s * .5, s * .3, '#ff9bf2', .9);
+    for (let i = 0; i < 7; i++) { // tentacle beard
+      const bx = (i - 3) * s * .09, ph = time * 2.6 + i;
+      for (let k = 1; k <= 7; k++) { const t = k / 7, px = bx + Math.sin(ph + t * 3) * s * .07 * t, py = s * .3 + t * s * .38; ctx.fillStyle = k % 2 ? '#4a1d6e' : '#5c2688'; ctx.beginPath(); ctx.arc(px, py, s * .05 * (1 - t * .75), 0, TAU); ctx.fill(); }
+    }
+    const head = ctx.createRadialGradient(-s * .15, -s * .2, s * .05, 0, 0, s * .55); head.addColorStop(0, '#e2b8ff'); head.addColorStop(.5, '#8a45d0'); head.addColorStop(1, '#2a0d4a');
+    ctx.fillStyle = head; ctx.shadowColor = '#c38bff'; ctx.shadowBlur = 28; ctx.beginPath(); ctx.ellipse(0, 0, s * .5, s * .44, 0, 0, TAU); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(40,0,60,.55)'; ctx.lineWidth = Math.max(1, s * .012);
+    for (let w = 0; w < 4; w++) { ctx.beginPath(); ctx.arc(0, -s * .05, s * (.3 + w * .04), Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); }
+    ctx.fillStyle = '#111'; ctx.fillRect(-s * .14, -s * .66, s * .28, s * .24); ctx.fillRect(-s * .22, -s * .44, s * .44, s * .05); // top hat
+    ctx.fillStyle = '#ff4eb8'; ctx.fillRect(-s * .14, -s * .49, s * .28, s * .04);
+    const er = s * .2, px = look * er * .35;
+    ctx.fillStyle = '#fffbe6'; ctx.beginPath(); ctx.arc(0, -s * .03, er, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#ff3b3b'; ctx.lineWidth = Math.max(.7, s * .006);
+    for (let v = 0; v < 7; v++) { const a = v * .9 + .2; ctx.beginPath(); ctx.moveTo(Math.cos(a) * er, -s * .03 + Math.sin(a) * er); ctx.quadraticCurveTo(Math.cos(a + .2) * er * .7, -s * .03 + Math.sin(a + .2) * er * .7, Math.cos(a) * er * .5, -s * .03 + Math.sin(a) * er * .5); ctx.stroke(); }
+    const iris = ctx.createRadialGradient(px, -s * .03, 1, px, -s * .03, er * .55); iris.addColorStop(0, '#ffd34d'); iris.addColorStop(1, '#d0400f');
+    ctx.fillStyle = iris; ctx.beginPath(); ctx.arc(px, -s * .03, er * .55, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(px, -s * .03, er * .12, er * .45, 0, 0, TAU); ctx.fill();
+    // the monocle: brass ring, crosshair, glint and chain
+    const ring = ctx.createLinearGradient(-er, -er, er, er); ring.addColorStop(0, '#ffe08a'); ring.addColorStop(.5, '#c48a1a'); ring.addColorStop(1, '#7a520c');
+    ctx.strokeStyle = ring; ctx.lineWidth = s * .045; ctx.beginPath(); ctx.arc(0, -s * .03, er * 1.18, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,40,40,.55)'; ctx.lineWidth = Math.max(.8, s * .006); line(-er, -s * .03, er, -s * .03, 'rgba(255,40,40,.55)', Math.max(.8, s * .006)); line(0, -s * .03 - er, 0, -s * .03 + er, 'rgba(255,40,40,.55)', Math.max(.8, s * .006));
+    ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = s * .02; ctx.beginPath(); ctx.arc(0, -s * .03, er * .9, Math.PI * 1.1, Math.PI * 1.45); ctx.stroke();
+    ctx.fillStyle = '#d9a43a';
+    for (let k = 0; k < 9; k++) { const t = k / 8; ctx.beginPath(); ctx.arc(er * 1.05 + t * s * .18, -s * .03 + er * .6 + Math.sin(t * Math.PI) * s * .12 + t * s * .12, s * .014, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = '#2a0418'; ctx.beginPath(); ctx.ellipse(0, s * .27, s * .17, s * .05, 0, 0, TAU); ctx.fill(); // grin
+    ctx.fillStyle = '#fff6d0'; for (let t = 0; t < 7; t++) { const tx = (t - 3) * s * .045; ctx.beginPath(); ctx.moveTo(tx - s * .015, s * .23); ctx.lineTo(tx + s * .015, s * .23); ctx.lineTo(tx, s * .27); ctx.fill(); }
+    drawHitFlash(s, flash, .52, .46);
+    ctx.restore();
+  }
+  // A pulsating larva with an exposed brain, a lamprey mouth, dozens of beady eyes, dripping pus and flies.
+  function drawMaggot(x, y, s, flash, look) {
+    ctx.save(); ctx.translate(x, y);
+    for (let i = 4; i >= 0; i--) { // translucent segmented body
+      const sy = s * (.36 - i * .02) - i * s * .02, sw = s * (.34 + i * .045) * (1 + Math.sin(time * 4 + i) * .04), sh = s * .14;
+      ctx.fillStyle = i % 2 ? '#efd9a0' : '#f6e6b8'; ctx.beginPath(); ctx.ellipse(0, sy + i * s * .09, sw, sh, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(120,80,40,.5)'; ctx.lineWidth = Math.max(1, s * .01); ctx.stroke();
+      ctx.fillStyle = 'rgba(90,50,30,.35)'; ctx.beginPath(); ctx.ellipse(Math.sin(time * 2 + i) * s * .06, sy + i * s * .09, sw * .4, sh * .45, 0, 0, TAU); ctx.fill();
+    }
+    const head = ctx.createRadialGradient(-s * .1, -s * .15, s * .04, 0, 0, s * .5); head.addColorStop(0, '#fff3c8'); head.addColorStop(.6, '#e6c47a'); head.addColorStop(1, '#8a6a2a');
+    ctx.fillStyle = head; ctx.shadowColor = '#f2e85a'; ctx.shadowBlur = 24; ctx.beginPath(); ctx.ellipse(0, -s * .02, s * .42, s * .34, 0, 0, TAU); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ff9fb8'; ctx.beginPath(); ctx.ellipse(0, -s * .28, s * .3, s * .17, 0, Math.PI, TAU); ctx.fill(); // exposed brain
+    ctx.strokeStyle = '#c4566f'; ctx.lineWidth = Math.max(1, s * .012);
+    for (let k = 0; k < 6; k++) { ctx.beginPath(); for (let t = 0; t <= 10; t++) { const bx = -s * .26 + t / 10 * s * .52, by = -s * .3 - k * s * .02 + Math.sin(t * 2.2 + k + time * 3) * s * .015; if (t) ctx.lineTo(bx, by); else ctx.moveTo(bx, by); } ctx.stroke(); }
+    const mr = s * .17, mx = look * s * .03, my = s * .06; // lamprey mouth with rotating rings of teeth
+    ctx.fillStyle = '#5a0614'; ctx.beginPath(); ctx.arc(mx, my, mr, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#2a0008'; ctx.beginPath(); ctx.arc(mx, my, mr * .35, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#fff2c8';
+    for (let ringN = 0; ringN < 3; ringN++) {
+      const rr = mr * (.92 - ringN * .22), n = 14 - ringN * 3, rot = time * (ringN % 2 ? -1.5 : 1.2);
+      for (let t = 0; t < n; t++) { const a = t / n * TAU + rot; ctx.beginPath(); ctx.moveTo(mx + Math.cos(a - .12) * rr, my + Math.sin(a - .12) * rr); ctx.lineTo(mx + Math.cos(a + .12) * rr, my + Math.sin(a + .12) * rr); ctx.lineTo(mx + Math.cos(a) * rr * .72, my + Math.sin(a) * rr * .72); ctx.fill(); }
+    }
+    for (let e = 0; e < 14; e++) { // beady eyes
+      const a = Math.PI * (1.05 + e / 13 * .9), d = s * (.27 + (e % 3) * .035), ex = Math.cos(a) * d * 1.2, ey = Math.sin(a) * d * .55 - s * .02;
+      ctx.fillStyle = '#0b0b0b'; ctx.beginPath(); ctx.arc(ex, ey, s * (.018 + (e % 3) * .006), 0, TAU); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex - s * .005, ey - s * .006, s * .005, 0, TAU); ctx.fill();
+    }
+    ctx.fillStyle = '#e6f04a'; // pustules and pus drips
+    for (let p = 0; p < 6; p++) { const a = random(p + 300) * TAU, r = s * (.15 + random(p + 310) * .2); ctx.beginPath(); ctx.arc(Math.cos(a) * r, Math.sin(a) * r * .7, s * (.02 + random(p + 320) * .02), 0, TAU); ctx.fill(); }
+    for (let d = 0; d < 4; d++) { const dx = (d - 1.5) * s * .14, ph = mod(time * .9 + d * .27, 1), dy = s * (.2 + ph * .55); ctx.globalAlpha = 1 - ph; ctx.beginPath(); ctx.ellipse(dx, dy, s * .018, s * .03, 0, 0, TAU); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    for (let fl = 0; fl < 6; fl++) { // flies
+      const a = time * (3 + fl * .4) + fl * 1.1, fx = Math.cos(a) * s * (.55 + fl * .03), fy = Math.sin(a * 1.3) * s * .35 - s * .1;
+      ctx.fillStyle = 'rgba(200,230,255,.6)'; ctx.beginPath(); ctx.ellipse(fx - s * .012, fy - s * .012, s * .014, s * .008, -.5, 0, TAU); ctx.ellipse(fx + s * .012, fy - s * .012, s * .014, s * .008, .5, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(fx, fy, s * .012, 0, TAU); ctx.fill();
+    }
+    drawHitFlash(s, flash, .46, .5);
+    ctx.restore();
+  }
+  // A chrome war machine: plated skull, scanning red visor, grille jaw, cannon arms and big thrusters.
+  function drawRobot(x, y, s, flash, look) {
+    ctx.save(); ctx.translate(x, y);
+    drawJets(s, s * .32, s * .38, '#7dfcff', 1.25);
+    for (const side of [-1, 1]) { // cannon arms
+      ctx.save(); ctx.translate(side * s * .52, s * .02); ctx.rotate(side * (.25 + Math.sin(time * 1.5) * .08));
+      ctx.fillStyle = '#6b7385'; ctx.fillRect(-s * .06, -s * .05, s * .12, s * .36);
+      ctx.fillStyle = '#2b2f3a'; ctx.fillRect(-s * .045, s * .3, s * .09, s * .14);
+      ctx.fillStyle = '#ff3b3b'; ctx.beginPath(); ctx.arc(0, s * .44, s * .03 + Math.abs(Math.sin(time * 6)) * s * .01, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#c8ced8'; ctx.lineWidth = Math.max(1, s * .012); ctx.beginPath(); ctx.arc(0, 0, s * .07, time * 3, time * 3 + 4.5); ctx.stroke();
+      ctx.restore();
+    }
+    const plate = ctx.createLinearGradient(0, -s * .45, 0, s * .35); plate.addColorStop(0, '#e6ebf2'); plate.addColorStop(.5, '#8a93a6'); plate.addColorStop(1, '#3d4352');
+    ctx.fillStyle = plate; ctx.shadowColor = '#ff3b3b'; ctx.shadowBlur = 22;
+    ctx.beginPath(); ctx.moveTo(-s * .38, -s * .3); ctx.lineTo(-s * .26, -s * .44); ctx.lineTo(s * .26, -s * .44); ctx.lineTo(s * .38, -s * .3); ctx.lineTo(s * .42, s * .14); ctx.lineTo(s * .24, s * .34); ctx.lineTo(-s * .24, s * .34); ctx.lineTo(-s * .42, s * .14); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(30,34,44,.7)'; ctx.lineWidth = Math.max(1, s * .01);
+    line(-s * .4, -s * .1, s * .4, -s * .1, 'rgba(30,34,44,.7)', Math.max(1, s * .01)); line(0, -s * .44, 0, -s * .2, 'rgba(30,34,44,.7)', Math.max(1, s * .01));
+    ctx.fillStyle = '#3d4352';
+    for (const [rx, ry] of [[-.32, -.26], [.32, -.26], [-.36, .1], [.36, .1], [-.2, .28], [.2, .28]]) { ctx.beginPath(); ctx.arc(rx * s, ry * s, s * .016, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = '#1a0006'; ctx.fillRect(-s * .32, -s * .2, s * .64, s * .12); // visor
+    const scan = Math.sin(time * 2.5) * .5 + .5, vg = ctx.createLinearGradient(-s * .32, 0, s * .32, 0);
+    vg.addColorStop(0, '#5a0010'); vg.addColorStop(clamp(scan - .15, 0, 1), '#ff2030'); vg.addColorStop(clamp(scan, 0, 1), '#ffffff'); vg.addColorStop(clamp(scan + .15, 0, 1), '#ff2030'); vg.addColorStop(1, '#5a0010');
+    ctx.fillStyle = vg; ctx.shadowColor = '#ff2030'; ctx.shadowBlur = 18; ctx.fillRect(-s * .3, -s * .18, s * .6, s * .08); ctx.shadowBlur = 0;
+    for (const side of [-1, 1]) { ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(side * s * .14 + look * s * .05, -s * .14, s * .025, 0, TAU); ctx.fill(); }
+    const open = Math.max(0, Math.sin(time * 3)) * s * .05; // grille jaw
+    ctx.fillStyle = '#20232c'; ctx.fillRect(-s * .2, s * .06 + open * .3, s * .4, s * .16 + open);
+    ctx.fillStyle = '#c8ced8'; for (let b = 0; b < 7; b++) ctx.fillRect(-s * .18 + b * s * .06, s * .08 + open * .3, s * .025, s * .12 + open);
+    line(0, -s * .44, 0, -s * .62, '#c8ced8', Math.max(1, s * .015)); // antenna
+    ctx.fillStyle = Math.sin(time * 8) > 0 ? '#ff2030' : '#5a0010'; ctx.beginPath(); ctx.arc(0, -s * .64, s * .03, 0, TAU); ctx.fill();
+    drawHitFlash(s, flash, .44, .42);
+    ctx.restore();
+  }
+  // A faceted ice-crystal spider: prism body, eight jointed legs, a cluster of glowing eyes and dripping fangs.
+  function drawSpider(x, y, s, flash, look) {
+    ctx.save(); ctx.translate(x, y);
+    for (const side of [-1, 1]) for (let i = 0; i < 4; i++) { // legs
+      const base = -.3 + i * .2, swing = Math.sin(time * 4 + i + (side > 0 ? 1.5 : 0)) * .12;
+      const kx = side * s * (.45 + i * .04), ky = s * (base - .25 + swing), fx = side * s * (.72 + i * .02), fy = s * (base + .35 + swing * .5);
+      ctx.strokeStyle = '#2b4d6b'; ctx.lineWidth = s * .05; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(side * s * .18, s * base * .6); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+      ctx.strokeStyle = '#9ff4ff'; ctx.lineWidth = s * .018; ctx.stroke();
+      ctx.fillStyle = '#e6fbff'; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + side * s * .03, fy + s * .1); ctx.lineTo(fx - side * s * .02, fy + s * .02); ctx.fill();
+    }
+    const facets = [[-.32, 0], [-.18, -.28], [.18, -.28], [.32, 0], [.18, .3], [-.18, .3]];
+    ctx.shadowColor = '#7dfcff'; ctx.shadowBlur = 28;
+    for (let k = 0; k < 6; k++) { // abdomen made of crystal facets
+      const [ax, ay] = facets[k], [bx, by] = facets[(k + 1) % 6];
+      ctx.fillStyle = `hsla(${190 + k * 8},90%,${55 + (k % 3) * 12}%,.9)`; ctx.beginPath(); ctx.moveTo(0, s * .02); ctx.lineTo(ax * s, ay * s); ctx.lineTo(bx * s, by * s); ctx.fill();
+    }
+    ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = Math.max(1, s * .008);
+    ctx.beginPath(); facets.forEach(([fx, fy], k) => ctx[k ? 'lineTo' : 'moveTo'](fx * s, fy * s)); ctx.closePath(); ctx.stroke();
+    ctx.fillStyle = '#132a3d'; ctx.beginPath(); ctx.ellipse(0, s * .38, s * .2, s * .14, 0, 0, TAU); ctx.fill(); // head
+    for (let e = 0; e < 8; e++) { // eye cluster
+      const ex = (e % 4 - 1.5) * s * .07, ey = s * (.33 + Math.floor(e / 4) * .07), er = s * (e % 4 === 1 || e % 4 === 2 ? .035 : .022);
+      ctx.fillStyle = '#ff2a5a'; ctx.shadowColor = '#ff2a5a'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(ex + look * s * .01, ey, er, 0, TAU); ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+    for (const side of [-1, 1]) { // fangs with dripping venom
+      ctx.fillStyle = '#e6fbff'; ctx.beginPath(); ctx.moveTo(side * s * .06, s * .48); ctx.lineTo(side * s * .1, s * .62); ctx.lineTo(side * s * .02, s * .5); ctx.fill();
+      const drip = mod(time * .8 + (side > 0 ? .5 : 0), 1); ctx.fillStyle = '#9dff5a'; ctx.globalAlpha = 1 - drip; ctx.beginPath(); ctx.arc(side * s * .09, s * (.63 + drip * .3), s * .015, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+    }
+    drawHitFlash(s, flash, .4, .45);
+    ctx.restore();
+  }
+  // A space shark that swims through wormholes: gills, rows of teeth, a dead eye and jet fins.
+  function drawShark(x, y, s, flash, look, attacking = false) {
+    ctx.save(); ctx.translate(x, y); if (attacking) ctx.rotate(-Math.PI / 2);
+    if (!attacking) { // swirling wormhole behind it
+      for (let r = 4; r > 0; r--) { ctx.strokeStyle = `hsla(${(time * 120 + r * 50) % 360},100%,60%,${.12 + r * .05})`; ctx.lineWidth = s * .03; ctx.beginPath(); ctx.ellipse(0, 0, s * (.45 + r * .14), s * (.2 + r * .07), time * (r % 2 ? 1 : -1) * .7, 0, TAU); ctx.stroke(); }
+      drawJets(s, s * .38, s * .2, '#ffb347', .8);
+    }
+    const wag = Math.sin(time * 5) * .12;
+    ctx.fillStyle = '#4a5a72'; ctx.beginPath(); ctx.moveTo(s * .45, 0); ctx.lineTo(s * .75, -s * .22 + wag * s); ctx.lineTo(s * .66, 0); ctx.lineTo(s * .75, s * .2 + wag * s); ctx.closePath(); ctx.fill(); // tail
+    ctx.beginPath(); ctx.moveTo(-s * .02, -s * .14); ctx.lineTo(s * .12, -s * .42); ctx.lineTo(s * .2, -s * .14); ctx.fill(); // dorsal fin
+    const body = ctx.createLinearGradient(0, -s * .2, 0, s * .2); body.addColorStop(0, '#7b8ca8'); body.addColorStop(.55, '#4a5a72'); body.addColorStop(.56, '#e9edf2'); body.addColorStop(1, '#c9d0da');
+    ctx.fillStyle = body; ctx.shadowColor = '#ff6a3d'; ctx.shadowBlur = attacking ? 0 : 24;
+    ctx.beginPath(); ctx.moveTo(-s * .55, s * .02); ctx.quadraticCurveTo(-s * .4, -s * .22, s * .1, -s * .17); ctx.quadraticCurveTo(s * .45, -s * .12, s * .5, 0); ctx.quadraticCurveTo(s * .4, s * .16, 0, s * .18); ctx.quadraticCurveTo(-s * .45, s * .2, -s * .55, s * .02); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#2b3445'; ctx.lineWidth = Math.max(1, s * .012); for (let gl = 0; gl < 4; gl++) { ctx.beginPath(); ctx.moveTo(-s * (.18 - gl * .05), -s * .08); ctx.quadraticCurveTo(-s * (.21 - gl * .05), 0, -s * (.18 - gl * .05), s * .08); ctx.stroke(); }
+    const open = attacking ? .9 : .4 + Math.sin(time * 3) * .3; // jaws
+    ctx.fillStyle = '#5a0614'; ctx.beginPath(); ctx.moveTo(-s * .55, s * .02); ctx.lineTo(-s * .3, -s * .02); ctx.lineTo(-s * .3, s * (.05 + open * .12)); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fffbe6'; for (let t = 0; t < 6; t++) { const tx = -s * (.52 - t * .04); ctx.beginPath(); ctx.moveTo(tx, s * .0); ctx.lineTo(tx + s * .02, s * .0); ctx.lineTo(tx + s * .01, s * .045); ctx.fill(); ctx.beginPath(); ctx.moveTo(tx, s * (.05 + open * .1)); ctx.lineTo(tx + s * .02, s * (.05 + open * .1)); ctx.lineTo(tx + s * .01, s * (.01 + open * .1)); ctx.fill(); }
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(-s * .36 + look * s * .005, -s * .06, s * .035, 0, TAU); ctx.fill(); // dead eye
+    ctx.fillStyle = '#ff3b3b'; ctx.beginPath(); ctx.arc(-s * .365, -s * .065, s * .01, 0, TAU); ctx.fill();
+    if (!attacking) drawHitFlash(s, flash, .55, .25);
+    ctx.restore();
+  }
+  function drawFinalBoss(L, look) {
+    const f = finale, kind = f.cfg.type.kind, y = L.bossY;
+    if (kind === 'cyclops') drawCyclops(L.bossX, y, L.bs, f.boss.flash, look);
+    else if (kind === 'maggot') drawMaggot(L.bossX, y, L.bs, f.boss.flash, look);
+    else if (kind === 'robot') drawRobot(L.bossX, y, L.bs, f.boss.flash, look);
+    else if (kind === 'spider') drawSpider(L.bossX, y, L.bs, f.boss.flash, look);
+    else if (kind === 'shark') drawShark(L.bossX, y, L.bs, f.boss.flash, look);
+    else drawOverlord(L.bossX, y, L.bs, f.boss.flash, look);
   }
   // ---------- finale drawing
   function drawSpace() {
@@ -1708,742 +2731,7 @@
     if (flashAmount(screenFlash) > .015) { ctx.fillStyle = `rgba(255,255,240,${flashAmount(screenFlash) * .55})`; ctx.fillRect(-60, -60, W + 120, H + 120); }
     ctx.restore();
   }
-  const worldPace = () => powerOn('warp') ? .45 : 1;
-  function collectPowerup(type) {
-    if (!profile.stats.powerTypes.includes(type)) { profile.stats.powerTypes.push(type); saveProfile(); }
-    if (profile.stats.powerTypes.length >= 4) unlockAchievement('collector');
-    const p = POWERUPS[type];
-    power[type] = time + p.time; if (type === 'bubble') bubbleHits = 3;
-    showCallout(`${p.icon} ${p.name}!`, p.color); showMessage(p.info, 1.6);
-    playToneSweep(600, 1800, .25, 'square', .05); playToneSweep(900, 2400, .3, 'sine', .05); buzz([20, 30, 20]);
-    screenFlash = Math.max(screenFlash, .2);
-  }
-  function drawPowerupPickup(s) {
-    const a = s.p1, b = s.p2, pu = s.powerup, def = POWERUPS[pu.type], width = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + width * pu.lane, y = lerp(a.y, b.y, .5);
-    const r = width * .07; if (r < 2) return;
-    const cy = y - r * 1.6 - Math.sin(time * 4 + pu.index) * r * .3;
-    ctx.save(); ctx.translate(x, cy);
-    ctx.globalAlpha = .35; ctx.fillStyle = def.color; ctx.beginPath(); ctx.ellipse(0, r * 1.6, r * 1.1, r * .3, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
-    ctx.rotate(Math.sin(time * 2 + pu.index) * .25);
-    ctx.shadowColor = def.color; ctx.shadowBlur = 20; ctx.fillStyle = '#12102a'; ctx.strokeStyle = def.color; ctx.lineWidth = Math.max(1.5, r * .14);
-    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-r, -r, r * 2, r * 2, r * .45) : ctx.rect(-r, -r, r * 2, r * 2); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
-    ctx.fillStyle = def.color; ctx.font = `bold ${r * 1.25}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(def.icon, 0, r * .06);
-    ctx.restore();
-  }
-  function drawPowerupAura(x, y, size) {
-    if (powerOn('bubble')) {
-      ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y - size * .3, size * .4, x, y - size * .3, size * 1.4);
-      g.addColorStop(0, 'rgba(77,248,255,0)'); g.addColorStop(.8, `rgba(77,248,255,${.18 + .06 * Math.sin(time * 6)})`); g.addColorStop(1, 'rgba(77,248,255,.5)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y - size * .3, size * 1.35, size * .95, 0, 0, TAU); ctx.fill(); ctx.restore();
-    }
-    if (powerOn('magnet')) {
-      ctx.save(); ctx.strokeStyle = '#ff5a5a'; ctx.lineWidth = 2;
-      for (let i = 0; i < 3; i++) { const k = mod(time * 1.5 + i / 3, 1); ctx.globalAlpha = 1 - k; ctx.beginPath(); ctx.ellipse(x, y - size * .2, size * (1.6 - k), size * (.5 - k * .3), 0, 0, TAU); ctx.stroke(); }
-      ctx.restore();
-    }
-    if (powerOn('warp')) { ctx.save(); ctx.fillStyle = 'rgba(120,90,255,.12)'; ctx.fillRect(-60, -60, W + 120, H + 120); ctx.restore(); }
-  }
-  // ---- Campaign: circuit n+1 unlocks with a podium (top 3) on circuit n.
-  const trackLocked = i => i >= (profile.unlocked || 1);
-  function renderLock() {
-    const locked = trackLocked(trackIndex), el = $('track-lock');
-    document.body.classList.toggle('track-locked', locked);
-    if (el) el.textContent = locked ? `🔒 LOCKED — FINISH TOP 3 ON ${tracks[trackIndex - 1].name} TO UNLOCK` : `CIRCUITS UNLOCKED: ${Math.min(profile.unlocked || 1, tracks.length)}/${tracks.length}`;
-    const start = $('start'); if (start.firstElementChild) start.firstElementChild.textContent = locked ? 'LOCKED CIRCUIT' : 'ENTER THE RACE';
-  }
-  function showLockedHint() { const el = $('track-lock'); if (el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); } }
-  // ---- Game modes: RACE (grand prix), TIME TRIAL (alone against the clock) and ENDLESS (boss after boss).
-  let trialRun = false;
-  // ---- Lifetime statistics.
-  function recordRaceStats(finished) {
-    const st = profile.stats;
-    st.races = (st.races || 0) + 1; st.km = (st.km || 0) + distance / LENGTH * 7.2;
-    st.perTrack = st.perTrack || {}; st.perTrack[trackIndex] = (st.perTrack[trackIndex] || 0) + 1;
-    if (finished && !trialRun) { if (rank === 1) st.wins = (st.wins || 0) + 1; if (rank <= 3) st.podiums = (st.podiums || 0) + 1; }
-    saveProfile();
-  }
-  const GAME_MODES = { race: 'GRAND PRIX', trial: 'TIME TRIAL', endless: 'ENDLESS BOSSES' };
-  const gameMode = () => GAME_MODES[settings.gameMode] ? settings.gameMode : 'race';
-  function renderGameMode() {
-    document.body.classList.toggle('mode-trial', gameMode() === 'trial'); document.body.classList.toggle('mode-endless', gameMode() === 'endless');
-    const best = profile.stats.trial && profile.stats.trial[trackIndex];
-    if ($('mode-info')) $('mode-info').textContent = gameMode() === 'trial' ? `NO RIVALS, NO UFOS · BEST ${best ? formatTime(best) : '— —:—'}` : gameMode() === 'endless' ? `BOSS AFTER BOSS UNTIL YOU FALL · RECORD ${profile.stats.endlessBest || 0} WAVES` : `${PILOT_COUNT} PILOTS · ${LAP_COUNT} LAPS · WIN TO FACE THE INVASION`;
-    renderLock();
-  }
-  // ---- Daily challenge: one goal per calendar day (same for everyone), bonus credits and a day streak.
-  let raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 };
-  const DAILY_GOALS = [
-    { id: 'win', text: t => `WIN ${t}`, check: () => rank === 1 },
-    { id: 'noboost', text: t => `TOP 3 ON ${t} WITHOUT BOOSTING`, check: () => rank <= 3 && raceStats.boost === 0 },
-    { id: 'ufos', n: [6, 12], text: (t, n) => `SHOOT DOWN ${n} UFOs ON ${t}`, check: n => raceStats.ufos >= n },
-    { id: 'rivals', n: [8, 16], text: (t, n) => `DESTROY ${n} RIVALS ON ${t}`, check: n => raceStats.rivals >= n },
-    { id: 'flawless', text: t => `FINISH ${t} WITHOUT LOSING A LIFE`, check: () => raceStats.lives === 0 },
-    { id: 'cats', n: [3, 6], text: (t, n) => `POP ${n} CATS ON ${t}`, check: n => raceStats.cats >= n },
-    { id: 'podium', text: t => `PODIUM ON ${t} ON HARD`, check: () => rank <= 3 && settings.difficulty === 'hard' },
-  ];
-  const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  function dailyChallenge(key = dayKey()) {
-    let h = 2166136261; for (const c of key) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
-    // The circuit is fixed the first time the day's challenge is shown, so unlocking a circuit mid-day cannot move it.
-    if (!profile.daily.pick || profile.daily.pick.key !== key) { profile.daily.pick = { key, track: (h >>> 8) % Math.max(1, Math.min(profile.unlocked || 1, tracks.length)) }; saveProfile(); }
-    const goal = DAILY_GOALS[h % DAILY_GOALS.length], track = profile.daily.pick.track;
-    const n = goal.n ? goal.n[0] + (h >>> 16) % (goal.n[1] - goal.n[0] + 1) : 0;
-    return { key, goal, track, n, text: goal.text(tracks[track].name, n) };
-  }
-  profile.daily = Object.assign({ done: '', last: '', streak: 0 }, profile.daily);
-  const dailyReward = () => 300 + 50 * Math.min(10, profile.daily.streak);
-  function renderDaily() {
-    const d = dailyChallenge(), done = profile.daily.done === d.key, el = $('daily'); if (!el) return;
-    el.classList.toggle('done', done);
-    $('daily-text').textContent = done ? `✓ DONE — ${d.text}` : d.text;
-    $('daily-meta').textContent = `${done ? 'COME BACK TOMORROW' : `REWARD ${dailyReward()} CR`}  ·  🔥 STREAK ${profile.daily.streak}`;
-  }
-  function checkDaily() {
-    const d = dailyChallenge();
-    if (gameMode() !== 'race' || trackIndex !== d.track || profile.daily.done === d.key || !d.goal.check(d.n)) return;
-    const yesterday = dayKey(new Date(Date.now() - 864e5));
-    profile.daily.streak = profile.daily.last === yesterday ? profile.daily.streak + 1 : 1;
-    profile.daily.last = d.key; profile.daily.done = d.key; saveProfile();
-    addCredits(dailyReward() - 50, 'DAILY CHALLENGE');
-    $('result-record').textContent = `📅 DAILY CHALLENGE COMPLETE!  🔥 ${profile.daily.streak}-DAY STREAK`;
-    renderDaily();
-  }
-  function startRace() {
-    if (gameMode() === 'endless') { startEndless(); return; }
-    if (trackLocked(trackIndex)) { renderLock(); playToneSweep(220, 120, .25, 'square', .05); showLockedHint(); return; }
-    mode = 'countdown'; position = 0; distance = 0; playerX = 0; speed = 0; energy = 100; elapsed = 0; lap = 1; lapStart = 0;
-    laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = laserCap(); laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
-    const track = tracks[trackIndex];
-    const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
-    rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace * diff().pace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
-    ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
-    // Three named nemeses race at the front of the grid: tougher hulls, they hunt the player and talk trash.
-    const nemesisPick = [0, 1, 2, 3].filter(i => i !== trackIndex % 4).slice(0, 3);
-    nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
-    if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
-    endlessRun = false; trialRun = gameMode() === 'trial';
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
-    musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
-    $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
-    $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
-    $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE';
-    $('race-message').classList.remove('visible'); messageTime = 0;
-    if (settings.steering === 'gyro' && !enableGyro.listening) enableGyro();
-    playMusic(); primeSpeech(); calibrateTilt(); applyScreenSetting(true); updateHUD();
-    if (!profile.tutorialDone && gameMode() === 'race') startTutorial(); else { tutorial = null; $('tutorial').classList.remove('visible'); }
-    if (window.matchMedia?.('(pointer: coarse)').matches) { hintTime = 6; document.body.classList.add('hinting'); }
-  }
-  function pauseRace() {
-    if (mode === 'racing' || mode === 'countdown') {
-      $('pause-screen').dataset.previous = mode; mode = 'paused'; keys.clear(); resetGesture();
-      $('pause-screen').classList.remove('hidden'); document.body.classList.add('paused');
-    } else if (mode === 'paused') {
-      mode = $('pause-screen').dataset.previous || 'racing'; $('pause-screen').classList.add('hidden'); document.body.classList.remove('paused'); calibrateTilt();
-    }
-  }
-  function garage() {
-    if (tutorial) { tutorial = null; $('tutorial').classList.remove('visible'); }
-    clearFinale(); mode = 'menu'; keys.clear(); resetGesture(); speed = 0; playerX = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; boosting = false;
-    explosions = []; laserShots = []; enemyShots = []; bombs = []; ufos = []; particles = []; screenFlash = 0;
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; callout = null; hyperTime = 0; boss = null; bossAttacks = []; document.body.classList.remove('hyper', 'boss');
-    $('menu').classList.remove('hidden'); ['hud', 'pause-screen', 'results'].forEach(id => $(id).classList.add('hidden'));
-    document.body.classList.remove('racing', 'paused', 'boosting', 'critical', 'destroyed', 'hinting'); hintTime = 0;
-  }
-  function showMessage(text, duration = 1.5) { $('race-message').textContent = text; $('race-message').classList.add('visible'); messageTime = duration; }
-  function createExplosion(worldDistance, lane, color, size = 1, cartoon = false) {
-    explosions.push({ distance: worldDistance, lane, color, started: time, duration: cartoon ? .65 : .8, size, cartoon, seed: Math.floor(time * 1000) + explosions.length * 19 });
-    shake = Math.max(shake, .55 * size); screenFlash = Math.max(screenFlash, .26 * size);
-  }
-  function fireLaser() {
-    if (tutorial) tutorial.fired = true;
-    if (laserAmmo <= 0 && !hyper()) { laserCooldown = .5; showMessage('LASER CELLS RECHARGING', .7); return; }
-    const track = tracks[trackIndex];
-    const reach = hyper() ? .6 : .32;
-    const target = rivals.filter(r => r.alive && r.distance > distance + 1350 && r.distance < distance + (hyper() ? 26000 : 19000) && Math.abs(r.x * track.width - playerX) < track.width * reach)
-      .sort((a, b) => a.distance - b.distance)[0];
-    const shipScreenX = W * .5 + steerVisual * 12;
-    if (boss && !boss.dying && time > boss.arrived - .6 && Math.abs(boss.x - shipScreenX) < boss.size * (hyper() ? 1.2 : .85)) {
-      if (!hyper()) laserAmmo--; laserCooldown = hyper() ? .1 : .24;
-      const offset = clamp((shipScreenX - boss.x) / boss.size, -.6, .6) * .5;
-      laserShots.push({ screen: true, offset, color: track.second, mega: hyper(), started: time, duration: .32, x: boss.x + offset * boss.size, y: boss.y + boss.size * .08 });
-      playLaserSound(); hitBoss(hyper() ? 3 : 1); return;
-    }
-    const ufoTarget = ufos.filter(u => time - u.spawnedAt > 1 && u.distance < distance + 19000 && Math.abs(u.lane * track.width - playerX) < track.width * (hyper() ? .62 : .34))
-      .sort((a, b) => a.distance - b.distance)[0];
-    if (ufoTarget && (!target || ufoTarget.distance < target.distance + 6000)) {
-      if (!hyper()) laserAmmo--; laserCooldown = hyper() ? .1 : .24;
-      laserShots.push({ distance: ufoTarget.distance, lane: ufoTarget.lane * track.width, air: true, color: track.second, mega: hyper(), started: time, duration: .2, x: W * .5, y: H * .79 });
-      playLaserSound(); shootDownUfo(ufoTarget); return;
-    }
-    const lane = target ? target.x * track.width : clamp(playerX, -track.width * .85, track.width * .85);
-    const targetDistance = target ? target.distance : distance + 9000;
-    if (!hyper()) laserAmmo--; laserCooldown = hyper() ? .1 : .24;
-    laserShots.push({ distance: targetDistance, lane, color: track.second, mega: hyper(), started: time, duration: hyper() ? .28 : .2, x: W * .5, y: H * .79 });
-    playLaserSound();
-    if (target && powerOn('multi')) {
-      // Multi-laser: two more beams fan out to the next rivals in a wide cone.
-      const extra = rivals.filter(r => r !== target && r.alive && r.distance > distance + 1350 && r.distance < distance + 22000 && Math.abs(r.x * track.width - playerX) < track.width * .75)
-        .sort((a, b) => a.distance - b.distance).slice(0, 2);
-      for (const r of extra) {
-        laserShots.push({ distance: r.distance, lane: r.x * track.width, color: POWERUPS.multi.color, started: time, duration: .2, x: W * .5, y: H * .79 });
-        r.hull -= 1; createExplosion(r.distance, r.x * track.width, r.color, r.hull > 0 ? .3 : .45);
-        if (r.hull <= 0) knockOut(r);
-      }
-    }
-    if (target) {
-      target.hull = hyper() ? 0 : target.hull - 1; target.stunnedUntil = time + .32;
-      createExplosion(target.distance, lane, target.color, target.hull > 0 ? .3 : .45);
-      if (target.hull <= 0) {
-        knockOut(target); showMessage(target.nemesis ? `NEMESIS ${target.nemesis.name} DESTROYED!` : 'RIVAL DESTROYED  /  +1 PLACE', 1.1);
-      } else {
-        showMessage(target.nemesis ? `${target.nemesis.name} HIT  /  HULL ${target.hull}/6` : `RIVAL HIT  /  HULL ${target.hull}/3`, .8); playImpactSound(.48);
-      }
-    } else if (laserAmmo === 0) showMessage('TARGET MISSED  /  LASERS LOW', .65);
-  }
-  // A beaten rival does not vanish at once: it trails smoke, spins out of control and only then explodes.
-  const WRECK_TIME = 1.5;
-  // A beaten rival is flung off the track: it careens across the whole screen, smoking and spinning, then explodes.
-  function knockOut(rival) {
-    if (rival.nemesis) {
-      raceStats.nemeses = (raceStats.nemeses || 0) + 1; showCallout(`${rival.nemesis.name} IS OUT!`, rival.nemesis.color);
-      robotSay(`${rival.nemesis.name} is out`, `down-${rival.nemesis.id}`); if (mode === 'racing') addCredits(100, 'NEMESIS DOWN');
-      if (raceStats.nemeses >= 3) unlockAchievement('nemesis');
-    }
-    if (stat('rivals') >= 50) unlockAchievement('rivals50');
-    if (mode === 'racing') raceStats.rivals++;
-    if (mode === 'racing') addCredits(15, 'RIVAL DOWN');
-    rival.alive = false; rival.boosting = false; rival.dying = null;
-    const start = rival.screen && time - rival.screen.at < .3 ? rival.screen : { x: W * .5, y: H * .5, size: Math.min(W, H) * .04 };
-    const seed = Math.floor(time * 991) + rival.seed * 17;
-    const points = [[start.x, start.y]];
-    for (let i = 0; i < 4; i++) points.push([W * (.08 + random(seed + i * 3) * .84), H * (.14 + random(seed + i * 3 + 1) * .6)]);
-    points.push([W * (.3 + random(seed + 40) * .4), H * (.3 + random(seed + 41) * .25)]);
-    crashingUfos.push({ kind: 'racer', color: rival.color, seed: rival.seed, started: time, points, startSize: start.size, spinDir: random(seed + 9) > .5 ? 1 : -1, x: start.x, y: start.y, size: start.size, angle: 0 });
-    playImpactSound(.7); playNoiseBurst(.9, .1, 2600, 260);
-  }
-  function updateWreck(rival, dt, track) {
-    const t = (time - rival.dying.started) / WRECK_TIME;
-    // Coast just below the player's pace so the wreck stays in view ahead instead of being overtaken at once.
-    rival.speed += (Math.max(speed * .9, 2500) - rival.speed) * Math.min(1, dt * 3); rival.distance += rival.speed * dt;
-    rival.x = clamp(rival.x + rival.dying.spin * dt * (.12 + t * .35), -1.05, 1.05);
-    if (t >= 1) {
-      rival.dying = null;
-      createExplosion(rival.distance, rival.x * track.width, rival.color, 1.4);
-      createExplosion(rival.distance + 160, rival.x * track.width + .06, '#ffb347', .8);
-      if (Math.abs(rival.distance - distance) < 15000) playExplosionSound(1.1);
-    }
-  }
-  function drawSmoke(x, y, width, rival) {
-    const t = clamp((time - rival.dying.started) / WRECK_TIME, 0, 1);
-    ctx.save();
-    for (let i = 0; i < 14; i++) {
-      const phase = mod(time * 1.7 + i / 14 + rival.seed * .13, 1);
-      const drift = Math.sin(i * 2.3 + time * 3 + rival.seed) * width * (.12 + phase * .45);
-      const px = x + drift, py = y - width * (.2 + phase * 1.6), r = width * (.14 + phase * .42) * (.75 + t * .7);
-      ctx.globalAlpha = (1 - phase) * (.5 + t * .35);
-      ctx.fillStyle = phase < .14 ? '#ff9a3d' : i % 3 ? '#8a8399' : '#b4adc2';
-      ctx.beginPath(); ctx.arc(px, py, r, 0, TAU); ctx.fill();
-    }
-    ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 5; i++) {
-      const phase = mod(time * 4.1 + i / 5 + rival.seed, 1);
-      ctx.globalAlpha = (1 - phase) * .9; ctx.fillStyle = i % 2 ? '#ffd35a' : '#ff6b2e';
-      ctx.beginPath(); ctx.arc(x + Math.sin(i * 7.7 + time * 9) * width * .3, y - width * phase * .6, width * .06, 0, TAU); ctx.fill();
-    }
-    ctx.restore();
-  }
-  function destroyPlayer() {
-    if (mode !== 'racing') return;
-    if (lives > 0) { loseRaceLife(); return; }
-    mode = 'wrecked'; wreckedAt = time;
-    wreckRank = 1 + rivals.filter(r => r.alive && r.distance > distance + 1050).length;
-    boosting = false; document.body.classList.remove('boosting'); document.body.classList.add('paused', 'destroyed');
-    laserShots = []; enemyShots = []; wreckBurst = { started: time, duration: 1.6, color: '#ffec87', size: 5, seed: Math.floor(time * 1000), cartoon: false };
-    const shipSize = Math.min(W * .074, 110);
-    megaBlasts.push({ x: W * .5, y: H * .79, started: time, duration: 2, color: '#ffec87', seed: 5, scale: 1 });
-    megaBlasts.push({ x: W * .5 - shipSize, y: H * .72, started: time + .2, duration: 1.6, color: machines[shipIndex].color, seed: 9, scale: .65 });
-    megaBlasts.push({ x: W * .5 + shipSize, y: H * .75, started: time + .35, duration: 1.6, color: '#ff4eb8', seed: 21, scale: .65 });
-    for (const rival of rivals) {
-      if (!rival.alive && !rival.dying) continue;
-      rival.alive = false; rival.dying = null; createExplosion(rival.distance, rival.x * tracks[trackIndex].width, rival.color, .85 + random(rival.seed + time) * .45);
-    }
-    for (const bomb of bombs) if (!bomb.exploded) createExplosion(bomb.distance, bomb.lane * tracks[trackIndex].width, '#ff9b42', .95);
-    bombs = [];
-    for (const ufo of ufos) createExplosion(ufo.distance, ufo.lane * tracks[trackIndex].width, ufo.color, 1.2);
-    ufos = []; ufoRespawns = []; crashingUfos = []; hyperTime = 0; bossAttacks = []; if (boss) { megaBlasts.push({ x: boss.x, y: boss.y, started: time, duration: 1.6, color: '#ff4eb8', seed: 7 }); boss = null; }
-    document.body.classList.remove('hyper', 'boss');
-    for (let i = 0; i < 4; i++) createExplosion(distance + 900 + i * 620, playerX + (i % 2 ? .3 : -.3), i % 2 ? '#49f8ff' : '#ff54c8', 1.1 + i * .12);
-    showMessage('SHIELDS DOWN  /  TOTAL CHAIN REACTION', 1.3);
-    playExplosionSound(1.65); updateHUD();
-  }
-  const hullLoss = amount => Math.round(amount / hullStrength());
-  // Shield gone but a life left: the ship blows up big, and after a moment it is back at the same spot on the track.
-  function loseRaceLife() {
-    lostLifeThisRace = true; raceStats.lives++;
-    lives--; mode = 'respawning'; raceRespawnAt = time + 2.4; boosting = false; jumpHeight = 0; jumpVelocity = 0;
-    document.body.classList.remove('boosting'); laserShots = []; enemyShots = [];
-    const shipSize = Math.min(W * .074, 110), m = machines[shipIndex];
-    megaBlasts.push({ x: W * .5, y: H * .79, started: time, duration: 2, color: '#ffec87', seed: 5, scale: 1 });
-    megaBlasts.push({ x: W * .5 - shipSize, y: H * .72, started: time + .2, duration: 1.6, color: m.color, seed: 9, scale: .65 });
-    megaBlasts.push({ x: W * .5 + shipSize, y: H * .75, started: time + .35, duration: 1.6, color: '#ff4eb8', seed: 21, scale: .65 });
-    for (let i = 0; i < 40; i++) particles.push({ x: W * .5, y: H * .78, vx: (Math.random() - .5) * 1600, vy: -Math.random() * 1100, life: 1.2, color: i % 3 ? m.color : '#ffec87' });
-    shake = 3.4; screenFlash = 1;
-    playExplosionSound(3); playToneSweep(90, 18, 2.2, 'sawtooth', .2); playNoiseBurst(2.4, .32, 2400, 40);
-    showMessage(`SHIP DESTROYED  /  ${lives + 1} ${lives ? 'LIVES' : 'LIFE'} LEFT`, 2.2); updateHUD();
-  }
-  function damageShield(amount) {
-    if (hyper() || time < raceInvulnUntil) return false;
-    if (bubbleHits > 0 && powerOn('bubble')) {
-      bubbleHits--; screenFlash = Math.max(screenFlash, .25); playToneSweep(900, 1500, .2, 'sine', .07);
-      if (!bubbleHits) power.bubble = 0;
-      showMessage(bubbleHits ? `BUBBLE ABSORBED IT  /  ${bubbleHits} LEFT` : 'BUBBLE POPPED!', .9); return false;
-    }
-    shield = Math.max(0, shield - amount * diff().dmg / hullStrength());
-    if (shield <= 25) screenFlash = Math.max(screenFlash, .08 + (25 - shield) * .005);
-    if (shield === 0) { destroyPlayer(); return true; }
-    return false;
-  }
-  function showWreckResults() {
-    recordRaceStats(false);
-    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
-    mode = 'finished';
-    $('result-eyebrow').textContent = 'CATASTROPHIC FAILURE / SHIELDS OFFLINE';
-    $('result-title').textContent = 'SHIELDS DOWN.';
-    $('result-position').textContent = String(wreckRank).padStart(2, '0');
-    $('result-time').textContent = formatTime(elapsed);
-    $('result-lap').textContent = laps.length ? formatTime(Math.min(...laps)) : '— —:—';
-    $('result-record').textContent = 'HULL LOST / THE WHOLE PACK WENT NOVA';
-    $('results').classList.remove('hidden');
-  }
-  function finishTrial() {
-    mode = 'finished'; boosting = false; document.body.classList.remove('boosting'); document.body.classList.add('paused');
-    profile.stats.trial = profile.stats.trial || {};
-    const best = profile.stats.trial[trackIndex], record = !best || elapsed < best;
-    if (record) profile.stats.trial[trackIndex] = elapsed;
-    saveProfile(); addCredits(80, 'TIME TRIAL');
-    const fastest = Math.min(...laps); if (!bestLap || fastest < bestLap) { bestLap = fastest; try { localStorage.setItem(`chroma-best-${trackIndex}`, String(bestLap)); } catch {} }
-    $('result-eyebrow').textContent = `TIME TRIAL / ${tracks[trackIndex].name}`; $('result-title').textContent = record ? 'NEW BEST TIME!' : 'TIME TRIAL DONE.';
-    $('result-position').textContent = '⏱'; $('result-time').textContent = formatTime(elapsed); $('result-lap').textContent = formatTime(fastest);
-    $('result-record').textContent = record ? (best ? `✦ ${formatTime(best - elapsed)} faster than your old best` : '✦ First time set — now beat it!') : `Best: ${formatTime(best)}  ·  +${formatTime(elapsed - best)} behind`;
-    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
-    $('results').classList.remove('hidden'); invasionArmed = false; soundEffect(880, .6); if (record) playFanfare();
-  }
-  function finishRace() {
-    recordRaceStats(true);
-    if (trialRun) { finishTrial(); return; }
-    addCredits(Math.max(0, (PILOT_COUNT + 1 - rank) * 10) + (rank <= 3 ? 100 : 0) + (rank === 1 ? 150 : 0), `P${rank} FINISH`);
-    unlockAchievement('first-race'); if (rank <= 3) unlockAchievement('podium'); if (rank === 1) { unlockAchievement('win'); if (!lostLifeThisRace) unlockAchievement('flawless'); }
-    let unlockedNow = '';
-    if (rank <= 3 && trackIndex + 1 < tracks.length && trackLocked(trackIndex + 1)) { profile.unlocked = trackIndex + 2; saveProfile(); unlockedNow = tracks[trackIndex + 1].name; }
-    if ((profile.unlocked || 1) >= tracks.length) unlockAchievement('unlock-all');
-    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
-    mode = 'finished'; boosting = false; document.body.classList.remove('boosting'); document.body.classList.add('paused');
-    $('results').classList.remove('hidden'); $('result-position').textContent = String(rank).padStart(2, '0');
-    $('result-title').textContent = rank === 1 ? 'PURE OVERDRIVE.' : rank <= 3 ? 'PODIUM FINISH.' : 'LIMITS REDEFINED.';
-    $('result-time').textContent = formatTime(elapsed); const fastest = Math.min(...laps);
-    $('result-lap').textContent = formatTime(fastest);
-    const record = !bestLap || fastest < bestLap;
-    $('result-record').textContent = record ? '✦ NEW CIRCUIT LAP RECORD' : 'Chase the perfect line. The next podium is yours.';
-    if (unlockedNow) $('result-record').textContent = `🔓 NEW CIRCUIT UNLOCKED: ${unlockedNow}!` + (record ? '  ·  ✦ NEW LAP RECORD' : '');
-    if (record) { bestLap = fastest; try { localStorage.setItem(`chroma-best-${trackIndex}`, String(bestLap)); } catch {} }
-    soundEffect(880, .6);
-    invasionArmed = rank === 1;
-    if (rank === 1) { launchConfetti(); playFanfare(); robotSay('First place. Flawless victory', 'first-place'); }
-    checkDaily();
-  }
-  // ---- Playful boot screen on the start page while the soundtrack and voices download.
-  const BOOT_LINES = [
-    'BOOTSTRAPPING THE SINGULARITY…', 'UPDATING THE SOLAR SYSTEM — DO NOT UNPLUG THE SUN…', 'RETICULATING HYPERSPACE SPLINES…',
-    'CALIBRATING ANTI-GRAVITY. HOLD ON TO SOMETHING…', 'DEFRAGMENTING BLACK HOLES…', 'DOWNLOADING MORE RAM FOR THE MOTHERSHIP…',
-    'FEEDING THE ALIEN OVERLORD…', 'POLISHING THE DISCO BALL…', 'TEACHING ROBOTS TO SCREAM…', 'TUNING MORBID FINGERS’ GUITAR AMPS…',
-    'CONVINCING CATS TO CROSS THE TRACK…', 'REBOOTING THE BIG BANG (ATTEMPT 2 OF 3)…', 'WAXING THE MAGGOT QUEEN… EW.', 'COMPRESSING SPACETIME, ALMOST DONE…',
-  ];
-  let bootLine = -1, bootLineAt = -9, bootDoneAt = 0;
-  const bootProgress = () => clamp(soundtrackProgress * .85 + voicesLoaded / VOICE_CLIPS.length * .15, 0, 1);
-  // In portrait the boot panel sits under the start button; elsewhere it takes the middle of the bottom bar.
-  function placeBoot() {
-    const box = $('boot'), note = document.querySelector('.start-note'), bar = document.querySelector('.bottom-bar'), controls = document.querySelector('.bottom-bar .controls');
-    if (!box || !note || !bar || !window.matchMedia) return;
-    const portrait = matchMedia('(max-width:600px) and (orientation:portrait)').matches;
-    if (portrait && box.previousElementSibling !== note) note.after(box);
-    else if (!portrait && box.parentElement !== bar) bar.insertBefore(box, controls || null);
-  }
-  if (window.matchMedia) { placeBoot(); matchMedia('(max-width:600px) and (orientation:portrait)').addEventListener?.('change', placeBoot); }
-  function updateBoot() {
-    const box = $('boot'); if (!box) return;
-    document.body.classList.toggle('booting', !box.classList.contains('gone'));
-    const done = soundtrackReady && voicesLoaded >= VOICE_CLIPS.length, pct = done ? 100 : Math.min(99, Math.round(bootProgress() * 100));
-    if (done) {
-      if (!bootDoneAt) { bootDoneAt = time || .001; $('boot-text').textContent = 'SYSTEM READY · SINGULARITY STABLE · GO RACE!'; box.classList.add('done'); }
-      if (time - bootDoneAt > 3.5) box.classList.add('gone');
-    } else if (time - bootLineAt > 1.8) {
-      bootLine = (bootLine + 1) % BOOT_LINES.length; bootLineAt = time; bootDoneAt = 0;
-      $('boot-text').textContent = BOOT_LINES[bootLine]; box.classList.remove('done', 'gone');
-    }
-    $('boot-pct').textContent = pct + '%'; $('boot-fill').style.width = pct + '%';
-  }
-  let playClock = 0;
-  function update(dt) {
-    time += dt; screenFlash = Math.max(0, screenFlash - dt * 2.4);
-    updateBoot(); tickAchievement();
-    if (frameClock - subtitleAt > 2.8 && $('subtitle')) $('subtitle').classList.remove('visible');
-    if (['racing', 'final', 'respawning', 'countdown'].includes(mode)) { playClock += dt; if (playClock > 15) { profile.stats.seconds = (profile.stats.seconds || 0) + playClock; playClock = 0; saveProfile(); } }
-    if (analyser && !audio.paused && !muted) { analyser.getByteFrequencyData(frequency); beat = lerp(beat, frequency.slice(0, 12).reduce((a, b) => a + b, 0) / (12 * 255), .2); } else beat *= .95;
-    if (engineGain) {
-      engineGain.gain.setTargetAtTime(mode === 'racing' && !muted ? .013 + speed / 15000 * .027 : 0, audioContext.currentTime, .1);
-      engineOsc.frequency.setTargetAtTime(35 + speed / 85 + (boosting ? 35 : 0), audioContext.currentTime, .08);
-    }
-    if (jetGain) {
-      const jet = mode === 'racing' && !muted ? (jumpBoostTimer > 0 ? 1 : boosting ? .8 : 0) : 0, now = audioContext.currentTime;
-      jetGain.gain.setTargetAtTime(jet * .16, now, jet ? .05 : .25);
-      jetFilter.frequency.setTargetAtTime(500 + speed / 9 + (jumpBoostTimer > 0 ? 900 : 0), now, .1);
-      jetWhineGain.gain.setTargetAtTime(jet * .007, now, jet ? .08 : .3);
-      jetWhine.frequency.setTargetAtTime(700 + speed / 8 + (jumpBoostTimer > 0 ? 600 : 0), now, .15);
-    }
-    if (mode === 'menu') { position = mod(position + dt * 2900, LENGTH); playerX = Math.sin(time * .14) * .18; return; }
-    if (mode === 'invasion' || mode === 'final' || mode === 'disco') { updateFinale(dt); return; }
-    if (mode === 'paused' || mode === 'finished') return;
-    if (hintTime > 0) { hintTime -= dt; if (hintTime <= 0 || gesture.moved) { hintTime = 0; document.body.classList.remove('hinting'); } }
-    if (mode === 'countdown') {
-      // Hold the countdown until the soundtrack is fully downloaded (at most 15 s), then start the music with it.
-      if (!soundtrackReady && musicHold < 15) {
-        musicHold += dt; $('countdown').textContent = `LOADING MUSIC ${Math.round(soundtrackProgress * 100)}%`; document.body.classList.add('buffering');
-        updateHUD(); return;
-      }
-      if (document.body.classList.contains('buffering')) { document.body.classList.remove('buffering'); if (audio.paused && !muted) playMusic(); }
-      const old = Math.ceil(countdown); countdown -= dt;
-      $('countdown').textContent = countdown > 0 ? Math.ceil(countdown) : 'GO!';
-      if (Math.ceil(countdown) !== old && countdown > 0) soundEffect(440, .13);
-      if (countdown <= 0) { mode = 'racing'; launchGoTime = .8; soundEffect(880, .35); calibrateTilt(); }
-      updateHUD(); return;
-    }
-    if (mode === 'respawning') {
-      elapsed += dt; shake *= Math.pow(.05, dt);
-      for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 450 * dt; p.life -= dt; }
-      particles = particles.filter(p => p.life > 0);
-      if (messageTime > 0) { messageTime -= dt; if (messageTime <= 0) $('race-message').classList.remove('visible'); }
-      if (time >= raceRespawnAt) {
-        mode = 'racing'; shield = 100; speed = Math.min(speed, 4500); playerX = 0; raceInvulnUntil = time + 2.5;
-        bombs = []; collisionCooldown = 1; showMessage('BACK IN THE RACE!', 1.2); playToneSweep(300, 1200, .5, 'sine', .07);
-      }
-      updateHUD(); return;
-    }
-    if (mode === 'wrecked') {
-      shake *= Math.pow(.025, dt);
-      explosions = explosions.filter(explosion => time - explosion.started < explosion.duration);
-      if (time - wreckedAt > 1.15) showWreckResults();
-      return;
-    }
-    if (launchGoTime > 0) { launchGoTime -= dt; if (launchGoTime <= 0) $('countdown').textContent = ''; }
-    elapsed += dt; collisionCooldown = Math.max(0, collisionCooldown - dt); wallCooldown = Math.max(0, wallCooldown - dt); laserCooldown = Math.max(0, laserCooldown - dt); shake *= Math.pow(.008, dt);
-    if (messageTime > 0) { messageTime -= dt; if (messageTime <= 0) $('race-message').classList.remove('visible'); }
-    const machine = machines[shipIndex], track = tracks[trackIndex];
-    const brake = keys.has('ArrowDown') || keys.has('KeyS') || gesture.brake;
-    const accelerate = (keys.has('ArrowUp') || keys.has('KeyW') || gesture.accel) && !brake;
-    const keySteer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA')) || padSteer;
-    const steer = keySteer || (gyroActive() ? tiltSteer() : gesture.steer);
-    updateTutorial(dt, steer);
-    const boostHeld = keys.has('Space') || keys.has('ShiftLeft') || keys.has('ShiftRight') || gesture.boost;
-    if (!boostHeld) boostLocked = false;
-    const wasBoosting = boosting;
-    if (hyper()) { energy = 100; boostLocked = false; }
-    boosting = boostHeld && !boostLocked && energy > 0 && speed > 2500 && !brake;
-    if (boosting && !wasBoosting) { playBoostSound(1); playJetBlast(.75); raceStats.boost++; }
-    if (boosting) {
-      speed = Math.min((hyper() ? 19800 : 14900) * machine.top * topSpeed(), speed + (hyper() ? 14000 : 9000) * dt); if (!hyper()) energy = Math.max(0, energy - machine.drain * boostDrain() * dt);
-      if (energy <= 0) { boostLocked = true; showMessage('BOOST DEPLETED', 1); }
-    } else {
-      const target = brake ? 3000 : accelerate ? 10700 * machine.top * topSpeed() : 6500;
-      speed += clamp(target - speed, -(brake ? 10500 : 2200) * dt, (accelerate ? 5300 : 2900) * dt);
-      energy = Math.min(100, energy + dt * 7);
-    }
-    jumpBoostTimer = Math.max(0, jumpBoostTimer - dt);
-    if (hyperTime > 0) { hyperTime -= dt; if (hyperTime <= 0) endHyper(); }
-    updateWeather(dt, track);
-    if (jumpHeight > 0 || jumpVelocity > 0) {
-      jumpHeight = Math.max(0, jumpHeight + jumpVelocity * dt);
-      jumpVelocity -= 1450 * dt;
-      if (jumpHeight === 0 && jumpVelocity < 0) jumpVelocity = 0;
-    }
-    updateCrashingUfos(dt); updateBoss(dt);
-    if (mode !== 'racing') { updateHUD(); return; }
-    for (const ufo of ufos) {
-      ufo.distance = distance + 6900 + ufo.slot * UFO_SLOTS_SPACING + Math.sin(time * .38 + ufo.seed) * 280;
-      ufo.lane = Math.sin(time * .8 + ufo.seed * 2.1) * .58;
-      ufo.dropCooldown -= dt * worldPace();
-      if (ufo.dropCooldown <= 0) {
-        const laneOffset = (random(Math.floor(time * 13) + ufo.seed * 77) - .5) * .62;
-        const bombLane = clamp(playerX / track.width + laneOffset, -.68, .68);
-        bombs.push({ distance: distance + Math.max(5300, speed * .72 + 1300) + ufo.seed * 360, lane: bombLane,
-          droppedAt: time, fallTime: .72, landed: false, exploded: false, seed: ufo.seed + Math.floor(time * 10), color: '#ff9b42' });
-        ufo.dropCooldown = 2.8 + random(Math.floor(time * 7) + ufo.seed * 19) * 2.1;
-        showMessage('UFO BOMB RUN!  DODGE OR JUMP!', 1);
-        playToneSweep(820, 260, .34, 'sawtooth', .045);
-      }
-    }
-    const seg = segments[Math.floor(mod(position + 1050, LENGTH) / SEG)];
-    playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip;
-    if (weather && weather.type === 'gravity') playerX += Math.sin((time - weather.started) * 1.4) * dt * .55 * track.width;
-    playerX -= seg.curve * dt * speed / 10700 * .62;
-    steerVisual = lerp(steerVisual, steer, Math.min(1, dt * 9));
-    const edgeLimit = .93 * track.width;
-    if (Math.abs(playerX) > edgeLimit) {
-      const side = Math.sign(playerX); playerX = side * edgeLimit; speed = Math.max(2800, speed - dt * 15500); energy = Math.max(0, energy - dt * 10); shake = .5; screenFlash = Math.max(screenFlash, .08);
-      for (let i = 0; i < 3; i++) particles.push({ x: W * .5 + side * 65, y: H * .81, vx: (random(time * 200 + i) - .5) * 600, vy: -random(time * 300 + i) * 260, life: .4, color: '#ffbd45' });
-      if (wallCooldown <= 0) {
-        wallCooldown = .85; showMessage('BARRIER CONTACT  /  ' + shieldText(10), .7); playImpactSound(.65);
-        if (damageShield(10)) { updateHUD(); return; }
-      }
-    }
-    if (seg.pad && Math.abs(playerX - seg.padLane * track.width) < .31 * track.width * magnetReach()) {
-      // Cyan pads recharge everything: boost energy, hull shield and laser cells.
-      energy = Math.min(100, energy + dt * track.recharge); speed = Math.min(15000, speed + dt * 6000);
-      shield = Math.min(100, shield + dt * track.recharge * PAD_SHIELD);
-      if (laserAmmo < laserCap()) {
-        laserCharge += dt * track.recharge * PAD_LASER;
-        while (laserCharge >= 1 && laserAmmo < laserCap()) { laserCharge -= 1; laserAmmo++; }
-        if (laserAmmo === laserCap()) laserCharge = 0;
-      }
-      const id = Math.floor(distance / LENGTH) * COUNT + Math.floor(seg.index / track.padEvery);
-      if (tutorial) tutorial.pad = true;
-      if (lastPad !== id) { lastPad = id; showMessage('RECHARGE  /  BOOST + SHIELD + LASER', 1.1); soundEffect(1000, .2); }
-    }
-    const firstHazardSegment = Math.floor((distance + 1050 - SEG * .5) / SEG);
-    const lastHazardSegment = Math.floor((distance + speed * dt + 1050 + SEG * .5) / SEG);
-    for (let worldSegment = firstHazardSegment; worldSegment <= lastHazardSegment; worldSegment++) {
-      const roadSegment = segments[mod(worldSegment, COUNT)], hazard = roadSegment.hazard;
-      const id = Math.floor(worldSegment / COUNT) * COUNT + roadSegment.index;
-      if (hazard && !hitHazards.has(id)) {
-        const lane = hazardLane(hazard), jumpedClear = jumpHeight > 110 && hazard.type !== 'gate' && hazard.type !== 'drone';
-        if (jumpedClear) hitHazards.add(id);
-        else if (Math.abs(playerX - lane * track.width) < hazard.radius * track.width * (hazard.type === 'cat' ? magnetReach() : 1)) {
-          hitHazards.add(id);
-          if (hyper() && hazard.type !== 'cat') {
-            createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, '#7dfcff', 1); showMessage('SMASHED THROUGH!', .7); playExplosionSound(.7);
-          } else if (hazard.type === 'cat') {
-            speed = Math.max(3500, speed * .92); shake = Math.max(shake, .3); screenFlash = Math.max(screenFlash, .13);
-            const previousAmmo = laserAmmo;
-            laserAmmo = Math.min(laserCap(), laserAmmo + 1);
-            createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, hazard.color || '#ff9bf2', .82, true);
-            if (stat('cats') >= 10) unlockAchievement('cats10'); raceStats.cats++;
-            showMessage(laserAmmo > previousAmmo ? 'CAT PIXEL-POOF!  LASER +1' : 'CAT PIXEL-POOF!  LASER FULL', 1.05);
-            playCatPopSound();
-            if (damageShield(4)) { updateHUD(); return; }
-          } else {
-            speed = Math.max(2500, speed * (1 - (track.hazardPenalty || .24)));
-            energy = Math.max(0, energy - (12 + trackIndex * 1.4)); shake = .9; screenFlash = Math.max(screenFlash, .3);
-            if (energy <= 0 && boostHeld) boostLocked = true;
-            showMessage(hazard.type === 'gate' ? 'LASER GATE HIT  /  ' + shieldText(17 + trackIndex * 1.5) : hazard.type === 'drone' ? 'DRONE COLLISION  /  ' + shieldText(17 + trackIndex * 1.5) : 'MINE STRIKE  /  ' + shieldText(17 + trackIndex * 1.5), 1.1);
-            playImpactSound(1 + trackIndex * .055); playExplosionSound(.85); collisionCooldown = Math.max(collisionCooldown, .55);
-            createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, hazard.type === 'gate' ? '#ff456d' : track.edge, .75);
-            if (damageShield(17 + trackIndex * 1.5)) { updateHUD(); return; }
-            for (let i = 0; i < 7; i++) particles.push({ x: W * .5, y: H * .78, vx: (random(time * 200 + i) - .5) * 740, vy: -random(time * 300 + i) * 460, life: .65, color: track.edge });
-          }
-        }
-      }
-      const gate = roadSegment.stargate;
-      if (gate && !hitGates.has(id) && Math.abs(playerX - gate.lane * track.width) < .3 * track.width * magnetReach()) { hitGates.add(id); activateHyper(); }
-      const pickup = roadSegment.powerup;
-      if (pickup && !hitPowerups.has(id) && Math.abs(playerX - pickup.lane * track.width) < .26 * track.width * magnetReach()) { hitPowerups.add(id); collectPowerup(pickup.type); }
-      const trampoline = roadSegment.trampoline;
-      if (trampoline && !hitRamps.has(id) && jumpHeight < 1 && jumpVelocity <= 0 && Math.abs(playerX - trampoline.lane * track.width) < .27 * track.width) {
-        hitRamps.add(id); jumpHeight = 2; jumpVelocity = 850; jumpBoostTimer = 1.25; playJetBlast(1.25);
-        speed = Math.min(14900 * machine.top * topSpeed(), speed + 2200); energy = Math.min(100, energy + 24);
-        shake = Math.max(shake, .28); screenFlash = Math.max(screenFlash, .12);
-        showMessage('TRAMPOLINE!  JUMP + BOOST!', 1.2); playToneSweep(250, 1300, .28, 'sine', .07); playBoostSound(.8);
-        for (let i = 0; i < 12; i++) particles.push({ x: W * .5 + (random(time * 200 + i) - .5) * 120, y: H * .79, vx: (random(i + 9) - .5) * 340, vy: -random(i + 2) * 480, life: .55, color: i % 2 ? track.second : track.edge });
-      }
-    }
-    for (const bomb of bombs) {
-      if (time - bomb.droppedAt >= bomb.fallTime) bomb.landed = true;
-      if (!bomb.landed || bomb.distance > distance + speed * dt + 1050 + SEG * .5) continue;
-      const nearImpact = bomb.distance >= distance + 1050 - SEG * .5;
-      const hit = nearImpact && jumpHeight < 105 && Math.abs(playerX - bomb.lane * track.width) < .2 * track.width;
-      bomb.exploded = true; createExplosion(bomb.distance, bomb.lane * track.width, bomb.color, 1.05);
-      if (hit) {
-        if (!hyper()) speed = Math.max(2600, speed * .7); shake = 1; screenFlash = Math.max(screenFlash, .38);
-        showMessage((bomb.meteor ? 'METEOR STRIKE!  ' : 'UFO BOMB HIT!  ') + shieldText(22), 1.1); playImpactSound(1.2); playExplosionSound(1.15);
-        if (damageShield(22)) { updateHUD(); return; }
-      } else if (nearImpact) showMessage('BOMB DODGED!', .65);
-      else playExplosionSound(.55);
-    }
-    bombs = bombs.filter(bomb => !bomb.exploded && bomb.distance > distance - 1200);
-    const prevDistance = distance; distance += speed * dt; position = mod(distance, LENGTH);
-    for (const r of rivals) {
-      if (r.dying) { updateWreck(r, dt, track); continue; }
-      if (!r.alive) continue;
-      if (r.boosting) {
-        r.boostRemaining -= dt;
-        if (r.boostRemaining <= 0) { r.boosting = false; r.boostCooldown = 1.2 + random(Math.floor(time * 11) + r.seed) * 2.1; }
-      } else {
-        r.boostCooldown -= dt;
-        if (r.boostCooldown <= 0) {
-          r.boosting = true; r.boostRemaining = .82 + random(Math.floor(time * 7) + r.seed * 3) * .72;
-          if (Math.abs(r.distance - distance) < 5200) playBoostSound(.42);
-        }
-      }
-      r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt * worldPace();
-      r.x = r.lane + .13 * Math.sin(time * .8 + r.seed * 2);
-      if (r.nemesis) {
-        // Hunt the player: drift towards the player's lane when close, and taunt when overtaking.
-        const gap = r.distance - distance;
-        if (Math.abs(gap) < 9000) r.lane = lerp(r.lane, clamp(playerX / track.width, -.6, .6), dt * .6);
-        if (gap > 0 && gap < 2200 && time - r.tauntAt > 25) nemesisTaunt(r);
-      }
-      r.laserCooldown -= dt * worldPace() * (r.nemesis ? 1.6 : 1);
-      if (r.laserCooldown <= 0) {
-        r.laserCooldown = 4.4 + random(Math.floor(time * 5) + r.seed * 31) * 3.2;
-        if (r.distance > distance + 1700 && r.distance < distance + 17000 && Math.abs(r.x * track.width - playerX) < track.width * .48) {
-          enemyShots.push({ from: r, sourceDistance: r.distance, sourceLane: r.x, targetLane: clamp(playerX / track.width, -.85, .85), color: r.color,
-            started: time, impactAt: time + .46, expires: time + .76, resolved: false, x: W * .5, y: H * .5 });
-          showMessage('RIVAL LASER LOCK!  BREAK LINE OF SIGHT', .9); playLaserSound();
-        }
-      }
-      if (Math.abs(r.distance - (distance + 1050)) < 340 && Math.abs(r.x * track.width - playerX) < .2 * track.width && collisionCooldown <= 0 && jumpHeight < 90) {
-        if (boosting || hyper()) {
-          knockOut(r); createExplosion(r.distance, r.x * track.width, r.color, .5); if (!hyper()) speed *= .94; collisionCooldown = .45;
-          showMessage('BOOST RAM  /  RIVAL DESTROYED  /  ' + shieldText(6), 1.15); playExplosionSound(1.35);
-          if (damageShield(6)) { updateHUD(); return; }
-        } else {
-          playerX = clamp(playerX + (playerX >= r.x * track.width ? .15 : -.15) * track.width, -edgeLimit, edgeLimit); speed *= .78; shake = .8; collisionCooldown = 1;
-          showMessage('HULL CONTACT  /  ' + shieldText(14), .7); playImpactSound(.9);
-          if (damageShield(14)) { updateHUD(); return; }
-        }
-      }
-    }
-    for (const shot of enemyShots) {
-      if (shot.resolved || time < shot.impactAt) continue;
-      shot.resolved = true;
-      if (jumpHeight < 105 && Math.abs(playerX - shot.targetLane * track.width) < .21 * track.width) {
-        shake = Math.max(shake, .55); screenFlash = Math.max(screenFlash, .18);
-        const nem = shot.from && shot.from.nemesis;
-        showMessage((nem ? `${nem.name} HIT YOU  /  ` : 'ENEMY LASER HIT  /  ') + shieldText(nem ? 11 : 8), .95); playImpactSound(.68);
-        if (nem) nemesisTaunt(shot.from);
-        if (damageShield(nem ? 11 : 8)) { updateHUD(); return; }
-      }
-    }
-    enemyShots = enemyShots.filter(shot => time < shot.expires);
-    if (laserAmmo < laserCap()) {
-      laserCharge += dt / laserRecharge();
-      if (laserCharge >= 1) { laserCharge -= 1; laserAmmo++; if (laserAmmo === laserCap()) laserCharge = 0; }
-    } else laserCharge = 0;
-    if ((keys.has('KeyX') || keys.has('KeyF') || gesture.fire || gesture.fireQueued) && laserCooldown <= 0) { gesture.fireQueued = false; fireLaser(); }
-    laserShots = laserShots.filter(shot => time - shot.started < shot.duration);
-    explosions = explosions.filter(explosion => time - explosion.started < explosion.duration);
-    rank = 1 + rivals.filter(r => r.alive && r.distance > distance + 1050).length;
-    if (Math.floor(distance / LENGTH) > Math.floor(prevDistance / LENGTH)) {
-      laps.push(elapsed - lapStart); lapStart = elapsed;
-      if (laps.length === LAP_COUNT) { finishRace(); } else { lap = laps.length + 1; showMessage(lap === LAP_COUNT ? 'FINAL LAP — MAKE IT COUNT' : `LAP ${String(lap).padStart(2, '0')} / ${String(LAP_COUNT).padStart(2, '0')} — KEEP PUSHING`, 2.2); soundEffect(660, .4); }
-    }
-    for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 450 * dt; p.life -= dt; }
-    particles = particles.filter(p => p.life > 0).slice(lowFx() ? -30 : -100);
-    document.body.classList.toggle('boosting', boosting || jumpBoostTimer > 0); updateHUD();
-  }
-  let powerChipsHtml = '';
-  // ---- Weather and track events: a random event every 20-35 s of racing, lasting about 9 s.
-  const WEATHER = {
-    meteors: { name: '☄ METEOR SHOWER', info: 'WATCH THE IMPACT MARKERS!', color: '#ff8a2e' },
-    sandstorm: { name: '🌪 SANDSTORM', info: 'VISIBILITY DROPPING', color: '#e0b070' },
-    gravity: { name: '〰 GRAVITY WAVES', info: 'THE TRACK PULLS YOU SIDEWAYS', color: '#a88aff' },
-  };
-  let weather = null, nextWeatherAt = 25;
-  function updateWeather(dt, track) {
-    if (!weather && time >= nextWeatherAt) {
-      const types = Object.keys(WEATHER), type = types[Math.floor(random(Math.floor(time * 3) + trackIndex) * types.length) % types.length];
-      weather = { type, started: time, until: time + 9, nextMeteor: time + .6 };
-      showCallout(WEATHER[type].name, WEATHER[type].color); showMessage(WEATHER[type].info, 2); playToneSweep(200, 600, .6, 'sawtooth', .04);
-    }
-    if (!weather) return;
-    if (weather.type === 'meteors' && time >= weather.nextMeteor) {
-      weather.nextMeteor = time + .55 + Math.random() * .5;
-      const lane = clamp(playerX / track.width + (Math.random() - .5) * .9, -.75, .75);
-      bombs.push({ distance: distance + Math.max(4800, speed * .7 + 1200), lane, droppedAt: time, fallTime: .7, landed: false, exploded: false, seed: Math.floor(time * 10), color: '#ff8a2e', meteor: true });
-    }
-    if (time >= weather.until) { weather = null; nextWeatherAt = time + 20 + Math.random() * 15; showMessage('THE SKY CLEARS', 1); }
-  }
-  function drawWeather() {
-    if (!weather || mode === 'menu') return;
-    const k = clamp(Math.min((time - weather.started) * 1.5, (weather.until - time) * 1.5), 0, 1);
-    ctx.save();
-    if (weather.type === 'sandstorm') {
-      const g = ctx.createLinearGradient(0, H * .2, 0, H * .75); g.addColorStop(0, `rgba(180,130,70,${.75 * k})`); g.addColorStop(.7, `rgba(150,100,50,${.45 * k})`); g.addColorStop(1, 'rgba(150,100,50,0)');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = `rgba(240,200,140,${.55 * k})`;
-      for (let i = 0; i < 160; i++) { const x = mod(random(i + 900) * W - time * (300 + random(i) * 500), W), y = random(i + 910) * H * .85; ctx.fillRect(x, y, 2 + random(i) * 10, 1.5); }
-    } else if (weather.type === 'gravity') {
-      ctx.strokeStyle = '#b89cff'; ctx.lineWidth = 5; ctx.shadowColor = '#a88aff'; ctx.shadowBlur = 14;
-      for (let i = 0; i < 4; i++) { const ph = mod(time * .8 + i / 4, 1); ctx.globalAlpha = (1 - ph) * k; ctx.beginPath(); ctx.ellipse(W / 2 + Math.sin((time - weather.started) * 1.4) * W * .2, H * .6, W * (.1 + ph * .7), H * (.03 + ph * .2), 0, 0, TAU); ctx.stroke(); }
-    } else if (weather.type === 'meteors') {
-      ctx.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < 10; i++) { const ph = mod(time * .7 + random(i + 70), 1), x = W * (.1 + random(i + 80) * .8) - ph * W * .25, y = -40 + ph * H * .6; ctx.globalAlpha = k * (1 - ph); line(x, y, x + 60, y - 90, '#ffb347', 3); ctx.fillStyle = '#fff1c2'; ctx.beginPath(); ctx.arc(x, y, 4, 0, TAU); ctx.fill(); }
-    }
-    ctx.restore();
-  }
-  // ---- First-run tutorial: short prompts during the first race that advance when you do the thing.
-  const touchUI = () => !!window.matchMedia?.('(pointer: coarse)').matches;
-  const TUTORIAL = [
-    { id: 'steer', text: () => touchUI() ? (settings.steering === 'gyro' ? 'TILT YOUR DEVICE TO STEER' : 'DRAG LEFT / RIGHT ON THE TRACK TO STEER') : 'STEER WITH  A / D  OR  ◀ ▶', done: t => t.steered > .8 },
-    { id: 'boost', text: () => touchUI() ? 'SLIDE UP (OR TAP ϟ) TO BOOST' : 'HOLD  SPACE  TO BOOST', done: t => t.boosted > .5 },
-    { id: 'laser', text: () => touchUI() ? 'TAP THE TRACK (OR ◎) TO FIRE YOUR LASER' : 'PRESS  X  TO FIRE YOUR LASER', done: t => t.fired },
-    { id: 'pads', text: () => 'CYAN PADS RECHARGE BOOST, SHIELD AND LASER', done: t => t.pad || t.stepTime > 7 },
-    { id: 'extras', text: () => 'GRAB POWER-UP BOXES  ·  FLY THROUGH ✦ STAR GATES FOR HYPERDRIVE', done: t => t.stepTime > 7 },
-    { id: 'goal', text: () => 'FINISH TOP 3 TO UNLOCK THE NEXT CIRCUIT  ·  WIN TO FACE THE INVASION!', done: t => t.stepTime > 6 },
-  ];
-  let tutorial = null;
-  function startTutorial() {
-    tutorial = { step: 0, stepTime: 0, steered: 0, boosted: 0, fired: false, pad: false };
-    $('tutorial').classList.add('visible'); document.body.classList.add('tutoring'); renderTutorial();
-  }
-  function endTutorial(skipped) {
-    tutorial = null; $('tutorial').classList.remove('visible'); document.body.classList.remove('tutoring'); profile.tutorialDone = true; saveProfile();
-    if (!skipped) { showMessage("YOU'RE READY, PILOT!", 1.4); playToneSweep(500, 1500, .3, 'triangle', .05); }
-  }
-  function renderTutorial() {
-    if (!tutorial) return;
-    const s = TUTORIAL[tutorial.step];
-    $('tutorial-step').textContent = `TUTORIAL ${tutorial.step + 1}/${TUTORIAL.length}`; $('tutorial-text').textContent = s.text();
-  }
-  function updateTutorial(dt, steer) {
-    if (!tutorial || mode !== 'racing') return;
-    tutorial.stepTime += dt; if (Math.abs(steer) > .3) tutorial.steered += dt; if (boosting) tutorial.boosted += dt;
-    if (TUTORIAL[tutorial.step].done(tutorial)) {
-      tutorial.step++; tutorial.stepTime = 0; playToneSweep(900, 1400, .12, 'square', .03);
-      if (tutorial.step >= TUTORIAL.length) endTutorial(false); else renderTutorial();
-    }
-  }
-  function nemesisTaunt(r) {
-    if (time - (r.tauntAt || 0) < 8) return; r.tauntAt = time;
-    const lines = { vex: 'YOU ARE GOING DOWN, ROOKIE!', kronos: 'KRONOS OWNS THIS TRACK!', null9: 'TARGET ACQUIRED.', blaze: 'EAT MY EXHAUST!' };
-    showCallout(`${r.nemesis.name}: “${lines[r.nemesis.id]}”`, r.nemesis.color); robotSay(lines[r.nemesis.id], `taunt-${r.nemesis.id}`);
-  }
-  function updateHUD() {
-    if (time - creditPopAt > 1.4) $('credit-pop').classList.remove('visible');
-    const chips = POWERUP_ORDER.filter(powerOn).map(t => `<span style="--c:${POWERUPS[t].color}">${POWERUPS[t].icon} ${POWERUPS[t].name}${t === 'bubble' ? ' ×' + bubbleHits : ''} <b>${Math.max(0, power[t] - time).toFixed(1)}</b></span>`).join('');
-    if (chips !== powerChipsHtml) { powerChipsHtml = chips; $('powerups').innerHTML = chips; }
-    $('race-lives').textContent = '♥'.repeat(lives + (mode === 'respawning' ? 0 : 1));
-    $('ufo-kills').textContent = `${String(ufoKills % BOSS_EVERY).padStart(2, '0')}/${BOSS_EVERY}`;
-    document.body.classList.toggle('boss', !!boss);
-    document.body.classList.toggle('hyper', hyper());
-    if (hyper()) {
-      $('hyper-time').textContent = hyperTime.toFixed(1); $('hyper-fill').style.width = (hyperTime / HYPER_TIME * 100) + '%';
-      document.body.classList.toggle('hyper-ending', hyperTime < 3);
-    } else document.body.classList.remove('hyper-ending');
-    $('speed').textContent = String(Math.round(speed / 11.5)).padStart(3, '0');
-    $('energy-fill').style.width = energy + '%'; $('energy-fill').style.background = energy < 20 ? '#ff4b85' : 'var(--acid)';
-    $('shield-fill').style.width = shield + '%'; $('shield-fill').style.background = shield < 26 ? '#ff426e' : 'var(--cyan)';
-    $('shield-text').textContent = Math.round(shield) + '%'; document.body.classList.toggle('critical', shield <= 25 && mode !== 'wrecked');
-    $('energy-text').textContent = Math.round(energy) + '%'; $('position').textContent = String(rank).padStart(2, '0');
-    $('laser-count').textContent = String(laserAmmo).padStart(2, '0');
-    $('laser-fill').style.width = Math.min(100, (laserAmmo + laserCharge) / laserCap() * 100) + '%';
-    document.body.classList.toggle('lasers-empty', laserAmmo === 0);
-    $('lap').textContent = String(lap).padStart(2, '0'); $('timer').textContent = formatTime(elapsed);
-    $('progress').style.width = Math.min(100, distance / (LENGTH * LAP_COUNT) * 100) + '%';
-    const laserIncoming = enemyShots.some(shot => !shot.resolved && shot.impactAt - time < .55);
-    const bombIncoming = bombs.some(bomb => !bomb.exploded && bomb.distance - (distance + 1050) < 4200);
-    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
-    document.body.classList.toggle('air-raid', laserIncoming || bombIncoming);
-    drawMap();
-  }
+  // ==== Race rendering and the frame loop.
   function polygon(points, fill, stroke, lineWidth = 1) {
     ctx.beginPath(); points.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
     if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lineWidth; ctx.stroke(); }
@@ -2492,66 +2780,6 @@
     const gridHorizon = H * .51;
     for (let i = -14; i <= 14; i++) line(W / 2 + i * 22 - playerX * 15, gridHorizon, W / 2 + i * W / 7 - playerX * 130, H, t.edge + '28');
     for (let i = 0; i < 22; i++) { const q = mod(i / 22 + position / 50000, 1); const y = gridHorizon + q ** 3 * (H - gridHorizon); line(0, y, W, y, t.edge + '35'); }
-  }
-  // Light-speed space: nebulae, a ringed planet and star streaks rushing out of the vanishing point.
-  function hyperFade() { return clamp(Math.min((time - hyperStarted) * 2.5, hyperTime * 1.5), 0, 1); }
-  function drawHyperSpace() {
-    const k = hyperFade(), cx = W * .5 - playerX * 30, cy = H * .42, hue = (time * 90) % 360;
-    ctx.save(); ctx.globalAlpha = k;
-    const deep = ctx.createRadialGradient(cx, cy, 10, cx, cy, Math.max(W, H) * .9);
-    deep.addColorStop(0, '#ffffff'); deep.addColorStop(.04, `hsl(${hue},100%,70%)`); deep.addColorStop(.25, `hsl(${(hue + 60) % 360},90%,22%)`); deep.addColorStop(1, '#03010d');
-    ctx.fillStyle = deep; ctx.fillRect(0, 0, W, H);
-    ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 5; i++) {
-      const nx = W * (.15 + random(i + 300) * .7) + Math.sin(time * .3 + i) * 40, ny = H * (.1 + random(i + 310) * .35), nr = Math.max(W, H) * (.18 + random(i + 320) * .2);
-      const neb = ctx.createRadialGradient(nx, ny, 1, nx, ny, nr); neb.addColorStop(0, `hsla(${(hue + i * 70) % 360},100%,60%,.45)`); neb.addColorStop(1, 'hsla(0,0%,0%,0)');
-      ctx.fillStyle = neb; ctx.fillRect(nx - nr, ny - nr, nr * 2, nr * 2);
-    }
-    for (let i = 0; i < 160; i++) {
-      const angle = random(i * 3.1) * TAU, phase = mod(time * (1.2 + random(i) * 1.6) + random(i + 7), 1), r0 = phase * phase * Math.max(W, H) * .8;
-      const len = 10 + phase * phase * 220, x = cx + Math.cos(angle) * r0, y = cy + Math.sin(angle) * r0 * .7;
-      ctx.globalAlpha = k * phase; line(x, y, x + Math.cos(angle) * len, y + Math.sin(angle) * len * .7, `hsl(${(hue + i * 9) % 360},100%,${70 + phase * 25}%)`, .6 + phase * 2.4);
-    }
-    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = k;
-    const px = W * .78 - playerX * 50, py = H * .2, pr = Math.min(W, H) * .08;
-    const planet = ctx.createRadialGradient(px - pr * .4, py - pr * .4, 2, px, py, pr); planet.addColorStop(0, `hsl(${(hue + 180) % 360},90%,75%)`); planet.addColorStop(1, `hsl(${(hue + 240) % 360},80%,25%)`);
-    ctx.fillStyle = planet; ctx.beginPath(); ctx.arc(px, py, pr, 0, TAU); ctx.fill();
-    ctx.translate(px, py); ctx.rotate(-.4); ctx.scale(1, .28); ctx.beginPath(); ctx.arc(0, 0, pr * 1.8, 0, TAU); ctx.strokeStyle = `hsla(${(hue + 30) % 360},100%,70%,.8)`; ctx.lineWidth = pr * .18; ctx.stroke();
-    ctx.restore();
-  }
-  function drawWarpOverlay() {
-    const k = hyperFade(), cx = W * .5, cy = H * .45, hue = (time * 140) % 360;
-    ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 70; i++) {
-      const angle = random(i * 5.7 + 11) * TAU, phase = mod(time * 2.6 + random(i + 3), 1), r0 = Math.max(W, H) * (.12 + phase * .9);
-      ctx.globalAlpha = k * phase * .55;
-      line(cx + Math.cos(angle) * r0, cy + Math.sin(angle) * r0, cx + Math.cos(angle) * (r0 + 60 + phase * 260), cy + Math.sin(angle) * (r0 + 60 + phase * 260), `hsl(${(hue + i * 13) % 360},100%,72%)`, 1 + phase * 3);
-    }
-    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = k * .5;
-    const tunnel = ctx.createRadialGradient(cx, cy, Math.min(W, H) * .3, cx, cy, Math.max(W, H) * .75);
-    tunnel.addColorStop(0, 'hsla(0,0%,0%,0)'); tunnel.addColorStop(1, `hsla(${hue},100%,45%,.55)`); ctx.fillStyle = tunnel; ctx.fillRect(0, 0, W, H);
-    ctx.restore();
-  }
-  function drawStarGate(s, t) {
-    const a = s.p1, b = s.p2, g = s.stargate, width = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + width * g.lane, y = lerp(a.y, b.y, .5);
-    const r = width * .26; if (r < 3) return;
-    const cy = y - r * 1.05, hue = (time * 160 + g.index) % 360, active = hyperTime <= 0;
-    ctx.save(); ctx.translate(x, cy); ctx.globalCompositeOperation = 'lighter';
-    const core = ctx.createRadialGradient(0, 0, 1, 0, 0, r); core.addColorStop(0, `hsla(${hue},100%,85%,${active ? .55 : .18})`); core.addColorStop(.7, `hsla(${(hue + 90) % 360},100%,55%,.25)`); core.addColorStop(1, 'hsla(0,0%,0%,0)');
-    ctx.fillStyle = core; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
-    for (let ring = 0; ring < 3; ring++) {
-      ctx.beginPath(); ctx.ellipse(0, 0, r * (1 - ring * .14), r * (1 - ring * .14), time * (ring % 2 ? -1.5 : 1.2), 0, TAU);
-      ctx.strokeStyle = `hsl(${(hue + ring * 100) % 360},100%,${active ? 65 : 40}%)`; ctx.lineWidth = Math.max(1.5, r * .07); ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 18; ctx.stroke();
-    }
-    ctx.rotate(time * 2);
-    for (let i = 0; i < 8; i++) {
-      const ang = i / 8 * TAU, sx = Math.cos(ang) * r * 1.12, sy = Math.sin(ang) * r * 1.12, sr = r * .13;
-      ctx.fillStyle = i % 2 ? '#fff6a0' : `hsl(${(hue + i * 45) % 360},100%,70%)`; ctx.beginPath();
-      for (let j = 0; j < 10; j++) { const rr = j % 2 ? sr * .45 : sr, aa = j / 10 * TAU; ctx.lineTo(sx + Math.cos(aa) * rr, sy + Math.sin(aa) * rr); }
-      ctx.fill();
-    }
-    ctx.restore();
-    roadStrip(a, b, g.lane - .3, g.lane + .3, `hsla(${hue},100%,60%,.35)`);
   }
   function project(p, worldX, worldY, z, cameraY) {
     p.scale = DEPTH / Math.max(1, z); p.x = W * .5 + p.scale * worldX * W * .5;
@@ -2636,31 +2864,6 @@
       line(ax + size * .1, -size * .42, ax, -size * .53, '#fff3a2', Math.max(1, size * .05));
     }
     ctx.restore();
-  }
-  function drawUfo(s, ufo) {
-    const a = s.p1, b = s.p2, f = mod(ufo.distance, SEG) / SEG, width = lerp(a.w, b.w, f);
-    const arrive = ufo.spawnedAt > 0 ? clamp((time - ufo.spawnedAt) / 1.2, 0, 1) : 1;
-    const x = lerp(a.x, b.x, f) + width * ufo.lane, roadY = lerp(a.y, b.y, f), size = width * .17, y = roadY - width * .43 - (1 - arrive) * (1 - arrive) * H * .6;
-    if (size < 2) return;
-    ufo.screen = { x, y, size, at: time };
-    ctx.save(); ctx.translate(x, y); ctx.globalAlpha = .82; ctx.shadowColor = ufo.color; ctx.shadowBlur = Math.min(25, size * .55);
-    ctx.globalAlpha = .12; polygon([[-size * .4, size * .12], [-size * 1.8, size * 2.3], [size * 1.8, size * 2.3], [size * .4, size * .12]], ufo.color);
-    ctx.globalAlpha = .94 * arrive;
-    drawUfoShape(size, ufo.color);
-    ctx.restore();
-  }
-  function drawBomb(s, bomb, t) {
-    const a = s.p1, b = s.p2, worldPosition = mod(bomb.distance, LENGTH), f = worldPosition % SEG / SEG, width = lerp(a.w, b.w, f);
-    const x = lerp(a.x, b.x, f) + width * bomb.lane, roadY = lerp(a.y, b.y, f), fall = clamp((time - bomb.droppedAt) / bomb.fallTime, 0, 1);
-    const size = width * (.075 + fall * .025), y = roadY - (1 - fall) * width * .62;
-    if (size < 1.5) return;
-    ctx.save(); ctx.translate(x, y); ctx.globalAlpha = .7 + Math.sin(time * 18 + bomb.seed) * .2; ctx.shadowColor = bomb.color; ctx.shadowBlur = Math.min(24, size * .7);
-    if (bomb.landed) { ctx.beginPath(); ctx.ellipse(0, size * .2, size * 1.8, size * .55, 0, 0, TAU); ctx.strokeStyle = '#ff6d3f'; ctx.lineWidth = Math.max(1, size * .06); ctx.stroke(); }
-    ctx.beginPath(); ctx.arc(0, 0, size * .66, 0, TAU); ctx.fillStyle = '#292435'; ctx.fill(); ctx.strokeStyle = bomb.color; ctx.lineWidth = Math.max(1, size * .11); ctx.stroke();
-    line(0, -size * .55, size * .2, -size * .95, '#fff2a1', Math.max(1, size * .08));
-    ctx.fillStyle = '#fff1a0'; ctx.beginPath(); ctx.arc(size * .23, -size, Math.max(1, size * .09), 0, TAU); ctx.fill();
-    ctx.restore();
-    if (bomb.landed) cbMark(x, roadY, Math.max(10, size * 1.6));
   }
   function drawExplosion(x, y, width, explosion) {
     const progress = clamp((time - explosion.started) / explosion.duration, 0, 1);
@@ -2948,6 +3151,12 @@
     ctx.fillStyle = '#05051b12'; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
     ctx.restore();
   }
+  function frame(now) {
+    frameClock = now / 1000; pollGamepad();
+    const dt = previousTime ? Math.min((now - previousTime) / 1000, .05) : 1 / 60; previousTime = now;
+    measureFps(dt); update(dt); render(); updateConfetti(dt); requestAnimationFrame(frame);
+  }
+  // ==== Gamepad polling.
   // ---- Gamepad (standard mapping): stick/D-pad steer, A/RT accelerate, B/LT brake, X/RB laser, Y/LB boost,
   // START pause; in menus A starts / races again / resumes. Buttons are fed in as virtual keys.
   const PAD_KEYS = { ArrowUp: [0, 7], ArrowDown: [1, 6], KeyX: [2, 5], Space: [3, 4] };
@@ -2972,199 +3181,14 @@
       else if (mode === 'finished' || (finale && finale.resultsShown)) raceAgain();
     } else if (a && !$('health-screen').classList.contains('hidden')) $('health-accept').click();
   }
-  function frame(now) {
-    frameClock = now / 1000; pollGamepad();
-    const dt = previousTime ? Math.min((now - previousTime) / 1000, .05) : 1 / 60; previousTime = now;
-    measureFps(dt); update(dt); render(); updateConfetti(dt); requestAnimationFrame(frame);
-  }
-  // ---- Language: English (source text) or German. DOM text is swapped by a MutationObserver, canvas text in fillText,
-  // so game code keeps writing English. Exact phrases first, then patterns for text with numbers, then " / " and " · " pieces.
-  const DE = {
-    // Home, modes, garage
-    'ANTI-GRAVITY RACING SYSTEM': 'ANTI-GRAVITATIONS-RENNSYSTEM', 'THE FUTURE HAS NO SPEED LIMIT': 'DIE ZUKUNFT KENNT KEIN TEMPOLIMIT',
-    'Zero gravity. Full throttle.': 'Null Schwerkraft. Vollgas.', 'Leave the ordinary in another dimension.': 'Lass das Gewöhnliche in einer anderen Dimension zurück.',
-    'ENTER THE RACE': 'ZUM RENNEN', 'ENTER': 'ENTER', 'TO LAUNCH': 'ZUM STARTEN', 'TAP TO LAUNCH': 'TIPPEN ZUM STARTEN', 'LOCKED CIRCUIT': 'STRECKE GESPERRT',
-    'GAME MODE': 'SPIELMODUS', '🏁 GRAND PRIX': '🏁 GRAND PRIX', '⏱ TIME TRIAL': '⏱ ZEITFAHREN', '☣ ENDLESS': '☣ ENDLOS', 'TIME TRIAL': 'ZEITFAHREN', 'GRAND PRIX': 'GRAND PRIX',
-    'YOUR MACHINE': 'DEIN GLEITER', 'SELECT LEVEL': 'STRECKE WÄHLEN', 'CLASS': 'KLASSE', 'DISTANCE': 'DISTANZ', 'DIFFICULTY': 'SCHWIERIGKEIT',
-    'BALANCED / PRECISION HANDLING': 'AUSGEWOGEN / PRÄZISES HANDLING', 'AGGRESSIVE / HIGH TOP SPEED': 'AGGRESSIV / HOHE SPITZE', 'AGILE / EXTENDED OVERDRIVE': 'WENDIG / LANGER OVERDRIVE',
-    'THE ELECTRIC METROPOLIS': 'DIE ELEKTRISCHE METROPOLE', 'BURN THROUGH THE AFTERGLOW': 'BRENN DURCH DAS ABENDROT', 'DIVE INTO THE ULTRAVIOLET': 'TAUCH INS ULTRAVIOLETT',
-    'THREAD THE FRACTURED SKYLINE': 'DURCH DIE ZERBROCHENE SKYLINE', 'LOW GRIP / ZERO MARGIN': 'WENIG GRIP / NULL SPIELRAUM', 'RIDE THE GRAVITY SHEAR': 'REITE DIE SCHWERKRAFTSCHERE',
-    'LASER GATES / NO BRAKES': 'LASERTORE / KEINE BREMSEN', 'THE FINAL IMPOSSIBLE LINE': 'DIE LETZTE UNMÖGLICHE LINIE',
-    '📅 DAILY CHALLENGE': '📅 TAGES-CHALLENGE', 'DAILY CHALLENGE': 'TAGES-CHALLENGE', 'GO ›': 'LOS ›', 'COME BACK TOMORROW': 'KOMM MORGEN WIEDER',
-    '📊 STATS': '📊 STATISTIK', '⚙ SETTINGS': '⚙ EINSTELLUNGEN', '☰ CHANGELOG': '☰ NEUIGKEITEN', 'LIVE CIRCUIT FEED': 'LIVE-STRECKENBILD',
-    'NO RIVALS, NO UFOS': 'KEINE RIVALEN, KEINE UFOS',
-    // HUD
-    'POSITION': 'PLATZ', 'LIVES': 'LEBEN', 'LIFE': 'LEBEN', 'LAP': 'RUNDE', 'PAUSE': 'PAUSE', 'CIRCUIT TELEMETRY': 'STRECKEN-TELEMETRIE', '✦ HYPERDRIVE': '✦ HYPERANTRIEB',
-    'ANTI-GRAVITY DRIVE ONLINE': 'ANTI-GRAVITATIONSANTRIEB AKTIV', 'LOW ENERGY / RECHARGING': 'WENIG ENERGIE / LÄDT', 'HULL SHIELD': 'RUMPFSCHILD', 'BOOST ENERGY': 'BOOST-ENERGIE',
-    'LASER CELLS': 'LASERZELLEN', 'UFO KILLS → MOTHERSHIP': 'UFO-ABSCHÜSSE → MUTTERSCHIFF', 'SPACE': 'LEER', 'BOOST': 'BOOST', 'LASER': 'LASER', '↟ CYAN PADS': '↟ CYAN-PADS',
-    'TUTORIAL': 'TUTORIAL', 'SKIP ›': 'ÜBERSPRINGEN ›', 'DRAG ◀ ▶': 'ZIEHEN ◀ ▶', 'TILT ◀ ▶': 'KIPPEN ◀ ▶', 'STEER': 'LENKEN', 'SLIDE ▲': 'WISCHEN ▲', 'SLIDE ▼': 'WISCHEN ▼',
-    'BRAKE': 'BREMSE', 'TAP': 'TIPPEN', 'ACCELERATE': 'GAS', 'ESC': 'ESC', 'BEST — —:—': 'BESTZEIT — —:—',
-    // Health warning
-    '⚠ PLEASE READ BEFORE PLAYING': '⚠ BITTE VOR DEM SPIELEN LESEN', 'HEALTH WARNING': 'GESUNDHEITSHINWEIS', 'Photosensitive seizures.': 'Lichtempfindliche Anfälle.',
-    'This game contains flashing lights, rapidly changing colours, strobe-like explosions and fast-moving patterns. A very small percentage of people may experience seizures or blackouts when exposed to such images, even without any history of epilepsy.':
-      'Dieses Spiel enthält Blitzlichter, schnell wechselnde Farben, stroboskopartige Explosionen und schnelle Muster. Bei einem sehr kleinen Teil der Menschen können solche Bilder Anfälle oder Bewusstseinsverlust auslösen, auch ohne bekannte Epilepsie.',
-    'Stop playing immediately and consult a doctor': 'Hör sofort auf zu spielen und suche einen Arzt auf,',
-    'if you or anyone watching experiences dizziness, altered vision, eye or muscle twitching, disorientation, involuntary movements or convulsions. Parents should supervise children while they play.':
-      'wenn du oder jemand, der zusieht, Schwindel, Sehstörungen, Augen- oder Muskelzucken, Orientierungslosigkeit, unwillkürliche Bewegungen oder Krämpfe bemerkt. Eltern sollten Kinder beim Spielen beaufsichtigen.',
-    'Play safely:': 'Sicher spielen:',
-    'sit at a distance from the screen, play in a well-lit room, take a 10–15 minute break every hour and do not play when tired. Motion steering (gyro) and the speed effects can cause motion sickness — switch to touch steering in Settings if you feel unwell. Keep the volume at a comfortable level, especially with headphones.':
-      'halte Abstand zum Bildschirm, spiele in einem hellen Raum, mach jede Stunde 10–15 Minuten Pause und spiele nicht, wenn du müde bist. Bewegungssteuerung (Gyro) und die Geschwindigkeitseffekte können Übelkeit verursachen — wechsle in den Einstellungen zur Touch-Steuerung, wenn dir unwohl ist. Halte die Lautstärke angenehm, besonders mit Kopfhörern.',
-    'I UNDERSTAND': 'VERSTANDEN',
-    // Shop, paints, trophies, stats
-    'GARAGE / SHIP UPGRADES': 'GARAGE / SCHIFFS-UPGRADES', 'UPGRADES': 'UPGRADES', 'CREDITS': 'CREDITS',
-    'Earn credits for finishing positions, podiums, rival and UFO kills, motherships and bosses.': 'Credits gibt es für Platzierungen, Podien, Abschüsse von Rivalen und UFOs, Mutterschiffe und Bosse.',
-    '🛡 HULL ARMOR': '🛡 RUMPFPANZER', '◎ LASER BANK': '◎ LASERSPEICHER', 'ϟ BOOST CORE': 'ϟ BOOST-KERN', 'MAX': 'MAX',
-    'PAINT SHOP': 'LACKIEREREI', 'Change the look of your ship. Trophy paint jobs unlock with the named trophy.': 'Ändere das Aussehen deines Schiffs. Trophäen-Lackierungen schaltest du mit der genannten Trophäe frei.',
-    'FACTORY': 'WERKSLACK', 'EQUIPPED': 'AUSGERÜSTET', 'STEALTH': 'TARNKAPPE', 'CHROME': 'CHROM', 'HOT RODS': 'FLAMMEN', 'RACING STRIPES': 'RENNSTREIFEN', '24K GOLD': '24K GOLD',
-    'NEON KITTY': 'NEON-KÄTZCHEN', 'HYPER RAINBOW': 'HYPER-REGENBOGEN', 'BACK TO THE GARAGE': 'ZURÜCK IN DIE GARAGE',
-    'HALL OF FAME': 'RUHMESHALLE', 'TROPHIES': 'TROPHÄEN', 'UNLOCKED': 'FREIGESCHALTET', 'ACHIEVEMENT UNLOCKED': 'ERFOLG FREIGESCHALTET',
-    'Finish your first race.': 'Beende dein erstes Rennen.', 'Finish in the top 3.': 'Komm unter die Top 3.', 'Win a race.': 'Gewinne ein Rennen.',
-    'Win a race without losing a life.': 'Gewinne ein Rennen, ohne ein Leben zu verlieren.', 'Pixel-poof 10 cats.': 'Pixel-poffe 10 Katzen.', 'Shoot down 25 UFOs.': 'Schieß 25 UFOs ab.',
-    'Destroy 50 rivals.': 'Zerstöre 50 Rivalen.', 'Destroy a mothership.': 'Zerstöre ein Mutterschiff.', 'Fly through a star gate.': 'Flieg durch ein Sternentor.',
-    'Collect all four power-up types.': 'Sammle alle vier Power-up-Arten.', 'Defeat the final boss and reach the disco.': 'Besiege den Endboss und erreiche die Disco.',
-    'Beat all six bosses of Singularity Run.': 'Besiege alle sechs Bosse von Singularity Run.', 'Buy your first upgrade.': 'Kauf dein erstes Upgrade.',
-    'Max out every upgrade.': 'Bau jedes Upgrade voll aus.', 'Unlock every circuit.': 'Schalte jede Strecke frei.', 'Find the secret on the title screen.': 'Finde das Geheimnis auf dem Startbildschirm.',
-    'Share a race result.': 'Teile ein Rennergebnis.', 'Destroy all three nemeses in one race.': 'Zerstöre alle drei Erzfeinde in einem Rennen.',
-    'PILOT RECORD': 'PILOTENAKTE', 'STATS': 'STATISTIK', 'RACES': 'RENNEN', 'WINS': 'SIEGE', 'PODIUMS': 'PODIEN', 'PLAY TIME': 'SPIELZEIT', 'FAVOURITE': 'LIEBLINGSSTRECKE',
-    'RIVALS DESTROYED': 'RIVALEN ZERSTÖRT', 'UFOs SHOT DOWN': 'UFOS ABGESCHOSSEN', 'CATS POPPED': 'KATZEN GEPOFFT', 'BOSSES DEFEATED': 'BOSSE BESIEGT',
-    'ENDLESS RECORD': 'ENDLOS-REKORD', 'DAILY STREAK': 'TAGESSERIE', 'MOVE YOUR PROGRESS': 'FORTSCHRITT ÜBERTRAGEN',
-    'Export a code on this device and import it on another one — credits, upgrades, paints, trophies, circuits, records and settings come along.':
-      'Exportiere auf diesem Gerät einen Code und importiere ihn auf einem anderen — Credits, Upgrades, Lackierungen, Trophäen, Strecken, Rekorde und Einstellungen kommen mit.',
-    '⤴ EXPORT CODE': '⤴ CODE EXPORTIEREN', '⤵ IMPORT CODE': '⤵ CODE IMPORTIEREN',
-    'CODE COPIED — PASTE IT ON YOUR OTHER DEVICE.': 'CODE KOPIERT — FÜGE IHN AUF DEINEM ANDEREN GERÄT EIN.', 'COPY THE CODE BELOW AND PASTE IT ON YOUR OTHER DEVICE.': 'KOPIERE DEN CODE UNTEN UND FÜGE IHN AUF DEINEM ANDEREN GERÄT EIN.',
-    'PASTE A PROFILE CODE INTO THE BOX FIRST.': 'FÜGE ZUERST EINEN PROFILCODE IN DAS FELD EIN.', 'THAT CODE DOES NOT LOOK RIGHT. CHECK IT AND TRY AGAIN.': 'DER CODE SIEHT NICHT RICHTIG AUS. PRÜFE IHN UND VERSUCH ES NOCHMAL.',
-    // Settings
-    'CONTROLS & DISPLAY': 'STEUERUNG & ANZEIGE', 'SETTINGS': 'EINSTELLUNGEN', 'STEERING': 'LENKUNG', '⟲ GYRO': '⟲ GYRO', '☝ TOUCH / KEYS': '☝ TOUCH / TASTEN',
-    'EASY': 'LEICHT', 'NORMAL': 'NORMAL', 'HARD': 'SCHWER', 'VIBRATION': 'VIBRATION', '〰 ON': '〰 AN', '∅ OFF': '∅ AUS', 'ON': 'AN', 'OFF': 'AUS',
-    'CALM MODE': 'RUHIGER MODUS', 'LESS SHAKE & FLASHING': 'WENIGER WACKELN & BLITZE', 'COLOUR-BLIND': 'FARBENBLIND', '⚠ DANGER MARKS': '⚠ GEFAHRENMARKER',
-    'PERFORMANCE': 'LEISTUNG', 'AUTO · WATCHING FPS': 'AUTO · BEOBACHTET FPS', 'AUTO · LOW FPS DETECTED': 'AUTO · NIEDRIGE FPS ERKANNT', 'FEWER EFFECTS': 'WENIGER EFFEKTE', 'ALL EFFECTS': 'ALLE EFFEKTE',
-    'AUTO': 'AUTO', 'LOW FX': 'WENIG FX', 'FULL': 'VOLL', 'SUBTITLES': 'UNTERTITEL', 'FOR VOICES': 'FÜR STIMMEN', '↺ PLAY IT AGAIN': '↺ NOCHMAL SPIELEN',
-    'SCREEN': 'BILDSCHIRM', '▭ LANDSCAPE': '▭ QUER', '▯ PORTRAIT': '▯ HOCH', 'LANDSCAPE': 'QUERFORMAT', 'PORTRAIT': 'HOCHFORMAT', 'DONE': 'FERTIG', 'LANGUAGE': 'SPRACHE',
-    "WHAT'S NEW": 'WAS IST NEU', 'CHANGELOG': 'NEUIGKEITEN', 'CLOSE': 'SCHLIESSEN',
-    'ASKING FOR MOTION SENSOR ACCESS…': 'FRAGE NACH ZUGRIFF AUF DEN BEWEGUNGSSENSOR…', 'GYRO NOT AVAILABLE — USING TOUCH': 'GYRO NICHT VERFÜGBAR — TOUCH WIRD GENUTZT',
-    'GYRO ON — HOLD YOUR DEVICE NEUTRAL WHEN THE RACE STARTS': 'GYRO AN — HALTE DEIN GERÄT BEIM START NEUTRAL', 'DRAG ON THE TRACK TO STEER': 'ZUM LENKEN AUF DER STRECKE ZIEHEN',
-    'VIBRATION ON': 'VIBRATION AN', 'VIBRATION OFF': 'VIBRATION AUS', 'THIS DEVICE CANNOT VIBRATE FROM THE WEB': 'DIESES GERÄT KANN IM BROWSER NICHT VIBRIEREN',
-    'THE TUTORIAL RUNS IN YOUR NEXT GRAND PRIX': 'DAS TUTORIAL LÄUFT IN DEINEM NÄCHSTEN GRAND PRIX', 'LOW FPS · PERFORMANCE MODE ON': 'NIEDRIGE FPS · LEISTUNGSMODUS AN',
-    // Pause, results, soundtrack, rotate
-    'TAKE A BREATH, PILOT': 'DURCHATMEN, PILOT', 'RACE PAUSED': 'RENNEN PAUSIERT', 'The future can wait a moment.': 'Die Zukunft kann einen Moment warten.',
-    'BACK TO OVERDRIVE': 'ZURÜCK IN DEN OVERDRIVE', 'RETURN TO GARAGE': 'ZURÜCK IN DIE GARAGE', 'NEON GRAND PRIX / RACE COMPLETE': 'NEON GRAND PRIX / RENNEN BEENDET',
-    'PODIUM FINISH.': 'PODIUMSPLATZ.', 'PODIUM FINISH': 'PODIUMSPLATZ', 'LIMITS REDEFINED.': 'GRENZEN NEU DEFINIERT.', 'PURE OVERDRIVE.': 'PURER OVERDRIVE.', 'SHIELDS DOWN.': 'SCHILDE WEG.',
-    'RACE TIME': 'RENNZEIT', 'BEST LAP': 'BESTE RUNDE', 'RACE AGAIN': 'NOCHMAL FAHREN', '⤴ SHARE RESULT': '⤴ ERGEBNIS TEILEN', 'NEW BEST TIME!': 'NEUE BESTZEIT!', 'TIME TRIAL DONE.': 'ZEITFAHREN BEENDET.',
-    'GALAXY SAVED.': 'GALAXIE GERETTET.', 'ABDUCTED.': 'ENTFÜHRT.', 'GALAXY SAVED': 'GALAXIE GERETTET', 'GALAXY SAVED · INVASION REPELLED': 'GALAXIE GERETTET · INVASION ABGEWEHRT',
-    'INTERGALACTIC CHAMPION / INVASION REPELLED': 'INTERGALAKTISCHER CHAMPION / INVASION ABGEWEHRT', 'GAME OVER / THE INVASION WON': 'GAME OVER / DIE INVASION HAT GESIEGT',
-    'ENDLESS BOSS RUSH / GAME OVER': 'ENDLOSER BOSS-ANSTURM / GAME OVER', 'TARGET ACQUIRED.': 'ZIEL ERFASST.',
-    'SOUNDTRACK / PRESS PLAY': 'SOUNDTRACK / PLAY DRÜCKEN', 'NOW PLAYING / LOCAL SOUNDTRACK': 'LÄUFT GERADE / LOKALER SOUNDTRACK', 'SOUNDTRACK / FILE UNAVAILABLE': 'SOUNDTRACK / DATEI FEHLT',
-    'SOUNDTRACK / MUTED': 'SOUNDTRACK / STUMM', 'SOUNDTRACK / TAP TO PLAY': 'SOUNDTRACK / TIPPEN ZUM ABSPIELEN',
-    'SYSTEM READY · SINGULARITY STABLE · GO RACE!': 'SYSTEM BEREIT · SINGULARITÄT STABIL · AB INS RENNEN!',
-    'ROTATE TO LANDSCAPE': 'INS QUERFORMAT DREHEN', 'ROTATE TO PORTRAIT': 'INS HOCHFORMAT DREHEN', 'Your screen setting is': 'Deine Bildschirm-Einstellung ist', '. Turn your device to play.': '. Dreh dein Gerät zum Spielen.',
-    'SWITCH TO': 'WECHSELN ZU', 'INSTEAD': '', 'CONGRATULATIONS!': 'GLÜCKWUNSCH!',
-    // Race messages
-    'BACK IN THE FIGHT!': 'ZURÜCK IM KAMPF!', 'BACK IN THE RACE!': 'ZURÜCK IM RENNEN!', 'BARRIER CONTACT': 'BANDENKONTAKT', 'BOMB DODGED!': 'BOMBE AUSGEWICHEN!',
-    'BOOST DEPLETED': 'BOOST LEER', 'BOOST RAM': 'BOOST-RAMME', 'RIVAL DESTROYED': 'RIVALE ZERSTÖRT', 'HULL CONTACT': 'RUMPFKONTAKT', 'HYPERDRIVE OFFLINE': 'HYPERANTRIEB AUS',
-    'HYPERDRIVE!': 'HYPERANTRIEB!', 'LASER CELLS RECHARGING': 'LASERZELLEN LADEN', 'LEGENDARY!  SHIELD + LASER RESTORED': 'LEGENDÄR!  SCHILD + LASER WIEDERHERGESTELLT',
-    'LIGHT SPEED': 'LICHTGESCHWINDIGKEIT', 'INVINCIBLE': 'UNVERWUNDBAR', 'MEGA LASER': 'MEGA-LASER', '∞ BOOST': '∞ BOOST', 'MEGA BLAST!': 'MEGA-EXPLOSION!',
-    'MOTHERSHIP DESTROYED!': 'MUTTERSCHIFF ZERSTÖRT!', 'NEW UFO INBOUND!': 'NEUES UFO IM ANFLUG!', 'RECHARGE': 'AUFLADEN', 'BOOST + SHIELD + LASER': 'BOOST + SCHILD + LASER',
-    'RIVAL LASER LOCK!  BREAK LINE OF SIGHT': 'RIVALE HAT DICH IM VISIER!  RAUS AUS DER SCHUSSLINIE', 'WARNING': 'WARNUNG', 'RIVAL LASER LOCK': 'RIVALE ZIELT',
-    'SHIELDS DOWN': 'SCHILDE WEG', 'TOTAL CHAIN REACTION': 'TOTALE KETTENREAKTION', 'SHIP DESTROYED!': 'SCHIFF ZERSTÖRT!', 'SMASHED THROUGH!': 'DURCHGEBROCHEN!',
-    'TARGET MISSED': 'DANEBEN', 'LASERS LOW': 'LASER FAST LEER', 'THE MOTHERSHIP HAS ARRIVED': 'DAS MUTTERSCHIFF IST DA', 'SHOOT IT DOWN!': 'SCHIESS ES AB!',
-    'THE SKY CLEARS': 'DER HIMMEL KLART AUF', 'TRAMPOLINE!  JUMP + BOOST!': 'TRAMPOLIN!  SPRUNG + BOOST!', 'UFO BOMB RUN!  DODGE OR JUMP!': 'UFO-BOMBENANGRIFF!  AUSWEICHEN ODER SPRINGEN!',
-    'UFO BOMB RUN': 'UFO-BOMBENANGRIFF', 'DODGE!': 'AUSWEICHEN!', 'UFO HIT': 'UFO GETROFFEN', 'IT IS GOING DOWN!': 'ES STÜRZT AB!', 'WARNING: MOTHERSHIP!': 'WARNUNG: MUTTERSCHIFF!',
-    'WEBBED!  SLOWED DOWN': 'EINGESPONNEN!  VERLANGSAMT', '🎮 GAMEPAD CONNECTED': '🎮 GAMEPAD VERBUNDEN', 'AIRBORNE': 'IN DER LUFT', 'TRAMPOLINE BOOST': 'TRAMPOLIN-BOOST',
-    'BUBBLE POPPED!': 'BLASE GEPLATZT!', 'CATASTROPHIC FAILURE / SHIELDS OFFLINE': 'TOTALAUSFALL / SCHILDE OFFLINE', 'CAT PIXEL-POOF!  LASER +1': 'KATZEN-PIXEL-POFF!  LASER +1',
-    'CAT PIXEL-POOF!  LASER FULL': 'KATZEN-PIXEL-POFF!  LASER VOLL', 'DRONE COLLISION': 'DROHNEN-KOLLISION', 'ENEMY LASER HIT': 'FEINDLICHER LASERTREFFER',
-    'FINAL LAP — MAKE IT COUNT': 'LETZTE RUNDE — JETZT ZÄHLT ES', 'FINISH TOP 3 TO UNLOCK THE NEXT CIRCUIT  ·  WIN TO FACE THE INVASION!': 'TOP 3 SCHALTET DIE NÄCHSTE STRECKE FREI  ·  SIEG FÜHRT ZUR INVASION!',
-    'HULL LOST / THE WHOLE PACK WENT NOVA': 'RUMPF VERLOREN / DAS GANZE FELD GING HOCH', 'LASER GATE HIT': 'LASERTOR GETROFFEN', 'MINE STRIKE': 'MINENTREFFER',
-    'MOTHERSHIP LASER': 'MUTTERSCHIFF-LASER', 'LIGHTNING STRIKE': 'BLITZEINSCHLAG', 'METEOR STRIKE!': 'METEORTREFFER!', 'UFO BOMB HIT!': 'UFO-BOMBENTREFFER!',
-    'RIVAL DESTROYED  /  +1 PLACE': 'RIVALE ZERSTÖRT  /  +1 PLATZ', 'BOSS DOWN': 'BOSS BESIEGT', 'RIVAL DOWN': 'RIVALE ERLEDIGT', 'UFO DOWN': 'UFO ERLEDIGT',
-    'MOTHERSHIP DOWN': 'MUTTERSCHIFF ERLEDIGT', 'NEMESIS DOWN': 'ERZFEIND ERLEDIGT', 'DAILY STREAK BONUS': 'TAGESSERIEN-BONUS',
-    'WATCH THE IMPACT MARKERS!': 'ACHTE AUF DIE EINSCHLAGMARKER!', 'VISIBILITY DROPPING': 'SICHT SINKT', 'THE TRACK PULLS YOU SIDEWAYS': 'DIE STRECKE ZIEHT DICH ZUR SEITE',
-    '☄ METEOR SHOWER': '☄ METEORSCHAUER', '🌪 SANDSTORM': '🌪 SANDSTURM', '〰 GRAVITY WAVES': '〰 SCHWERKRAFTWELLEN',
-    'MAGNET': 'MAGNET', 'SHIELD BUBBLE': 'SCHUTZBLASE', 'TIME WARP': 'ZEITLUPE', 'MULTI-LASER': 'MULTI-LASER',
-    'PULLS IN PADS, CATS, GATES AND POWER-UPS': 'ZIEHT PADS, KATZEN, TORE UND POWER-UPS AN', 'ABSORBS THE NEXT 3 HITS': 'FÄNGT DIE NÄCHSTEN 3 TREFFER AB',
-    'EVERYONE ELSE MOVES IN SLOW MOTION': 'ALLE ANDEREN FAHREN IN ZEITLUPE', 'EVERY SHOT HITS UP TO 3 TARGETS': 'JEDER SCHUSS TRIFFT BIS ZU 3 ZIELE',
-    // Tutorial
-    'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
-    'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
-    'TAP THE TRACK (OR ◎) TO FIRE YOUR LASER': 'TIPP AUF DIE STRECKE (ODER ◎) FÜR DEN LASER', 'PRESS  X  TO FIRE YOUR LASER': 'DRÜCKE  X  FÜR DEN LASER',
-    'CYAN PADS RECHARGE BOOST, SHIELD AND LASER': 'CYAN-PADS LADEN BOOST, SCHILD UND LASER', 'GRAB POWER-UP BOXES  ·  FLY THROUGH ✦ STAR GATES FOR HYPERDRIVE': 'SCHNAPP DIR POWER-UP-BOXEN  ·  FLIEG DURCH ✦ STERNENTORE FÜR DEN HYPERANTRIEB',
-    // Finale
-    '⚠ INVASION INCOMING ⚠': '⚠ INVASION IM ANMARSCH ⚠', '◀ ▶ MOVE  ·  FIRE: BLAST A HOLE IN THE WALL, THEN HIT THE OVERLORD': '◀ ▶ BEWEGEN  ·  FEUER: SPRENG EIN LOCH IN DIE WAND, DANN TRIFF DEN OBERHERRN',
-    '⚠ WORMHOLE — MOVE!': '⚠ WURMLOCH — WEG DA!', 'FINAL BOSS!': 'ENDBOSS!', 'OVERLORD SPLATTERED!': 'OBERHERR ZERMATSCHT!', 'ENDLESS BOSS RUSH — WAVE 1!': 'ENDLOSER BOSS-ANSTURM — WELLE 1!',
-    'HULL SHIELD ': 'RUMPFSCHILD ', 'SLIMED!': 'EINGESCHLEIMT!', 'ACID BURN!': 'SÄUREVERÄTZUNG!', 'MISSILE HIT!': 'RAKETENTREFFER!', 'CRYSTAL SHARD!': 'KRISTALLSPLITTER!', 'ZAPPED!': 'GEGRILLT!',
-    'CHOMP!': 'HAPPS!', 'DEATH RAY!': 'TODESSTRAHL!', 'NEXT ONE INCOMING': 'DER NÄCHSTE KOMMT', 'SHARK SPLATTERED!': 'HAI ZERMATSCHT!', 'SPIDER SHATTERED!': 'SPINNE ZERSPLITTERT!',
-    'MAGGOT SQUASHED!': 'MADE ZERQUETSCHT!', 'ROBOT SCRAPPED!': 'ROBOTER VERSCHROTTET!', 'CYCLOPS POPPED!': 'ZYKLOP GEPLATZT!',
-  };
-  const DE_RULES = [
-    [/^(\d+) LAPS · (\d+) PILOTS · NO LIMITS$/, '$1 RUNDEN · $2 PILOTEN · OHNE LIMIT'],
-    [/^(\d+) PILOTS · (\d+) LAPS · WIN TO FACE THE INVASION$/, '$1 PILOTEN · $2 RUNDEN · GEWINNE UND STELL DICH DER INVASION'],
-    [/^CIRCUITS UNLOCKED: (.+)$/, 'STRECKEN FREI: $1'], [/^REWARD (\d+) CR$/, 'BELOHNUNG $1 CR'], [/^🔥 STREAK (\d+)$/, '🔥 SERIE $1'],
-    [/^DESTROY (\d+) RIVALS ON (.+)$/, 'ZERSTÖRE $1 RIVALEN AUF $2'], [/^SHOOT DOWN (\d+) UFOs ON (.+)$/, 'SCHIESS $1 UFOS AB AUF $2'], [/^POP (\d+) CATS ON (.+)$/, 'POFFE $1 KATZEN AUF $2'],
-    [/^FINISH (.+) WITHOUT LOSING A LIFE$/, 'BEENDE $1 OHNE LEBENSVERLUST'], [/^TOP 3 ON (.+) WITHOUT BOOSTING$/, 'TOP 3 AUF $1 OHNE BOOST'], [/^PODIUM ON (.+) ON HARD$/, 'PODIUM AUF $1 AUF SCHWER'], [/^WIN (.+)$/, 'GEWINNE $1'],
-    [/^✓ DONE — (.+)$/, (m, a) => `✓ GESCHAFFT — ${tr(a)}`], [/^📅 DAILY CHALLENGE COMPLETE!  🔥 (\d+)-DAY STREAK$/, '📅 TAGES-CHALLENGE GESCHAFFT!  🔥 $1-TAGE-SERIE'],
-    [/^🛠 UPGRADES · (\d+) CR$/, '🛠 UPGRADES · $1 CR'], [/^🏆 TROPHIES (.+)$/, '🏆 TROPHÄEN $1'], [/^NOW: (.+)$/, (m, a) => `JETZT: ${tr(a)}`], [/^NEXT: (.+)$/, (m, a) => `NÄCHSTE: ${tr(a)}`],
-    [/^MAXED OUT — (.+)$/, (m, a) => `VOLL AUSGEBAUT — ${tr(a)}`], [/^takes (\d+)% less damage$/, 'nimmt $1 % weniger Schaden'], [/^(\d+) cells, recharge (\d+)% faster$/, '$1 Zellen, lädt $2 % schneller'],
-    [/^(\d+)% less drain, \+(\d+)% top speed$/, '$1 % weniger Verbrauch, +$2 % Spitze'], [/^UPGRADE · (\d+) CR$/, 'UPGRADE · $1 CR'], [/^BUY · (\d+) CR$/, 'KAUFEN · $1 CR'],
-    [/^(\d+) WAVES?\.?$/, (m, a) => `${a} ${a === '1' ? 'WELLE' : 'WELLEN'}${m.endsWith('.') ? '.' : ''}`], [/^(\d+) DAYS$/, '$1 TAGE'], [/^(\d+)H (\d+)M$/, '$1 STD $2 MIN'],
-    [/^BEST (.+)$/, 'BESTZEIT $1'], [/^LAP (\d+) \/ (\d+) — KEEP PUSHING$/, 'RUNDE $1 / $2 — WEITER SO'], [/^P(\d+) FINISH$/, 'PLATZ $1'], [/^TIME TRIAL \/ (.+)$/, 'ZEITFAHREN / $1'],
-    [/^\+(\d+) CR EARNED  ·  (\d+) CR TOTAL$/, '+$1 CR VERDIENT  ·  $2 CR GESAMT'], [/^DIFFICULTY: (\w+) · (.*?)(\d+)% CREDITS$/, (m, d, l, c) => `SCHWIERIGKEIT: ${tr(d)} · ${l.replace('+1 LIFE', '+1 LEBEN').replace('-1 LIFE', '-1 LEBEN')}${c} % CREDITS`],
-    [/^SHIP DESTROYED  \/  (\d+) LI(?:VES|FE) LEFT$/, 'SCHIFF ZERSTÖRT  /  NOCH $1 LEBEN'], [/^SHIP DESTROYED!  (\d+) LI(?:VES|FE) LEFT$/, 'SCHIFF ZERSTÖRT!  NOCH $1 LEBEN'],
-    [/^MOTHERSHIP HIT  \/  (\d+)%$/, 'MUTTERSCHIFF GETROFFEN  /  $1 %'], [/^RIVAL HIT  \/  HULL (.+)$/, 'RIVALE GETROFFEN  /  RUMPF $1'], [/^(.+) HIT  \/  HULL (\d\/6)$/, '$1 GETROFFEN  /  RUMPF $2'],
-    [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
-    [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
-    [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
-    [/^WAVE (\d+): (.+)$/, 'WELLE $1: $2'], [/^FINAL BOSS (\d+)\/(\d+)!$/, 'ENDBOSS $1/$2!'], [/^ALIEN WALL (.+)$/, 'ALIEN-WAND $1'], [/^LIVES (.*)$/, 'LEBEN $1'],
-    [/^(\d+)% CREDITS$/, '$1 % CREDITS'], [/^LOADING MUSIC (\d+)%$/, 'MUSIK LÄDT $1 %'], [/^SOUNDTRACK \/ LOADING (\d+)%$/, 'SOUNDTRACK / LÄDT $1 %'],
-    [/^ROTATE TO (\w+)$/, (m, a) => `INS ${a === 'LANDSCAPE' ? 'QUERFORMAT' : 'HOCHFORMAT'} DREHEN`], [/^SCREEN: (\w+)$/, (m, a) => `BILDSCHIRM: ${tr(a)}`],
-    [/^TUTORIAL (\d+)\/(\d+)$/, 'TUTORIAL $1/$2'], [/^🔒 LOCKED — FINISH TOP 3 ON (.+) TO UNLOCK$/, '🔒 GESPERRT — KOMM AUF $1 UNTER DIE TOP 3'], [/^🔓 NEW CIRCUIT UNLOCKED: (.+)!$/, '🔓 NEUE STRECKE FREI: $1!'],
-    [/^✦ NEW ENDLESS RECORD! \(previous best: (\d+)\)$/, '✦ NEUER ENDLOS-REKORD! (bisher: $1)'], [/^BOSS AFTER BOSS UNTIL YOU FALL · RECORD (\d+) WAVES$/, 'BOSS UM BOSS, BIS DU FÄLLST · REKORD $1 WELLEN'],
-    [/^(\d+) BOSS(?:ES)? SPLATTERED · (\d+) UFOs$/, '$1 BOSS(E) ZERMATSCHT · $2 UFOS'], [/^(\d+) UFOs SHOT DOWN · (\d+) TROPHIES$/, '$1 UFOS ABGESCHOSSEN · $2 TROPHÄEN'],
-    [/^TIME (.+)   BEST LAP (.+)$/, 'ZEIT $1   BESTE RUNDE $2'], [/^(.+)  \/  HYPER VELOCITY$/, '$1  /  HYPERTEMPO'], [/^(\d[\d.,]*) KM$/, '$1 KM'],
-    [/^☠ MOTHERSHIP  (\d+)%$/, '☠ MUTTERSCHIFF  $1 %'], [/^(.+) — UPGRADE$/, '$1 — UPGRADE'],
-  ];
-  const trCache = new Map();
-  function trCore(core) {
-    if (Object.prototype.hasOwnProperty.call(DE, core)) return DE[core];
-    for (const [re, rep] of DE_RULES) if (re.test(core)) return core.replace(re, rep);
-    return null;
-  }
-  function tr(text) {
-    if (settings.lang !== 'de' || typeof text !== 'string' || !/[A-Za-z]{2}/.test(text)) return text;
-    const hit = trCache.get(text); if (hit !== undefined) return hit;
-    const lead = text.match(/^\s*/)[0], core = text.trim(), trail = core ? text.slice(lead.length + core.length) : '';
-    let out = trCore(core);
-    // Composite messages: translate each piece between " / " and " · " separators.
-    if (out === null) out = /\s[\/·]\s/.test(core) ? core.split(/(\s+[\/·]\s+)/).map(p => /[\/·]/.test(p) && !p.trim().replace(/[\/·]/, '') ? p : (trCore(p.trim()) ?? p)).join('') : core;
-    out = lead + out + trail; if (trCache.size > 1500) trCache.clear(); trCache.set(text, out); return out;
-  }
-  // DOM: remember each text node's English source so switching back and forth works, and re-translate whenever code writes text.
-  const i18nNodes = new WeakMap();
-  function trNode(n) {
-    const rec = i18nNodes.get(n), cur = n.nodeValue, en = rec && cur === rec.out ? rec.en : cur, out = tr(en);
-    i18nNodes.set(n, { en, out }); if (cur !== out) n.nodeValue = out;
-  }
-  function trTree(root) {
-    if (!root || typeof document.createTreeWalker !== 'function') return;
-    if (root.nodeType === 3) { trNode(root); return; }
-    if (root.nodeType !== 1 || /^(SCRIPT|STYLE|TEXTAREA)$/.test(root.nodeName) || root.closest?.('[data-no-i18n]')) return;
-    const walker = document.createTreeWalker(root, 4); let n;
-    while ((n = walker.nextNode())) if (!/^(SCRIPT|STYLE|TEXTAREA)$/.test(n.parentNode.nodeName) && !n.parentNode.closest?.('[data-no-i18n]')) trNode(n);
-  }
-  function applyLanguage() {
-    trCache.clear();
-    try { document.documentElement.lang = settings.lang === 'de' ? 'de' : 'en'; } catch { /* ignore */ }
-    trTree(document.body);
-  }
-  if (typeof MutationObserver === 'function' && document.body) {
-    new MutationObserver(list => { for (const m of list) { if (m.type === 'characterData') trNode(m.target); else m.addedNodes.forEach(trTree); } })
-      .observe(document.body, { childList: true, characterData: true, subtree: true });
-  }
-  // Canvas text (callouts, finale, HUD on canvas) goes through the same table.
-  try {
-    const fill = ctx.fillText, stroke = ctx.strokeText;
-    if (typeof fill === 'function') { ctx.fillText = function (t, ...a) { return fill.call(this, tr(t), ...a); }; ctx.strokeText = function (t, ...a) { return stroke.call(this, tr(t), ...a); }; }
-  } catch { /* fixed context */ }
-  settingHooks.lang = applyLanguage;
-  window.morbidI18n = { tr, apply: applyLanguage };
+  // ==== Keyboard, buttons and touch gestures.
+  const keys = new Set();
+  // Touch gestures: a floating stick anywhere on the track. Drag sideways to steer, slide up to boost,
+  // slide down to brake, tap (or touch with a second finger) to fire. Holding a finger accelerates.
+  const gesture = { id: null, originX: 0, originY: 0, x: 0, y: 0, startTime: 0, moved: false, steer: 0, accel: false, brake: false, boost: false, fire: false, fireQueued: false, extra: new Set() };
+  let hintTime = 0;
+  const STICK = 64, DEADZONE = 7, VERTICAL = 42;
+  function resetGesture() { gesture.id = null; gesture.steer = 0; gesture.accel = gesture.brake = gesture.boost = gesture.fire = gesture.fireQueued = false; gesture.extra.clear(); }
   $('start').addEventListener('click', startRace); $('again').addEventListener('click', raceAgain);
   $('pause').addEventListener('click', pauseRace); $('resume').addEventListener('click', pauseRace);
   $('quit').addEventListener('click', garage); $('garage').addEventListener('click', garage);
@@ -3231,6 +3255,7 @@
   }
   for (const type of ['pointerup', 'pointercancel']) canvas.addEventListener(type, endGesture);
   canvas.addEventListener('contextmenu', event => event.preventDefault());
+  // ==== Settings wiring, stats/profile transfer, health warning, changelog, easter egg.
   document.querySelectorAll('[data-steer]').forEach(button => button.addEventListener('click', async () => {
     if (button.dataset.steer === 'gyro') {
       setupNote('ASKING FOR MOTION SENSOR ACCESS…');
@@ -3365,6 +3390,7 @@
     eggTyped = (eggTyped + event.code.slice(3)).slice(-4);
     if (eggTyped === 'BOSS') bossRush();
   });
+  // ==== Upgrade and paint shop.
   // ---- Upgrade shop in the garage.
   function renderShop() {
     $('shop-credits').textContent = `${profile.credits} CR`;
@@ -3400,6 +3426,7 @@
   renderShop(); renderTrophyButton();
   $('open-trophies').addEventListener('click', () => { renderTrophies(); openDialog('trophy-screen'); });
   window.morbidShop = { buy: buyUpgrade, paint: choosePaint, profile };
+  // ==== Share card.
   // ---- Share card: a 1200×630 image of the result, shared via the system share sheet (or downloaded).
   function shareCard() {
     const c = document.createElement('canvas'); c.width = 1200; c.height = 630; const g = c.getContext('2d');
@@ -3432,6 +3459,7 @@
       unlockAchievement('share');
     } catch { /* share sheet dismissed */ }
   });
+  // ==== Start-up.
   // Lets the update job wait until no race is in progress.
   window.morbidBusy = () => ['countdown', 'racing', 'respawning', 'paused', 'wrecked', 'invasion', 'final'].includes(mode) || (mode === 'disco' && !(finale && finale.resultsShown));
   window.addEventListener('resize', resize);

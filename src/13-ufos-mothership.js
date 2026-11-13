@@ -1,4 +1,8 @@
-  function showCallout(text, color = '#ddff46') { callout = { text, color, started: time }; }
+  // ==== UFOs, bombs, crash paths and the mothership.
+  const UFO_COLORS = ['#a7ff4f', '#54f8ff', '#ff73dc', '#fff16b'];
+  function makeUfo(slot, seed, spawnedAt) {
+    return { slot, seed, distance: 0, lane: 0, dropCooldown: .8 + slot * 1.25 + (spawnedAt > 0 ? 1.6 : 0), color: UFO_COLORS[seed % 4], spawnedAt, screen: null };
+  }
   function shootDownUfo(ufo) {
     if (stat('ufos') >= 25) unlockAchievement('ufo25');
     if (mode === 'racing') raceStats.ufos++;
@@ -264,54 +268,28 @@
     }
     ctx.restore();
   }
-  // Confetti runs on its own overlay canvas so it rains over the results screen too.
-  const confettiCanvas = $('confetti'), confettiCtx = confettiCanvas && confettiCanvas.getContext('2d');
-  function launchConfetti() {
-    const colors = ['#ddff46', '#ff4eb8', '#4df8ff', '#fff16b', '#a88aff', '#ff8a3d', '#ffffff'];
-    for (let i = 0, n = lowFx() ? 110 : 360; i < n; i++) {
-      const cannon = i % 3, fromSide = cannon < 2;
-      confetti.push({ x: fromSide ? (cannon ? W + 10 : -10) : Math.random() * W, y: fromSide ? H * (.55 + Math.random() * .3) : -20 - Math.random() * H * .6,
-        vx: fromSide ? (cannon ? -1 : 1) * (380 + Math.random() * 620) : (Math.random() - .5) * 120, vy: fromSide ? -(620 + Math.random() * 700) : 60 + Math.random() * 160,
-        w: 6 + Math.random() * 8, h: 3 + Math.random() * 6, rot: Math.random() * TAU, spin: (Math.random() - .5) * 14, flutter: Math.random() * TAU,
-        color: colors[i % colors.length], life: 5 + Math.random() * 3 });
-    }
+  function drawUfo(s, ufo) {
+    const a = s.p1, b = s.p2, f = mod(ufo.distance, SEG) / SEG, width = lerp(a.w, b.w, f);
+    const arrive = ufo.spawnedAt > 0 ? clamp((time - ufo.spawnedAt) / 1.2, 0, 1) : 1;
+    const x = lerp(a.x, b.x, f) + width * ufo.lane, roadY = lerp(a.y, b.y, f), size = width * .17, y = roadY - width * .43 - (1 - arrive) * (1 - arrive) * H * .6;
+    if (size < 2) return;
+    ufo.screen = { x, y, size, at: time };
+    ctx.save(); ctx.translate(x, y); ctx.globalAlpha = .82; ctx.shadowColor = ufo.color; ctx.shadowBlur = Math.min(25, size * .55);
+    ctx.globalAlpha = .12; polygon([[-size * .4, size * .12], [-size * 1.8, size * 2.3], [size * 1.8, size * 2.3], [size * .4, size * .12]], ufo.color);
+    ctx.globalAlpha = .94 * arrive;
+    drawUfoShape(size, ufo.color);
+    ctx.restore();
   }
-  function updateConfetti(dt) {
-    if (!confettiCtx) return;
-    if (confettiCanvas.width !== Math.floor(W * dpr) || confettiCanvas.height !== Math.floor(H * dpr)) { confettiCanvas.width = Math.floor(W * dpr); confettiCanvas.height = Math.floor(H * dpr); }
-    confettiCtx.setTransform(dpr, 0, 0, dpr, 0, 0); confettiCtx.clearRect(0, 0, W, H);
-    if (!confetti.length) return;
-    for (const c of confetti) {
-      c.vy += 520 * dt; c.vx *= Math.pow(.35, dt); c.vy = Math.min(c.vy, 170 + Math.sin(c.flutter) * 40); c.flutter += dt * 6;
-      c.x += (c.vx + Math.sin(c.flutter) * 45) * dt; c.y += c.vy * dt; c.rot += c.spin * dt; c.life -= dt;
-      confettiCtx.save(); confettiCtx.translate(c.x, c.y); confettiCtx.rotate(c.rot); confettiCtx.scale(1, Math.cos(c.flutter * 1.3));
-      confettiCtx.globalAlpha = clamp(c.life, 0, 1); confettiCtx.fillStyle = c.color; confettiCtx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h); confettiCtx.restore();
-    }
-    confetti = confetti.filter(c => c.life > 0 && c.y < H + 40);
-  }
-  function playFanfare() {
-    if (!audioContext || muted) return;
-    [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => setTimeout(() => playToneSweep(f, f * 1.01, i > 4 ? .5 : .18, 'square', .045), i * 130));
-  }
-  // Jet engine: looping filtered noise plus a turbine whine, swelled for boosts and ramp jumps.
-  function setupJet() {
-    const length = audioContext.sampleRate * 2, buffer = audioContext.createBuffer(1, length, audioContext.sampleRate), data = buffer.getChannelData(0);
-    let brown = 0; for (let i = 0; i < length; i++) { const white = Math.random() * 2 - 1; brown = (brown + .02 * white) / 1.02; data[i] = white * .6 + brown * 3; }
-    jetSource = audioContext.createBufferSource(); jetSource.buffer = buffer; jetSource.loop = true;
-    jetFilter = audioContext.createBiquadFilter(); jetFilter.type = 'bandpass'; jetFilter.frequency.value = 700; jetFilter.Q.value = .6;
-    jetGain = audioContext.createGain(); jetGain.gain.value = 0;
-    jetSource.connect(jetFilter); jetFilter.connect(jetGain); jetGain.connect(sfxBus); jetSource.start();
-    jetWhine = audioContext.createOscillator(); jetWhine.type = 'sawtooth'; jetWhine.frequency.value = 900;
-    const whineFilter = audioContext.createBiquadFilter(); whineFilter.type = 'highpass'; whineFilter.frequency.value = 600;
-    jetWhineGain = audioContext.createGain(); jetWhineGain.gain.value = 0;
-    jetWhine.connect(whineFilter); whineFilter.connect(jetWhineGain); jetWhineGain.connect(sfxBus); jetWhine.start();
-  }
-  function playJetBlast(power = 1) {
-    buzz([30, 30, Math.round(60 * power)]);
-    // Ignition: a roaring whoosh that tears upward, a deep rumble and a screaming turbine.
-    const v = power * .38;
-    playNoiseBurst(1.1 * power, .32 * v, 300, 6500);
-    playNoiseBurst(1.4 * power, .22 * v, 5200, 140);
-    playToneSweep(48, 160, .9 * power, 'sawtooth', .16 * v);
-    playToneSweep(700, 3200, .8 * power, 'sawtooth', .03 * v);
+  function drawBomb(s, bomb, t) {
+    const a = s.p1, b = s.p2, worldPosition = mod(bomb.distance, LENGTH), f = worldPosition % SEG / SEG, width = lerp(a.w, b.w, f);
+    const x = lerp(a.x, b.x, f) + width * bomb.lane, roadY = lerp(a.y, b.y, f), fall = clamp((time - bomb.droppedAt) / bomb.fallTime, 0, 1);
+    const size = width * (.075 + fall * .025), y = roadY - (1 - fall) * width * .62;
+    if (size < 1.5) return;
+    ctx.save(); ctx.translate(x, y); ctx.globalAlpha = .7 + Math.sin(time * 18 + bomb.seed) * .2; ctx.shadowColor = bomb.color; ctx.shadowBlur = Math.min(24, size * .7);
+    if (bomb.landed) { ctx.beginPath(); ctx.ellipse(0, size * .2, size * 1.8, size * .55, 0, 0, TAU); ctx.strokeStyle = '#ff6d3f'; ctx.lineWidth = Math.max(1, size * .06); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(0, 0, size * .66, 0, TAU); ctx.fillStyle = '#292435'; ctx.fill(); ctx.strokeStyle = bomb.color; ctx.lineWidth = Math.max(1, size * .11); ctx.stroke();
+    line(0, -size * .55, size * .2, -size * .95, '#fff2a1', Math.max(1, size * .08));
+    ctx.fillStyle = '#fff1a0'; ctx.beginPath(); ctx.arc(size * .23, -size, Math.max(1, size * .09), 0, TAU); ctx.fill();
+    ctx.restore();
+    if (bomb.landed) cbMark(x, roadY, Math.max(10, size * 1.6));
   }

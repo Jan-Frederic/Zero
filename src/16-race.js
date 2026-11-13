@@ -1,103 +1,4 @@
-  const worldPace = () => powerOn('warp') ? .45 : 1;
-  function collectPowerup(type) {
-    if (!profile.stats.powerTypes.includes(type)) { profile.stats.powerTypes.push(type); saveProfile(); }
-    if (profile.stats.powerTypes.length >= 4) unlockAchievement('collector');
-    const p = POWERUPS[type];
-    power[type] = time + p.time; if (type === 'bubble') bubbleHits = 3;
-    showCallout(`${p.icon} ${p.name}!`, p.color); showMessage(p.info, 1.6);
-    playToneSweep(600, 1800, .25, 'square', .05); playToneSweep(900, 2400, .3, 'sine', .05); buzz([20, 30, 20]);
-    screenFlash = Math.max(screenFlash, .2);
-  }
-  function drawPowerupPickup(s) {
-    const a = s.p1, b = s.p2, pu = s.powerup, def = POWERUPS[pu.type], width = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + width * pu.lane, y = lerp(a.y, b.y, .5);
-    const r = width * .07; if (r < 2) return;
-    const cy = y - r * 1.6 - Math.sin(time * 4 + pu.index) * r * .3;
-    ctx.save(); ctx.translate(x, cy);
-    ctx.globalAlpha = .35; ctx.fillStyle = def.color; ctx.beginPath(); ctx.ellipse(0, r * 1.6, r * 1.1, r * .3, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
-    ctx.rotate(Math.sin(time * 2 + pu.index) * .25);
-    ctx.shadowColor = def.color; ctx.shadowBlur = 20; ctx.fillStyle = '#12102a'; ctx.strokeStyle = def.color; ctx.lineWidth = Math.max(1.5, r * .14);
-    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-r, -r, r * 2, r * 2, r * .45) : ctx.rect(-r, -r, r * 2, r * 2); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
-    ctx.fillStyle = def.color; ctx.font = `bold ${r * 1.25}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(def.icon, 0, r * .06);
-    ctx.restore();
-  }
-  function drawPowerupAura(x, y, size) {
-    if (powerOn('bubble')) {
-      ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y - size * .3, size * .4, x, y - size * .3, size * 1.4);
-      g.addColorStop(0, 'rgba(77,248,255,0)'); g.addColorStop(.8, `rgba(77,248,255,${.18 + .06 * Math.sin(time * 6)})`); g.addColorStop(1, 'rgba(77,248,255,.5)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y - size * .3, size * 1.35, size * .95, 0, 0, TAU); ctx.fill(); ctx.restore();
-    }
-    if (powerOn('magnet')) {
-      ctx.save(); ctx.strokeStyle = '#ff5a5a'; ctx.lineWidth = 2;
-      for (let i = 0; i < 3; i++) { const k = mod(time * 1.5 + i / 3, 1); ctx.globalAlpha = 1 - k; ctx.beginPath(); ctx.ellipse(x, y - size * .2, size * (1.6 - k), size * (.5 - k * .3), 0, 0, TAU); ctx.stroke(); }
-      ctx.restore();
-    }
-    if (powerOn('warp')) { ctx.save(); ctx.fillStyle = 'rgba(120,90,255,.12)'; ctx.fillRect(-60, -60, W + 120, H + 120); ctx.restore(); }
-  }
-  // ---- Campaign: circuit n+1 unlocks with a podium (top 3) on circuit n.
-  const trackLocked = i => i >= (profile.unlocked || 1);
-  function renderLock() {
-    const locked = trackLocked(trackIndex), el = $('track-lock');
-    document.body.classList.toggle('track-locked', locked);
-    if (el) el.textContent = locked ? `🔒 LOCKED — FINISH TOP 3 ON ${tracks[trackIndex - 1].name} TO UNLOCK` : `CIRCUITS UNLOCKED: ${Math.min(profile.unlocked || 1, tracks.length)}/${tracks.length}`;
-    const start = $('start'); if (start.firstElementChild) start.firstElementChild.textContent = locked ? 'LOCKED CIRCUIT' : 'ENTER THE RACE';
-  }
-  function showLockedHint() { const el = $('track-lock'); if (el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); } }
-  // ---- Game modes: RACE (grand prix), TIME TRIAL (alone against the clock) and ENDLESS (boss after boss).
-  let trialRun = false;
-  // ---- Lifetime statistics.
-  function recordRaceStats(finished) {
-    const st = profile.stats;
-    st.races = (st.races || 0) + 1; st.km = (st.km || 0) + distance / LENGTH * 7.2;
-    st.perTrack = st.perTrack || {}; st.perTrack[trackIndex] = (st.perTrack[trackIndex] || 0) + 1;
-    if (finished && !trialRun) { if (rank === 1) st.wins = (st.wins || 0) + 1; if (rank <= 3) st.podiums = (st.podiums || 0) + 1; }
-    saveProfile();
-  }
-  const GAME_MODES = { race: 'GRAND PRIX', trial: 'TIME TRIAL', endless: 'ENDLESS BOSSES' };
-  const gameMode = () => GAME_MODES[settings.gameMode] ? settings.gameMode : 'race';
-  function renderGameMode() {
-    document.body.classList.toggle('mode-trial', gameMode() === 'trial'); document.body.classList.toggle('mode-endless', gameMode() === 'endless');
-    const best = profile.stats.trial && profile.stats.trial[trackIndex];
-    if ($('mode-info')) $('mode-info').textContent = gameMode() === 'trial' ? `NO RIVALS, NO UFOS · BEST ${best ? formatTime(best) : '— —:—'}` : gameMode() === 'endless' ? `BOSS AFTER BOSS UNTIL YOU FALL · RECORD ${profile.stats.endlessBest || 0} WAVES` : `${PILOT_COUNT} PILOTS · ${LAP_COUNT} LAPS · WIN TO FACE THE INVASION`;
-    renderLock();
-  }
-  // ---- Daily challenge: one goal per calendar day (same for everyone), bonus credits and a day streak.
-  let raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 };
-  const DAILY_GOALS = [
-    { id: 'win', text: t => `WIN ${t}`, check: () => rank === 1 },
-    { id: 'noboost', text: t => `TOP 3 ON ${t} WITHOUT BOOSTING`, check: () => rank <= 3 && raceStats.boost === 0 },
-    { id: 'ufos', n: [6, 12], text: (t, n) => `SHOOT DOWN ${n} UFOs ON ${t}`, check: n => raceStats.ufos >= n },
-    { id: 'rivals', n: [8, 16], text: (t, n) => `DESTROY ${n} RIVALS ON ${t}`, check: n => raceStats.rivals >= n },
-    { id: 'flawless', text: t => `FINISH ${t} WITHOUT LOSING A LIFE`, check: () => raceStats.lives === 0 },
-    { id: 'cats', n: [3, 6], text: (t, n) => `POP ${n} CATS ON ${t}`, check: n => raceStats.cats >= n },
-    { id: 'podium', text: t => `PODIUM ON ${t} ON HARD`, check: () => rank <= 3 && settings.difficulty === 'hard' },
-  ];
-  const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  function dailyChallenge(key = dayKey()) {
-    let h = 2166136261; for (const c of key) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
-    // The circuit is fixed the first time the day's challenge is shown, so unlocking a circuit mid-day cannot move it.
-    if (!profile.daily.pick || profile.daily.pick.key !== key) { profile.daily.pick = { key, track: (h >>> 8) % Math.max(1, Math.min(profile.unlocked || 1, tracks.length)) }; saveProfile(); }
-    const goal = DAILY_GOALS[h % DAILY_GOALS.length], track = profile.daily.pick.track;
-    const n = goal.n ? goal.n[0] + (h >>> 16) % (goal.n[1] - goal.n[0] + 1) : 0;
-    return { key, goal, track, n, text: goal.text(tracks[track].name, n) };
-  }
-  profile.daily = Object.assign({ done: '', last: '', streak: 0 }, profile.daily);
-  const dailyReward = () => 300 + 50 * Math.min(10, profile.daily.streak);
-  function renderDaily() {
-    const d = dailyChallenge(), done = profile.daily.done === d.key, el = $('daily'); if (!el) return;
-    el.classList.toggle('done', done);
-    $('daily-text').textContent = done ? `✓ DONE — ${d.text}` : d.text;
-    $('daily-meta').textContent = `${done ? 'COME BACK TOMORROW' : `REWARD ${dailyReward()} CR`}  ·  🔥 STREAK ${profile.daily.streak}`;
-  }
-  function checkDaily() {
-    const d = dailyChallenge();
-    if (gameMode() !== 'race' || trackIndex !== d.track || profile.daily.done === d.key || !d.goal.check(d.n)) return;
-    const yesterday = dayKey(new Date(Date.now() - 864e5));
-    profile.daily.streak = profile.daily.last === yesterday ? profile.daily.streak + 1 : 1;
-    profile.daily.last = d.key; profile.daily.done = d.key; saveProfile();
-    addCredits(dailyReward() - 50, 'DAILY CHALLENGE');
-    $('result-record').textContent = `📅 DAILY CHALLENGE COMPLETE!  🔥 ${profile.daily.streak}-DAY STREAK`;
-    renderDaily();
-  }
+  // ==== Race start/pause/garage, lasers, wrecks, lives, results.
   function startRace() {
     if (gameMode() === 'endless') { startEndless(); return; }
     if (trackLocked(trackIndex)) { renderLock(); playToneSweep(220, 120, .25, 'square', .05); showLockedHint(); return; }
@@ -138,11 +39,6 @@
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; callout = null; hyperTime = 0; boss = null; bossAttacks = []; document.body.classList.remove('hyper', 'boss');
     $('menu').classList.remove('hidden'); ['hud', 'pause-screen', 'results'].forEach(id => $(id).classList.add('hidden'));
     document.body.classList.remove('racing', 'paused', 'boosting', 'critical', 'destroyed', 'hinting'); hintTime = 0;
-  }
-  function showMessage(text, duration = 1.5) { $('race-message').textContent = text; $('race-message').classList.add('visible'); messageTime = duration; }
-  function createExplosion(worldDistance, lane, color, size = 1, cartoon = false) {
-    explosions.push({ distance: worldDistance, lane, color, started: time, duration: cartoon ? .65 : .8, size, cartoon, seed: Math.floor(time * 1000) + explosions.length * 19 });
-    shake = Math.max(shake, .55 * size); screenFlash = Math.max(screenFlash, .26 * size);
   }
   function fireLaser() {
     if (tutorial) tutorial.fired = true;
@@ -340,35 +236,4 @@
     invasionArmed = rank === 1;
     if (rank === 1) { launchConfetti(); playFanfare(); robotSay('First place. Flawless victory', 'first-place'); }
     checkDaily();
-  }
-  // ---- Playful boot screen on the start page while the soundtrack and voices download.
-  const BOOT_LINES = [
-    'BOOTSTRAPPING THE SINGULARITY…', 'UPDATING THE SOLAR SYSTEM — DO NOT UNPLUG THE SUN…', 'RETICULATING HYPERSPACE SPLINES…',
-    'CALIBRATING ANTI-GRAVITY. HOLD ON TO SOMETHING…', 'DEFRAGMENTING BLACK HOLES…', 'DOWNLOADING MORE RAM FOR THE MOTHERSHIP…',
-    'FEEDING THE ALIEN OVERLORD…', 'POLISHING THE DISCO BALL…', 'TEACHING ROBOTS TO SCREAM…', 'TUNING MORBID FINGERS’ GUITAR AMPS…',
-    'CONVINCING CATS TO CROSS THE TRACK…', 'REBOOTING THE BIG BANG (ATTEMPT 2 OF 3)…', 'WAXING THE MAGGOT QUEEN… EW.', 'COMPRESSING SPACETIME, ALMOST DONE…',
-  ];
-  let bootLine = -1, bootLineAt = -9, bootDoneAt = 0;
-  const bootProgress = () => clamp(soundtrackProgress * .85 + voicesLoaded / VOICE_CLIPS.length * .15, 0, 1);
-  // In portrait the boot panel sits under the start button; elsewhere it takes the middle of the bottom bar.
-  function placeBoot() {
-    const box = $('boot'), note = document.querySelector('.start-note'), bar = document.querySelector('.bottom-bar'), controls = document.querySelector('.bottom-bar .controls');
-    if (!box || !note || !bar || !window.matchMedia) return;
-    const portrait = matchMedia('(max-width:600px) and (orientation:portrait)').matches;
-    if (portrait && box.previousElementSibling !== note) note.after(box);
-    else if (!portrait && box.parentElement !== bar) bar.insertBefore(box, controls || null);
-  }
-  if (window.matchMedia) { placeBoot(); matchMedia('(max-width:600px) and (orientation:portrait)').addEventListener?.('change', placeBoot); }
-  function updateBoot() {
-    const box = $('boot'); if (!box) return;
-    document.body.classList.toggle('booting', !box.classList.contains('gone'));
-    const done = soundtrackReady && voicesLoaded >= VOICE_CLIPS.length, pct = done ? 100 : Math.min(99, Math.round(bootProgress() * 100));
-    if (done) {
-      if (!bootDoneAt) { bootDoneAt = time || .001; $('boot-text').textContent = 'SYSTEM READY · SINGULARITY STABLE · GO RACE!'; box.classList.add('done'); }
-      if (time - bootDoneAt > 3.5) box.classList.add('gone');
-    } else if (time - bootLineAt > 1.8) {
-      bootLine = (bootLine + 1) % BOOT_LINES.length; bootLineAt = time; bootDoneAt = 0;
-      $('boot-text').textContent = BOOT_LINES[bootLine]; box.classList.remove('done', 'gone');
-    }
-    $('boot-pct').textContent = pct + '%'; $('boot-fill').style.width = pct + '%';
   }

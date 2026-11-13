@@ -1,3 +1,4 @@
+  // ==== English → German translation (DOM and canvas text).
   // ---- Language: English (source text) or German. DOM text is swapped by a MutationObserver, canvas text in fillText,
   // so game code keeps writing English. Exact phrases first, then patterns for text with numbers, then " / " and " · " pieces.
   const DE = {
