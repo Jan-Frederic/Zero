@@ -68,7 +68,7 @@
       const bonus = [600, 300, 150][place - 1] || 0;
       $('result-title').textContent = place === 1 ? 'CHAMPION!' : `CUP P${place}.`;
       if (bonus) addCredits(bonus, `CUP P${place}`);
-      $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
+      $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`; renderResultXp();
       if (place === 1) { unlockAchievement('cup'); mission('cup'); showCallout('🏆 CHAMPION!', '#ffd35a'); launchConfetti(); playFanfare(); robotSay('Congratulations', 'congratulations'); }
       profile.stats.cups = (profile.stats.cups || 0) + (place === 1 ? 1 : 0); saveProfile();
     }
@@ -97,6 +97,6 @@
     $('result-position').textContent = String(survival.level).padStart(2, '0'); $('result-time').textContent = formatTime(elapsed);
     $('result-lap').textContent = `${km.toFixed(1)} KM`;
     $('result-record').textContent = record ? `✦ ${km.toFixed(1)} KM · LEVEL ${survival.level} — NEW RECORD` : `${km.toFixed(1)} KM · LEVEL ${survival.level}  ·  RECORD ${best.toFixed(1)} KM`;
-    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
+    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`; renderResultXp();
     $('results').classList.remove('hidden');
   }

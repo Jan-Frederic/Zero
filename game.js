@@ -100,9 +100,38 @@
   let raceEarned = 0, creditPopAt = -9;
   function stat(key, add = 1) { profile.stats[key] = (profile.stats[key] || 0) + add; saveProfile(); return profile.stats[key]; }
   function addCredits(amount, why) {
-    amount = Math.round(amount * diff().credits * mutatorBonus()); if (!amount) return;
-    profile.credits += amount; raceEarned += amount; saveProfile();
+    const base = Math.round(amount * diff().credits * mutatorBonus());
+    amount = Math.round(base * levelBonus()); if (!amount) return;
+    profile.credits += amount; raceEarned += amount; saveProfile(); gainXp(base);
     $('credit-pop').textContent = `+${amount} CR  ${why}`; creditPopAt = time; $('credit-pop').classList.add('visible');
+  }
+  // ---- Pilot level: every credit earned is also XP. Each level adds 1 % to future credits (up to +40 %),
+  // and every 5 levels a new rank pays a one-off bonus.
+  const RANKS = ['ROOKIE', 'STREET RACER', 'PRO PILOT', 'ACE', 'STAR PILOT', 'HYPERDRIVER', 'GALAXY HERO', 'SINGULARITY LEGEND'];
+  const RANK_BONUS = 500;
+  const xpForLevel = level => Math.round(400 * Math.pow(level, 1.5)); // XP from this level to the next
+  const rankOf = level => RANKS[Math.min(RANKS.length - 1, Math.floor(level / 5))];
+  const levelBonus = () => 1 + Math.min(.4, ((profile.level || 1) - 1) * .01);
+  let raceXp = 0;
+  function gainXp(xp) {
+    if (!xp) return;
+    profile.level = profile.level || 1; profile.xp = (profile.xp || 0) + xp; raceXp += xp;
+    while (profile.xp >= xpForLevel(profile.level)) {
+      profile.xp -= xpForLevel(profile.level); const before = rankOf(profile.level); profile.level++;
+      const rank = rankOf(profile.level);
+      if (rank !== before) { profile.credits += RANK_BONUS; showCallout(`★ ${rank}`, '#ffd35a'); showMessage(`NEW RANK  /  +${RANK_BONUS} CR`, 2); }
+      else showCallout(`★ LEVEL ${profile.level}`, '#ffd35a');
+      playToneSweep(500, 1600, .35, 'triangle', .05); buzz([20, 40, 20]);
+    }
+    saveProfile(); renderPilot();
+  }
+  function renderPilot() {
+    const level = profile.level || 1, pct = Math.floor((profile.xp || 0) / xpForLevel(level) * 100);
+    if ($('pilot-chip')) $('pilot-chip').innerHTML = `<b>★ LV ${level}</b><span>${rankOf(level)}</span><i style="--p:${pct}%"></i>`;
+  }
+  function renderResultXp() {
+    const level = profile.level || 1;
+    if ($('result-xp')) $('result-xp').textContent = `+${raceXp} XP  ·  LEVEL ${level} ${rankOf(level)}  ·  ${Math.floor((profile.xp || 0) / xpForLevel(level) * 100)} %`;
   }
   // ==== Trophy cabinet and unlock pop-ups.
   // ---- Achievements (trophy cabinet).
@@ -439,6 +468,7 @@
     'INCOMING MISSILE': 'RAKETE IM ANFLUG', 'DODGE OR JUMP!': 'AUSWEICHEN ODER SPRINGEN!', 'MISSILE DODGED!': 'RAKETE AUSGEWICHEN!', 'MISSILE ON YOUR TAIL': 'RAKETE IM NACKEN', 'RIVAL SHIELD POPPED': 'RIVALEN-SCHILD GEPLATZT',
     '♾ SURVIVAL': '♾ ÜBERLEBEN', 'SURVIVAL': 'ÜBERLEBEN', 'NEW RECORD!': 'NEUER REKORD!', 'GAME OVER.': 'GAME OVER.', 'FASTER RIVALS  ·  MORE UFOS': 'SCHNELLERE RIVALEN  ·  MEHR UFOS',
     'MISSIONS': 'MISSIONEN', '🎯 MISSION COMPLETE': '🎯 MISSION ERFÜLLT', 'WIN A CHAMPIONSHIP': 'GEWINNE EINE MEISTERSCHAFT',
+    'PILOT LEVEL': 'PILOTENLEVEL', 'CREDIT BONUS': 'CREDIT-BONUS', 'ROOKIE': 'ROOKIE', 'STREET RACER': 'STRASSENRENNER', 'PRO PILOT': 'PROFI-PILOT', 'ACE': 'ASS', 'STAR PILOT': 'STAR-PILOT', 'HYPERDRIVER': 'HYPERFAHRER', 'GALAXY HERO': 'GALAXIE-HELD', 'SINGULARITY LEGEND': 'SINGULARITÄTS-LEGENDE',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -482,6 +512,8 @@
     [/^(✓ )?SHOOT DOWN (\d+) UFOs$/, '$1SCHIESS $2 UFOS AB'], [/^(✓ )?FINISH ON THE PODIUM (\d+) TIMES$/, '$1FAHR $2-MAL AUFS PODIUM'], [/^(✓ )?CATCH (\d+) SLIPSTREAMS$/, '$1NUTZE $2-MAL DEN WINDSCHATTEN'],
     [/^(✓ )?TAKE DOWN (\d+) NEMESES$/, '$1ERLEDIGE $2 ERZFEINDE'], [/^(✓ )?RACE (\d+) KM$/, '$1FAHRE $2 KM'], [/^(✓ )?REACH LEVEL (\d+) IN SURVIVAL$/, '$1ERREICHE LEVEL $2 IM ÜBERLEBEN'], [/^✓ WIN A CHAMPIONSHIP$/, '✓ GEWINNE EINE MEISTERSCHAFT'],
     [/^(\d+) \/ (\d+)  ·  (\d+) CR$/, '$1 / $2  ·  $3 CR'], [/^ALL THREE: \+(\d+) CR BONUS$/, 'ALLE DREI: +$1 CR BONUS'],
+    [/^★ LV (\d+)$/, '★ LV $1'], [/^★ LEVEL (\d+)$/, '★ LEVEL $1'], [/^★ (.+)$/, (m, r) => `★ ${tr(r)}`], [/^NEW RANK  \/  \+(\d+) CR$/, 'NEUER RANG  /  +$1 CR'],
+    [/^\+(\d+) XP  ·  LEVEL (\d+) (.+)  ·  (\d+) %$/, (m, x, l, r, p) => `+${x} XP  ·  LEVEL ${l} ${tr(r)}  ·  ${p} %`], [/^(\d+) · (.+)$/, (m, l, r) => `${l} · ${tr(r)}`], [/^\+(\d+) %$/, '+$1 %'],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
@@ -1566,7 +1598,7 @@
       const bonus = [600, 300, 150][place - 1] || 0;
       $('result-title').textContent = place === 1 ? 'CHAMPION!' : `CUP P${place}.`;
       if (bonus) addCredits(bonus, `CUP P${place}`);
-      $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
+      $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`; renderResultXp();
       if (place === 1) { unlockAchievement('cup'); mission('cup'); showCallout('🏆 CHAMPION!', '#ffd35a'); launchConfetti(); playFanfare(); robotSay('Congratulations', 'congratulations'); }
       profile.stats.cups = (profile.stats.cups || 0) + (place === 1 ? 1 : 0); saveProfile();
     }
@@ -1595,7 +1627,7 @@
     $('result-position').textContent = String(survival.level).padStart(2, '0'); $('result-time').textContent = formatTime(elapsed);
     $('result-lap').textContent = `${km.toFixed(1)} KM`;
     $('result-record').textContent = record ? `✦ ${km.toFixed(1)} KM · LEVEL ${survival.level} — NEW RECORD` : `${km.toFixed(1)} KM · LEVEL ${survival.level}  ·  RECORD ${best.toFixed(1)} KM`;
-    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
+    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`; renderResultXp();
     $('results').classList.remove('hidden');
   }
   // ==== Daily challenge and streak.
@@ -1654,7 +1686,7 @@
   // ISO week, e.g. 2026-W46.
   function weekKey(d = new Date()) {
     const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
-    const year = t.getUTCFullYear(), week = Math.ceil(((t - Date.UTC(year, 0, 1)) / 864e5 + 1) / 7);
+    const year = t.getUTCFullYear(), week = Math.ceil(((t.getTime() - Date.UTC(year, 0, 1)) / 864e5 + 1) / 7);
     return `${year}-W${String(week).padStart(2, '0')}`;
   }
   function weeklyMissions(key = weekKey()) {
@@ -1709,7 +1741,7 @@
     endlessRun = false; trialRun = gameMode() === 'trial'; survival = gameMode() === 'survival' ? { level: 1 } : null;
     $('lap-total').textContent = survival ? '∞' : String(LAP_COUNT).padStart(2, '0');
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); hitShortcuts = new Set(); blinkReadyAt = 0; rivalMissiles = []; missiles = []; mines = []; slip = 0; slipShown = false; drift = 0; driftTime = 0; ufoKills = 0; boss = null; bossAttacks = [];
-    musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
+    musicHold = 0; raceEarned = 0; raceXp = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
     $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE'; $('cup-standings').classList.add('hidden'); $('story-new').classList.add('hidden'); cancelClip(); if ($('again').firstElementChild) $('again').firstElementChild.textContent = 'RACE AGAIN';
@@ -1891,7 +1923,7 @@
   function showWreckResults() {
     recordRaceStats(false);
     if (survival) { finishSurvival(); return; }
-    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
+    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`; renderResultXp();
     mode = 'finished';
     $('result-eyebrow').textContent = 'CATASTROPHIC FAILURE / SHIELDS OFFLINE';
     $('result-title').textContent = 'SHIELDS DOWN.';
@@ -1911,7 +1943,7 @@
     $('result-eyebrow').textContent = `TIME TRIAL / ${tracks[trackIndex].name}`; $('result-title').textContent = record ? 'NEW BEST TIME!' : 'TIME TRIAL DONE.';
     $('result-position').textContent = '⏱'; $('result-time').textContent = formatTime(elapsed); $('result-lap').textContent = formatTime(fastest);
     $('result-record').textContent = record ? (best ? `✦ ${formatTime(best - elapsed)} faster than your old best` : '✦ First time set — now beat it!') : `Best: ${formatTime(best)}  ·  +${formatTime(elapsed - best)} behind`;
-    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
+    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`; renderResultXp();
     $('results').classList.remove('hidden'); invasionArmed = false; soundEffect(880, .6); if (record) playFanfare();
   }
   function finishRace() {
@@ -1923,7 +1955,7 @@
     let unlockedNow = '';
     if (rank <= 3 && trackIndex + 1 < tracks.length && trackLocked(trackIndex + 1)) { profile.unlocked = trackIndex + 2; saveProfile(); unlockedNow = tracks[trackIndex + 1].name; }
     if ((profile.unlocked || 1) >= tracks.length) unlockAchievement('unlock-all');
-    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
+    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`; renderResultXp();
     mode = 'finished'; boosting = false; document.body.classList.remove('boosting'); document.body.classList.add('paused');
     $('results').classList.remove('hidden'); $('result-position').textContent = String(rank).padStart(2, '0');
     $('result-title').textContent = rank === 1 ? 'PURE OVERDRIVE.' : rank <= 3 ? 'PODIUM FINISH.' : 'LIMITS REDEFINED.';
@@ -3771,6 +3803,7 @@
       ['PLAY TIME', `${hours}H ${String(mins).padStart(2, '0')}M`], ['FAVOURITE', fav ? tracks[fav[0]].name : '—'],
       ['RIVALS DESTROYED', s.rivals || 0], ['UFOs SHOT DOWN', s.ufos || 0], ['CATS POPPED', s.cats || 0], ['BOSSES DEFEATED', s.bosses || 0],
       ['ENDLESS RECORD', `${s.endlessBest || 0} WAVES`], ['DAILY STREAK', `${profile.daily.streak || 0} DAYS`],
+      ['PILOT LEVEL', `${profile.level || 1} · ${rankOf(profile.level || 1)}`], ['CREDIT BONUS', `+${Math.round((levelBonus() - 1) * 100)} %`],
       ['TROPHIES', `${Object.keys(profile.achievements).length}/${ACHIEVEMENTS.length}`], ['CREDITS', `${profile.credits} CR`],
     ];
     $('stats-list').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
@@ -3916,7 +3949,7 @@
   $('story-prev').addEventListener('click', () => { storyChapter = Math.max(0, storyChapter - 1); renderStory(); });
   $('story-next').addEventListener('click', () => { storyChapter = Math.min(storyUnlocked() - 1, storyChapter + 1); renderStory(); });
   $('story-new').addEventListener('click', () => openStory(storyUnlocked() - 1));
-  renderStoryButton(); window.morbidStory = { open: openStory };
+  renderStoryButton(); renderPilot(); window.morbidStory = { open: openStory };
   $('open-missions').addEventListener('click', () => { renderMissions(); openDialog('missions-screen'); });
   renderMissionsButton(); window.morbidMissions = { list: () => weeklyMissions().map(m => ({ id: m.id, target: m.target })), week: weekKey };
   // ==== Upgrade and paint shop.

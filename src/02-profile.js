@@ -59,7 +59,36 @@
   let raceEarned = 0, creditPopAt = -9;
   function stat(key, add = 1) { profile.stats[key] = (profile.stats[key] || 0) + add; saveProfile(); return profile.stats[key]; }
   function addCredits(amount, why) {
-    amount = Math.round(amount * diff().credits * mutatorBonus()); if (!amount) return;
-    profile.credits += amount; raceEarned += amount; saveProfile();
+    const base = Math.round(amount * diff().credits * mutatorBonus());
+    amount = Math.round(base * levelBonus()); if (!amount) return;
+    profile.credits += amount; raceEarned += amount; saveProfile(); gainXp(base);
     $('credit-pop').textContent = `+${amount} CR  ${why}`; creditPopAt = time; $('credit-pop').classList.add('visible');
+  }
+  // ---- Pilot level: every credit earned is also XP. Each level adds 1 % to future credits (up to +40 %),
+  // and every 5 levels a new rank pays a one-off bonus.
+  const RANKS = ['ROOKIE', 'STREET RACER', 'PRO PILOT', 'ACE', 'STAR PILOT', 'HYPERDRIVER', 'GALAXY HERO', 'SINGULARITY LEGEND'];
+  const RANK_BONUS = 500;
+  const xpForLevel = level => Math.round(400 * Math.pow(level, 1.5)); // XP from this level to the next
+  const rankOf = level => RANKS[Math.min(RANKS.length - 1, Math.floor(level / 5))];
+  const levelBonus = () => 1 + Math.min(.4, ((profile.level || 1) - 1) * .01);
+  let raceXp = 0;
+  function gainXp(xp) {
+    if (!xp) return;
+    profile.level = profile.level || 1; profile.xp = (profile.xp || 0) + xp; raceXp += xp;
+    while (profile.xp >= xpForLevel(profile.level)) {
+      profile.xp -= xpForLevel(profile.level); const before = rankOf(profile.level); profile.level++;
+      const rank = rankOf(profile.level);
+      if (rank !== before) { profile.credits += RANK_BONUS; showCallout(`★ ${rank}`, '#ffd35a'); showMessage(`NEW RANK  /  +${RANK_BONUS} CR`, 2); }
+      else showCallout(`★ LEVEL ${profile.level}`, '#ffd35a');
+      playToneSweep(500, 1600, .35, 'triangle', .05); buzz([20, 40, 20]);
+    }
+    saveProfile(); renderPilot();
+  }
+  function renderPilot() {
+    const level = profile.level || 1, pct = Math.floor((profile.xp || 0) / xpForLevel(level) * 100);
+    if ($('pilot-chip')) $('pilot-chip').innerHTML = `<b>★ LV ${level}</b><span>${rankOf(level)}</span><i style="--p:${pct}%"></i>`;
+  }
+  function renderResultXp() {
+    const level = profile.level || 1;
+    if ($('result-xp')) $('result-xp').textContent = `+${raceXp} XP  ·  LEVEL ${level} ${rankOf(level)}  ·  ${Math.floor((profile.xp || 0) / xpForLevel(level) * 100)} %`;
   }

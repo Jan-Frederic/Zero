@@ -986,3 +986,16 @@ test('weekly missions: three per week, progress across races pays credits', () =
   assert.match(el('open-missions').textContent, /3\/3/);
   void inspect; void setRacePosition;
 });
+
+test('pilot level: credits earned are XP, levels raise the credit bonus, ranks pay out', () => {
+  const { element: el, step, key, inspect, setRacePosition, disableAirRaid, eliminateRivals, storage, sandbox } = harness({ profile: { unlocked: 8, tutorialDone: true, level: 4, xp: 3150 } });
+  assert.match(el('pilot-chip').innerHTML, /LV 4/); assert.match(el('pilot-chip').innerHTML, /ROOKIE/);
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid(); eliminateRivals();
+  for (let lap = 0; lap < 6 && inspect().mode === 'racing'; lap++) { setRacePosition((lap + 1) * 240000 - 60, 0); step(.5); }
+  const p = JSON.parse(storage.get('morbid-profile-v1'));
+  assert.equal(p.level, 5, 'level 4 needs 3200 XP: the win pays it');
+  assert.ok(p.credits >= 550 * 1.03 + 500 - 1, 'win credits with the level bonus, plus the rank bonus: ' + p.credits);
+  assert.match(el('pilot-chip').innerHTML, /STREET RACER/);
+  assert.match(el('result-xp').textContent, /XP  ·  LEVEL 5 STREET RACER/);
+  void sandbox;
+});

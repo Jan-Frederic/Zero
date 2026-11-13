@@ -54,7 +54,7 @@
   // ISO week, e.g. 2026-W46.
   function weekKey(d = new Date()) {
     const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
-    const year = t.getUTCFullYear(), week = Math.ceil(((t - Date.UTC(year, 0, 1)) / 864e5 + 1) / 7);
+    const year = t.getUTCFullYear(), week = Math.ceil(((t.getTime() - Date.UTC(year, 0, 1)) / 864e5 + 1) / 7);
     return `${year}-W${String(week).padStart(2, '0')}`;
   }
   function weeklyMissions(key = weekKey()) {

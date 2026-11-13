@@ -523,3 +523,11 @@ body.photo .photo-bar{display:flex;position:fixed;left:50%;bottom:calc(14px + en
   .missions-button{margin-top:5px;padding:4px 10px}
   .home-actions .home-action{min-height:30px}
 }
+
+/* Pilot level chip in the top bar and the XP line on the results card. */
+.pilot-chip{position:relative;display:flex;flex-direction:column;gap:1px;padding:3px 10px 5px;border:1px solid #ffd35a66;background:#ffd35a10;font:10px var(--mono);letter-spacing:1px;color:#ffe9a6;min-width:96px}
+.pilot-chip b{font-weight:400;color:#ffd35a}.pilot-chip span{font-size:9px;color:#cfc4a0;white-space:nowrap}
+.pilot-chip i{position:absolute;left:0;bottom:0;height:2px;width:var(--p);background:#ffd35a}
+.pilot-chip:empty{display:none}body.racing .pilot-chip{display:none}
+.result-xp{font:12px var(--mono)!important;letter-spacing:1px;color:#ffd35a!important;margin:6px 0 0!important}
+@media (max-width:600px){.pilot-chip{min-width:0;padding:2px 7px 4px}.pilot-chip span{display:none}}

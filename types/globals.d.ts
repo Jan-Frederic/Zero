@@ -4,7 +4,7 @@ interface Window {
   morbidBusy: () => boolean;
   morbidSettings: { set(key: string, value: string): void; get(key: string): unknown };
   morbidShop: unknown; morbidProfile: unknown; morbidI18n: unknown; morbidMutators: unknown;
-  morbidShips: unknown; morbidStory: unknown; morbidSeason: unknown; morbidPhoto: unknown;
+  morbidShips: unknown; morbidStory: unknown; morbidSeason: unknown; morbidPhoto: unknown; morbidMissions: unknown;
 }
 // The game reads data-* attributes and styles from elements found with querySelector(All).
 interface Element { dataset: DOMStringMap; style: CSSStyleDeclaration; disabled?: boolean }

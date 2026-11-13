@@ -21,6 +21,7 @@
       ['PLAY TIME', `${hours}H ${String(mins).padStart(2, '0')}M`], ['FAVOURITE', fav ? tracks[fav[0]].name : '—'],
       ['RIVALS DESTROYED', s.rivals || 0], ['UFOs SHOT DOWN', s.ufos || 0], ['CATS POPPED', s.cats || 0], ['BOSSES DEFEATED', s.bosses || 0],
       ['ENDLESS RECORD', `${s.endlessBest || 0} WAVES`], ['DAILY STREAK', `${profile.daily.streak || 0} DAYS`],
+      ['PILOT LEVEL', `${profile.level || 1} · ${rankOf(profile.level || 1)}`], ['CREDIT BONUS', `+${Math.round((levelBonus() - 1) * 100)} %`],
       ['TROPHIES', `${Object.keys(profile.achievements).length}/${ACHIEVEMENTS.length}`], ['CREDITS', `${profile.credits} CR`],
     ];
     $('stats-list').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
@@ -166,6 +167,6 @@
   $('story-prev').addEventListener('click', () => { storyChapter = Math.max(0, storyChapter - 1); renderStory(); });
   $('story-next').addEventListener('click', () => { storyChapter = Math.min(storyUnlocked() - 1, storyChapter + 1); renderStory(); });
   $('story-new').addEventListener('click', () => openStory(storyUnlocked() - 1));
-  renderStoryButton(); window.morbidStory = { open: openStory };
+  renderStoryButton(); renderPilot(); window.morbidStory = { open: openStory };
   $('open-missions').addEventListener('click', () => { renderMissions(); openDialog('missions-screen'); });
   renderMissionsButton(); window.morbidMissions = { list: () => weeklyMissions().map(m => ({ id: m.id, target: m.target })), week: weekKey };
