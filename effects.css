@@ -387,3 +387,4 @@ body.mode-endless .track-lock{display:none}
 @media (max-width:600px) and (orientation:portrait){.tutorial{top:auto;bottom:250px}.tutorial b{font-size:17px}}
 @media (max-height:520px) and (orientation:landscape){.tutorial{top:auto;bottom:4px;width:min(440px,52vw);padding:5px 10px}.tutorial b{font-size:14px}.tutorial-skip{min-height:30px}}
 body.tutoring .touch-hint{display:none!important}
+body.gamepad .controls::after{content:'🎮 A GO · X LASER · Y BOOST · B BRAKE · START PAUSE';font:11px var(--mono);color:var(--acid);margin-left:10px}

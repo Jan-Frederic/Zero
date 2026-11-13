@@ -449,7 +449,7 @@
       return;
     }
     // --- fight
-    const keySteer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA'));
+    const keySteer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA')) || padSteer;
     const steer = keySteer || (gyroActive() ? tiltSteer() : gesture.steer);
     f.shipX = clamp(f.shipX + steer * dt * .85 * (time < (f.webbedUntil || 0) ? .35 : 1), .05, .95);
     f.formX += f.formVx * dt; if (Math.abs(f.formX) > 1) { f.formX = Math.sign(f.formX); f.formVx *= -1; }

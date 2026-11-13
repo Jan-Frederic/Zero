@@ -53,7 +53,7 @@
     const machine = machines[shipIndex], track = tracks[trackIndex];
     const brake = keys.has('ArrowDown') || keys.has('KeyS') || gesture.brake;
     const accelerate = (keys.has('ArrowUp') || keys.has('KeyW') || gesture.accel) && !brake;
-    const keySteer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA'));
+    const keySteer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA')) || padSteer;
     const steer = keySteer || (gyroActive() ? tiltSteer() : gesture.steer);
     updateTutorial(dt, steer);
     const boostHeld = keys.has('Space') || keys.has('ShiftLeft') || keys.has('ShiftRight') || gesture.boost;

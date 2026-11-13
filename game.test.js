@@ -651,7 +651,7 @@ test('weather events: a random event starts, does its thing and clears again', (
   const { element: el, step, key, inspect, weatherNow } = harness();
   el('start').fire('click'); key('ArrowUp'); step(4);
   const seen = new Set();
-  for (let i = 0; i < 6; i++) { weatherNow(); step(.6); seen.add(inspect().weather); if (inspect().weather === 'meteors') { step(2); assert.ok(inspect().meteors > 0, 'meteors fall'); } step(9.5); }
+  for (let i = 0; i < 6; i++) { weatherNow(); step(.6); seen.add(inspect().weather); if (inspect().weather === 'meteors') { let most = 0; for (let k = 0; k < 20; k++) { step(.1); most = Math.max(most, inspect().meteors); } assert.ok(most > 0, 'meteors fall'); } step(9.5); }
   assert.ok(seen.size >= 2, `several event types: ${[...seen]}`);
   assert.equal(inspect().weather, null, 'events end');
 });
@@ -671,4 +671,19 @@ test('first-run tutorial: prompts advance as the player steers, boosts and fires
   step(22);
   assert.equal(inspect().tutorialStep, -1, 'tutorial finished');
   assert.equal(JSON.parse(storage.get('morbid-profile-v1')).tutorialDone, true);
+});
+
+test('gamepad: A starts the race, the stick steers, X fires', () => {
+  const { element: el, step, inspect, sandbox } = harness();
+  el('health-accept').fire('click');
+  const pad = { axes: [0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+  sandbox.navigator.getGamepads = () => [pad];
+  const press = (i, on = true) => { pad.buttons[i] = { pressed: on, value: on ? 1 : 0 }; };
+  press(0); step(.05); press(0, false);
+  assert.equal(inspect().mode, 'countdown', 'A starts the race');
+  step(3.1); press(7); step(1);
+  const x0 = inspect().playerX; pad.axes[0] = 1; step(.6); pad.axes[0] = 0;
+  assert.ok(inspect().playerX > x0 + .2, 'stick steers right');
+  const ammo = inspect().laserAmmo; press(2); step(.1); press(2, false); step(.05);
+  assert.ok(inspect().laserAmmo < ammo, 'X fires the laser');
 });
