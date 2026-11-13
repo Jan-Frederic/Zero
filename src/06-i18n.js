@@ -145,6 +145,9 @@
     "The singularity. The final, impossible line.": "Die Singularität. Die letzte, unmögliche Linie.",
     "Win, and the invasion comes for you. Bosses wait in the dark.": "Gewinne, und die Invasion kommt zu dir. In der Dunkelheit warten Bosse.",
     "And if you beat them too… the whole galaxy will dance.": "Und wenn du auch sie besiegst … tanzt die ganze Galaxie.",
+    '🎃 HALLOWEEN EVENT': '🎃 HALLOWEEN-EVENT', '🎄 WINTER EVENT': '🎄 WINTER-EVENT', 'PUMPKIN UFOS · GHOST FOG · FREE PAINT: PUMPKIN PATCH': 'KÜRBIS-UFOS · GEISTERNEBEL · GRATIS-LACK: KÜRBISFELD',
+    'SNOWFALL · SLIPPERY TRACKS · FREE PAINT: FROSTBITE': 'SCHNEEFALL · RUTSCHIGE STRECKEN · GRATIS-LACK: FROSTBISS', 'PUMPKIN PATCH': 'KÜRBISFELD', 'FROSTBITE': 'FROSTBISS',
+    '❄ SNOWFALL': '❄ SCHNEEFALL', 'SLIPPERY TRACK — STEER GENTLY': 'RUTSCHIGE STRECKE — SANFT LENKEN', '👻 GHOST FOG': '👻 GEISTERNEBEL', 'SOMETHING IS WATCHING…': 'ETWAS BEOBACHTET DICH …',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',

@@ -442,3 +442,9 @@ body.lowfx .home-bg,body.lowfx .scanlines{animation:none!important}
 @media (max-width:700px){.story-panels{grid-template-columns:1fr}.comic-panel{min-height:0;flex-direction:row;align-items:center}.comic-art{font-size:38px;min-width:76px}}
 @media (max-height:520px) and (orientation:landscape){.story-panels{gap:8px}.comic-panel{min-height:0;padding:8px}.comic-art{font-size:32px}.comic-panel figcaption{font-size:12px}}
 .modal-card.dialog-card.story-card{max-width:880px;width:min(880px,calc(100vw - 32px))}.comic-art{white-space:nowrap}
+
+/* Seasonal events. */
+.season-badge{display:inline-flex;flex-direction:column;gap:2px;margin:8px 0 2px;padding:6px 12px;border:1px solid #ff9b2e;background:#ff7a1a1c;font:11px var(--mono);letter-spacing:1px;color:#ffd0a0}
+.season-badge b{font-weight:400;color:#ff9b2e;font-size:12px}
+body.season-xmas .season-badge{border-color:#9fe8ff;background:#9fe8ff14;color:#dff4ff}body.season-xmas .season-badge b{color:#9fe8ff}
+@media (max-height:720px){.season-badge span{display:none}}

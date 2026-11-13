@@ -99,7 +99,7 @@
       }
     }
     const seg = segments[Math.floor(mod(position + 1050, LENGTH) / SEG)];
-    playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip;
+    playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip * (weather && weather.type === 'snow' ? .62 : 1);
     if (weather && weather.type === 'gravity') playerX += Math.sin((time - weather.started) * 1.4) * dt * .55 * track.width;
     playerX -= seg.curve * dt * speed / 10700 * .62;
     steerVisual = lerp(steerVisual, steer, Math.min(1, dt * 9));

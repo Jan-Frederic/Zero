@@ -853,3 +853,22 @@ test('story: one comic chapter per unlocked circuit, a new one after unlocking a
   assert.deepEqual(JSON.parse(storage.get('morbid-profile-v1')).storySeen.sort(), [0, 1, 2]);
   void sandbox;
 });
+
+test('seasonal events: dates pick the season, season paints are kept, snow makes the track slippery', () => {
+  const { element: el, step, key, inspect, sandbox, storage, weatherNow, disableAirRaid } = harness();
+  assert.equal(sandbox.morbidSeason.get('2026-10-31T12:00:00'), 'halloween');
+  assert.equal(sandbox.morbidSeason.get('2026-12-24T12:00:00'), 'xmas');
+  assert.equal(sandbox.morbidSeason.get('2027-01-05T12:00:00'), 'xmas');
+  assert.equal(sandbox.morbidSeason.get('2026-07-01T12:00:00'), null);
+  sandbox.morbidSeason.set('xmas');
+  assert.match(el('season-badge').innerHTML, /WINTER EVENT/);
+  assert.ok(JSON.parse(storage.get('morbid-profile-v1')).paints.includes('frost'), 'season paint granted');
+  assert.equal(sandbox.morbidShop.paint('frost'), true);
+  sandbox.morbidSeason.set('none');
+  assert.equal(sandbox.morbidShop.paint('frost'), true, 'the paint stays after the event');
+  sandbox.morbidSeason.set('xmas');
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid();
+  const seen = new Set();
+  for (let i = 0; i < 30 && !seen.has('snow'); i++) { weatherNow(); step(.05); seen.add(inspect().weather); step(9.5); }
+  assert.ok(seen.has('snow'), 'snowfall shows up in winter');
+});

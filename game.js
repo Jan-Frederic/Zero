@@ -62,9 +62,22 @@
     { id: 'gold', name: '24K GOLD', trophy: 'win', color: '#ffd35a', dark: '#6a4a08', accent: '#fff6c8' },
     { id: 'kitty', name: 'NEON KITTY', trophy: 'cats10', color: '#ff9bf2', dark: '#4a1a46', accent: '#80faff', pattern: 'spots' },
     { id: 'rainbow', name: 'HYPER RAINBOW', trophy: 'galaxy', pattern: 'rainbow', accent: '#ffffff' },
+    { id: 'pumpkin', name: 'PUMPKIN PATCH', season: 'halloween', color: '#ff7a1a', dark: '#2a0e00', accent: '#7dff3a', pattern: 'spots' },
+    { id: 'frost', name: 'FROSTBITE', season: 'xmas', color: '#e8f6ff', dark: '#1b4a7a', accent: '#ff3b55', pattern: 'stripes' },
   ];
+  // ---- Seasonal events by date: Halloween (15 Oct – 7 Nov) and winter (1 Dec – 6 Jan). ?season=… forces one for testing.
+  const SEASONS = { halloween: { name: '🎃 HALLOWEEN EVENT', info: 'PUMPKIN UFOS · GHOST FOG · FREE PAINT: PUMPKIN PATCH' }, xmas: { name: '🎄 WINTER EVENT', info: 'SNOWFALL · SLIPPERY TRACKS · FREE PAINT: FROSTBITE' } };
+  let seasonOverride = null;
+  try { seasonOverride = new URLSearchParams(location.search).get('season'); } catch { /* no URL */ }
+  function season(date = new Date()) {
+    if (seasonOverride !== null) return SEASONS[seasonOverride] ? seasonOverride : null;
+    const m = date.getMonth() + 1, d = date.getDate();
+    if ((m === 10 && d >= 15) || (m === 11 && d <= 7)) return 'halloween';
+    if (m === 12 || (m === 1 && d <= 6)) return 'xmas';
+    return null;
+  }
   profile.paints = profile.paints || ['factory'];
-  const paintOwned = p => p.cost === 0 || profile.paints.includes(p.id) || (p.trophy && profile.achievements && profile.achievements[p.trophy]);
+  const paintOwned = p => p.cost === 0 || (p.season && p.season === season()) || profile.paints.includes(p.id) || (p.trophy && profile.achievements && profile.achievements[p.trophy]);
   // drawShip appends alpha digits to colours ('#rrggbb' + '60'), so paints must be 6-digit hex.
   function hslHex(h, sat, l) {
     const k = n => (n + h / 30) % 12, a = sat * Math.min(l, 1 - l), f = n => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
@@ -414,6 +427,9 @@
     "The singularity. The final, impossible line.": "Die Singularität. Die letzte, unmögliche Linie.",
     "Win, and the invasion comes for you. Bosses wait in the dark.": "Gewinne, und die Invasion kommt zu dir. In der Dunkelheit warten Bosse.",
     "And if you beat them too… the whole galaxy will dance.": "Und wenn du auch sie besiegst … tanzt die ganze Galaxie.",
+    '🎃 HALLOWEEN EVENT': '🎃 HALLOWEEN-EVENT', '🎄 WINTER EVENT': '🎄 WINTER-EVENT', 'PUMPKIN UFOS · GHOST FOG · FREE PAINT: PUMPKIN PATCH': 'KÜRBIS-UFOS · GEISTERNEBEL · GRATIS-LACK: KÜRBISFELD',
+    'SNOWFALL · SLIPPERY TRACKS · FREE PAINT: FROSTBITE': 'SCHNEEFALL · RUTSCHIGE STRECKEN · GRATIS-LACK: FROSTBISS', 'PUMPKIN PATCH': 'KÜRBISFELD', 'FROSTBITE': 'FROSTBISS',
+    '❄ SNOWFALL': '❄ SCHNEEFALL', 'SLIPPERY TRACK — STEER GENTLY': 'RUTSCHIGE STRECKE — SANFT LENKEN', '👻 GHOST FOG': '👻 GEISTERNEBEL', 'SOMETHING IS WATCHING…': 'ETWAS BEOBACHTET DICH …',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -1186,6 +1202,7 @@
     ufoRespawns = ufoRespawns.filter(r => !r.spawned);
   }
   function drawUfoShape(size, color) {
+    if (season() === 'halloween') { drawPumpkin(size); return; }
     ctx.beginPath(); ctx.ellipse(0, 0, size, size * .3, 0, 0, TAU); ctx.fillStyle = '#26253e'; ctx.fill(); ctx.strokeStyle = color; ctx.lineWidth = Math.max(1, size * .075); ctx.stroke();
     ctx.beginPath(); ctx.ellipse(0, -size * .13, size * .42, size * .3, 0, Math.PI, TAU); ctx.fillStyle = '#aeeaff'; ctx.fill(); ctx.strokeStyle = '#efffff'; ctx.lineWidth = Math.max(1, size * .04); ctx.stroke();
     for (let i = -2; i <= 2; i++) { ctx.fillStyle = (i + Math.floor(time * 7)) % 2 ? '#fff4a0' : color; ctx.beginPath(); ctx.arc(i * size * .32, size * .05, Math.max(1, size * .055), 0, TAU); ctx.fill(); }
@@ -1421,6 +1438,17 @@
     ctx.fillStyle = '#fff1a0'; ctx.beginPath(); ctx.arc(size * .23, -size, Math.max(1, size * .09), 0, TAU); ctx.fill();
     ctx.restore();
     if (bomb.landed) cbMark(x, roadY, Math.max(10, size * 1.6));
+  }
+  // Halloween: the saucers become flying jack-o'-lanterns.
+  function drawPumpkin(size) {
+    const r = size * .62;
+    ctx.fillStyle = '#ff7a1a'; ctx.strokeStyle = '#a83c00'; ctx.lineWidth = Math.max(1, size * .04);
+    for (const dx of [-.45, .45, 0]) { ctx.beginPath(); ctx.ellipse(dx * r, 0, r * .62, r * .8, 0, 0, TAU); ctx.fill(); ctx.stroke(); }
+    ctx.fillStyle = '#3f7a1a'; ctx.fillRect(-r * .08, -r * 1.05, r * .16, r * .3);
+    ctx.fillStyle = Math.sin(time * 9) > -.6 ? '#ffe36b' : '#ffb347';
+    const tri = (x, y, s, up) => { ctx.beginPath(); ctx.moveTo(x - s, y + (up ? s * .7 : -s * .7)); ctx.lineTo(x + s, y + (up ? s * .7 : -s * .7)); ctx.lineTo(x, y + (up ? -s * .7 : s * .7)); ctx.fill(); };
+    tri(-r * .32, -r * .18, r * .17, true); tri(r * .32, -r * .18, r * .17, true);
+    ctx.beginPath(); ctx.moveTo(-r * .5, r * .2); for (let i = 0; i <= 6; i++) ctx.lineTo(-r * .5 + i * r / 6, r * (i % 2 ? .45 : .28)); ctx.lineTo(r * .5, r * .2); ctx.quadraticCurveTo(0, r * .62, -r * .5, r * .2); ctx.fill();
   }
   // ==== Circuit unlocks, game modes, lifetime race stats.
   // ---- Campaign: circuit n+1 unlocks with a podium (top 3) on circuit n.
@@ -1816,11 +1844,13 @@
     meteors: { name: '☄ METEOR SHOWER', info: 'WATCH THE IMPACT MARKERS!', color: '#ff8a2e' },
     sandstorm: { name: '🌪 SANDSTORM', info: 'VISIBILITY DROPPING', color: '#e0b070' },
     gravity: { name: '〰 GRAVITY WAVES', info: 'THE TRACK PULLS YOU SIDEWAYS', color: '#a88aff' },
+    snow: { name: '❄ SNOWFALL', info: 'SLIPPERY TRACK — STEER GENTLY', color: '#dff4ff', season: 'xmas' },
+    ghosts: { name: '👻 GHOST FOG', info: 'SOMETHING IS WATCHING…', color: '#9dff6a', season: 'halloween' },
   };
   let weather = null, nextWeatherAt = 25;
   function updateWeather(dt, track) {
     if (!weather && time >= nextWeatherAt) {
-      const types = Object.keys(WEATHER), type = types[Math.floor(random(Math.floor(time * 3) + trackIndex) * types.length) % types.length];
+      const types = Object.keys(WEATHER).filter(t => !WEATHER[t].season || WEATHER[t].season === season()), type = types[Math.floor(random(Math.floor(time * 3) + trackIndex) * types.length) % types.length];
       weather = { type, started: time, until: time + 9, nextMeteor: time + .6 };
       showCallout(WEATHER[type].name, WEATHER[type].color); showMessage(WEATHER[type].info, 2); playToneSweep(200, 600, .6, 'sawtooth', .04);
     }
@@ -1844,6 +1874,13 @@
     } else if (weather.type === 'gravity') {
       ctx.strokeStyle = '#b89cff'; ctx.lineWidth = 5; ctx.shadowColor = '#a88aff'; ctx.shadowBlur = 14;
       for (let i = 0; i < 4; i++) { const ph = mod(time * .8 + i / 4, 1); ctx.globalAlpha = (1 - ph) * k; ctx.beginPath(); ctx.ellipse(W / 2 + Math.sin((time - weather.started) * 1.4) * W * .2, H * .6, W * (.1 + ph * .7), H * (.03 + ph * .2), 0, 0, TAU); ctx.stroke(); }
+    } else if (weather.type === 'snow') {
+      ctx.fillStyle = `rgba(230,244,255,${.12 * k})`; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 140; i++) { const sp = 60 + random(i) * 120, x = mod(random(i + 400) * W + Math.sin(time + i) * 30 - time * 40, W), y = mod(random(i + 410) * H + time * sp, H); ctx.globalAlpha = k * (.5 + random(i + 3) * .5); ctx.beginPath(); ctx.arc(x, y, 1 + random(i + 7) * 2.5, 0, TAU); ctx.fill(); }
+    } else if (weather.type === 'ghosts') {
+      const g = ctx.createLinearGradient(0, H * .3, 0, H); g.addColorStop(0, `rgba(60,20,90,${.55 * k})`); g.addColorStop(1, `rgba(40,90,40,${.35 * k})`); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.font = `${Math.round(H * .06)}px system-ui, sans-serif`; ctx.textAlign = 'center';
+      for (let i = 0; i < 5; i++) { const ph = mod(time * .15 + i / 5, 1); ctx.globalAlpha = k * Math.sin(ph * Math.PI) * .7; ctx.fillText(i % 2 ? '👻' : '🦇', W * (.1 + random(i + 30) * .8) + Math.sin(time * 2 + i) * 30, H * (.15 + ph * .5)); }
     } else if (weather.type === 'meteors') {
       ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < 10; i++) { const ph = mod(time * .7 + random(i + 70), 1), x = W * (.1 + random(i + 80) * .8) - ph * W * .25, y = -40 + ph * H * .6; ctx.globalAlpha = k * (1 - ph); line(x, y, x + 60, y - 90, '#ffb347', 3); ctx.fillStyle = '#fff1c2'; ctx.beginPath(); ctx.arc(x, y, 4, 0, TAU); ctx.fill(); }
@@ -1984,7 +2021,7 @@
       }
     }
     const seg = segments[Math.floor(mod(position + 1050, LENGTH) / SEG)];
-    playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip;
+    playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip * (weather && weather.type === 'snow' ? .62 : 1);
     if (weather && weather.type === 'gravity') playerX += Math.sin((time - weather.started) * 1.4) * dt * .55 * track.width;
     playerX -= seg.curve * dt * speed / 10700 * .62;
     steerVisual = lerp(steerVisual, steer, Math.min(1, dt * 9));
@@ -3715,13 +3752,14 @@
     $('paint-list').innerHTML = PAINTS.map(p => {
       const owned = paintOwned(p), active = (profile.paint || 'factory') === p.id;
       const swatch = p.pattern === 'rainbow' ? 'linear-gradient(90deg,#ff4eb8,#ddff46,#4df8ff,#a88aff)' : p.id === 'factory' ? machines[shipIndex].color : `linear-gradient(135deg,${p.color} 55%,${p.accent} 55%)`;
-      const label = active ? 'EQUIPPED' : owned ? 'EQUIP' : p.trophy ? `🏆 ${ACHIEVEMENTS.find(a => a.id === p.trophy).name}` : `BUY · ${p.cost} CR`;
-      return `<button class="paint ${active ? 'active' : ''} ${owned ? 'owned' : ''}" data-paint="${p.id}" ${!owned && (p.trophy || profile.credits < p.cost) ? 'disabled' : ''}><i style="background:${swatch}"></i><b>${p.name}</b><small>${label}</small></button>`;
+      const label = active ? 'EQUIPPED' : owned ? 'EQUIP' : p.trophy ? `🏆 ${ACHIEVEMENTS.find(a => a.id === p.trophy).name}` : p.season ? SEASONS[p.season].name : `BUY · ${p.cost} CR`;
+      return `<button class="paint ${active ? 'active' : ''} ${owned ? 'owned' : ''}" data-paint="${p.id}" ${!owned && (p.trophy || p.season || profile.credits < p.cost) ? 'disabled' : ''}><i style="background:${swatch}"></i><b>${p.name}</b><small>${label}</small></button>`;
     }).join('');
   }
   function choosePaint(id) {
     const p = PAINTS.find(x => x.id === id); if (!p) return false;
-    if (!paintOwned(p)) { if (p.trophy || profile.credits < p.cost) return false; profile.credits -= p.cost; profile.paints.push(p.id); playToneSweep(500, 1500, .3, 'square', .05); }
+    if (p.season && paintOwned(p) && !profile.paints.includes(p.id)) profile.paints.push(p.id);
+    if (!paintOwned(p)) { if (p.trophy || p.season || profile.credits < p.cost) return false; profile.credits -= p.cost; profile.paints.push(p.id); playToneSweep(500, 1500, .3, 'square', .05); }
     profile.paint = p.id; saveProfile(); renderShop(); return true;
   }
   if ($('paint-list').addEventListener) $('paint-list').addEventListener('click', event => { const b = event.target && event.target.closest && event.target.closest('[data-paint]'); if (b) choosePaint(b.dataset.paint); });
@@ -3737,6 +3775,14 @@
   renderShop(); renderTrophyButton();
   $('open-trophies').addEventListener('click', () => { renderTrophies(); openDialog('trophy-screen'); });
   window.morbidShop = { buy: buyUpgrade, paint: choosePaint, profile };
+  // Seasonal banner, and season paints are kept for good once the event is seen.
+  function renderSeason() {
+    const sz = season(), el = $('season-badge');
+    document.body.classList.toggle('season-halloween', sz === 'halloween'); document.body.classList.toggle('season-xmas', sz === 'xmas');
+    if (el) { el.classList.toggle('hidden', !sz); if (sz) el.innerHTML = `<b>${SEASONS[sz].name}</b><span>${SEASONS[sz].info}</span>`; }
+    if (sz) { for (const p of PAINTS) if (p.season === sz && !profile.paints.includes(p.id)) profile.paints.push(p.id); saveProfile(); }
+  }
+  renderSeason(); window.morbidSeason = { set: id => { seasonOverride = id; renderSeason(); renderShop(); }, get: date => season(date ? new Date(date) : undefined) };
   // ==== Share card.
   // ---- Share card: a 1200×630 image of the result, shared via the system share sheet (or downloaded).
   function shareCard() {

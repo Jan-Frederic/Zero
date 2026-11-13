@@ -4,11 +4,13 @@
     meteors: { name: '☄ METEOR SHOWER', info: 'WATCH THE IMPACT MARKERS!', color: '#ff8a2e' },
     sandstorm: { name: '🌪 SANDSTORM', info: 'VISIBILITY DROPPING', color: '#e0b070' },
     gravity: { name: '〰 GRAVITY WAVES', info: 'THE TRACK PULLS YOU SIDEWAYS', color: '#a88aff' },
+    snow: { name: '❄ SNOWFALL', info: 'SLIPPERY TRACK — STEER GENTLY', color: '#dff4ff', season: 'xmas' },
+    ghosts: { name: '👻 GHOST FOG', info: 'SOMETHING IS WATCHING…', color: '#9dff6a', season: 'halloween' },
   };
   let weather = null, nextWeatherAt = 25;
   function updateWeather(dt, track) {
     if (!weather && time >= nextWeatherAt) {
-      const types = Object.keys(WEATHER), type = types[Math.floor(random(Math.floor(time * 3) + trackIndex) * types.length) % types.length];
+      const types = Object.keys(WEATHER).filter(t => !WEATHER[t].season || WEATHER[t].season === season()), type = types[Math.floor(random(Math.floor(time * 3) + trackIndex) * types.length) % types.length];
       weather = { type, started: time, until: time + 9, nextMeteor: time + .6 };
       showCallout(WEATHER[type].name, WEATHER[type].color); showMessage(WEATHER[type].info, 2); playToneSweep(200, 600, .6, 'sawtooth', .04);
     }
@@ -32,6 +34,13 @@
     } else if (weather.type === 'gravity') {
       ctx.strokeStyle = '#b89cff'; ctx.lineWidth = 5; ctx.shadowColor = '#a88aff'; ctx.shadowBlur = 14;
       for (let i = 0; i < 4; i++) { const ph = mod(time * .8 + i / 4, 1); ctx.globalAlpha = (1 - ph) * k; ctx.beginPath(); ctx.ellipse(W / 2 + Math.sin((time - weather.started) * 1.4) * W * .2, H * .6, W * (.1 + ph * .7), H * (.03 + ph * .2), 0, 0, TAU); ctx.stroke(); }
+    } else if (weather.type === 'snow') {
+      ctx.fillStyle = `rgba(230,244,255,${.12 * k})`; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 140; i++) { const sp = 60 + random(i) * 120, x = mod(random(i + 400) * W + Math.sin(time + i) * 30 - time * 40, W), y = mod(random(i + 410) * H + time * sp, H); ctx.globalAlpha = k * (.5 + random(i + 3) * .5); ctx.beginPath(); ctx.arc(x, y, 1 + random(i + 7) * 2.5, 0, TAU); ctx.fill(); }
+    } else if (weather.type === 'ghosts') {
+      const g = ctx.createLinearGradient(0, H * .3, 0, H); g.addColorStop(0, `rgba(60,20,90,${.55 * k})`); g.addColorStop(1, `rgba(40,90,40,${.35 * k})`); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.font = `${Math.round(H * .06)}px system-ui, sans-serif`; ctx.textAlign = 'center';
+      for (let i = 0; i < 5; i++) { const ph = mod(time * .15 + i / 5, 1); ctx.globalAlpha = k * Math.sin(ph * Math.PI) * .7; ctx.fillText(i % 2 ? '👻' : '🦇', W * (.1 + random(i + 30) * .8) + Math.sin(time * 2 + i) * 30, H * (.15 + ph * .5)); }
     } else if (weather.type === 'meteors') {
       ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < 10; i++) { const ph = mod(time * .7 + random(i + 70), 1), x = W * (.1 + random(i + 80) * .8) - ph * W * .25, y = -40 + ph * H * .6; ctx.globalAlpha = k * (1 - ph); line(x, y, x + 60, y - 90, '#ffb347', 3); ctx.fillStyle = '#fff1c2'; ctx.beginPath(); ctx.arc(x, y, 4, 0, TAU); ctx.fill(); }

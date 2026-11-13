@@ -57,6 +57,7 @@
     ufoRespawns = ufoRespawns.filter(r => !r.spawned);
   }
   function drawUfoShape(size, color) {
+    if (season() === 'halloween') { drawPumpkin(size); return; }
     ctx.beginPath(); ctx.ellipse(0, 0, size, size * .3, 0, 0, TAU); ctx.fillStyle = '#26253e'; ctx.fill(); ctx.strokeStyle = color; ctx.lineWidth = Math.max(1, size * .075); ctx.stroke();
     ctx.beginPath(); ctx.ellipse(0, -size * .13, size * .42, size * .3, 0, Math.PI, TAU); ctx.fillStyle = '#aeeaff'; ctx.fill(); ctx.strokeStyle = '#efffff'; ctx.lineWidth = Math.max(1, size * .04); ctx.stroke();
     for (let i = -2; i <= 2; i++) { ctx.fillStyle = (i + Math.floor(time * 7)) % 2 ? '#fff4a0' : color; ctx.beginPath(); ctx.arc(i * size * .32, size * .05, Math.max(1, size * .055), 0, TAU); ctx.fill(); }
@@ -292,4 +293,15 @@
     ctx.fillStyle = '#fff1a0'; ctx.beginPath(); ctx.arc(size * .23, -size, Math.max(1, size * .09), 0, TAU); ctx.fill();
     ctx.restore();
     if (bomb.landed) cbMark(x, roadY, Math.max(10, size * 1.6));
+  }
+  // Halloween: the saucers become flying jack-o'-lanterns.
+  function drawPumpkin(size) {
+    const r = size * .62;
+    ctx.fillStyle = '#ff7a1a'; ctx.strokeStyle = '#a83c00'; ctx.lineWidth = Math.max(1, size * .04);
+    for (const dx of [-.45, .45, 0]) { ctx.beginPath(); ctx.ellipse(dx * r, 0, r * .62, r * .8, 0, 0, TAU); ctx.fill(); ctx.stroke(); }
+    ctx.fillStyle = '#3f7a1a'; ctx.fillRect(-r * .08, -r * 1.05, r * .16, r * .3);
+    ctx.fillStyle = Math.sin(time * 9) > -.6 ? '#ffe36b' : '#ffb347';
+    const tri = (x, y, s, up) => { ctx.beginPath(); ctx.moveTo(x - s, y + (up ? s * .7 : -s * .7)); ctx.lineTo(x + s, y + (up ? s * .7 : -s * .7)); ctx.lineTo(x, y + (up ? -s * .7 : s * .7)); ctx.fill(); };
+    tri(-r * .32, -r * .18, r * .17, true); tri(r * .32, -r * .18, r * .17, true);
+    ctx.beginPath(); ctx.moveTo(-r * .5, r * .2); for (let i = 0; i <= 6; i++) ctx.lineTo(-r * .5 + i * r / 6, r * (i % 2 ? .45 : .28)); ctx.lineTo(r * .5, r * .2); ctx.quadraticCurveTo(0, r * .62, -r * .5, r * .2); ctx.fill();
   }
