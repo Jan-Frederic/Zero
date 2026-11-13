@@ -193,11 +193,17 @@
       }
       r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt * worldPace();
       r.x = r.lane + .13 * Math.sin(time * .8 + r.seed * 2);
-      r.laserCooldown -= dt * worldPace();
+      if (r.nemesis) {
+        // Hunt the player: drift towards the player's lane when close, and taunt when overtaking.
+        const gap = r.distance - distance;
+        if (Math.abs(gap) < 9000) r.lane = lerp(r.lane, clamp(playerX / track.width, -.6, .6), dt * .6);
+        if (gap > 0 && gap < 2200 && time - r.tauntAt > 25) nemesisTaunt(r);
+      }
+      r.laserCooldown -= dt * worldPace() * (r.nemesis ? 1.6 : 1);
       if (r.laserCooldown <= 0) {
         r.laserCooldown = 4.4 + random(Math.floor(time * 5) + r.seed * 31) * 3.2;
         if (r.distance > distance + 1700 && r.distance < distance + 17000 && Math.abs(r.x * track.width - playerX) < track.width * .48) {
-          enemyShots.push({ sourceDistance: r.distance, sourceLane: r.x, targetLane: clamp(playerX / track.width, -.85, .85), color: r.color,
+          enemyShots.push({ from: r, sourceDistance: r.distance, sourceLane: r.x, targetLane: clamp(playerX / track.width, -.85, .85), color: r.color,
             started: time, impactAt: time + .46, expires: time + .76, resolved: false, x: W * .5, y: H * .5 });
           showMessage('RIVAL LASER LOCK!  BREAK LINE OF SIGHT', .9); playLaserSound();
         }
@@ -219,8 +225,10 @@
       shot.resolved = true;
       if (jumpHeight < 105 && Math.abs(playerX - shot.targetLane * track.width) < .21 * track.width) {
         shake = Math.max(shake, .55); screenFlash = Math.max(screenFlash, .18);
-        showMessage('ENEMY LASER HIT  /  ' + shieldText(8), .95); playImpactSound(.68);
-        if (damageShield(8)) { updateHUD(); return; }
+        const nem = shot.from && shot.from.nemesis;
+        showMessage((nem ? `${nem.name} HIT YOU  /  ` : 'ENEMY LASER HIT  /  ') + shieldText(nem ? 11 : 8), .95); playImpactSound(.68);
+        if (nem) nemesisTaunt(shot.from);
+        if (damageShield(nem ? 11 : 8)) { updateHUD(); return; }
       }
     }
     enemyShots = enemyShots.filter(shot => time < shot.expires);
@@ -241,6 +249,11 @@
     document.body.classList.toggle('boosting', boosting || jumpBoostTimer > 0); updateHUD();
   }
   let powerChipsHtml = '';
+  function nemesisTaunt(r) {
+    if (time - (r.tauntAt || 0) < 8) return; r.tauntAt = time;
+    const lines = { vex: 'YOU ARE GOING DOWN, ROOKIE!', kronos: 'KRONOS OWNS THIS TRACK!', null9: 'TARGET ACQUIRED.', blaze: 'EAT MY EXHAUST!' };
+    showCallout(`${r.nemesis.name}: “${lines[r.nemesis.id]}”`, r.nemesis.color); robotSay(lines[r.nemesis.id], `taunt-${r.nemesis.id}`);
+  }
   function updateHUD() {
     if (time - creditPopAt > 1.4) $('credit-pop').classList.remove('visible');
     const chips = POWERUP_ORDER.filter(powerOn).map(t => `<span style="--c:${POWERUPS[t].color}">${POWERUPS[t].icon} ${POWERUPS[t].name}${t === 'bubble' ? ' ×' + bubbleHits : ''} <b>${Math.max(0, power[t] - time).toFixed(1)}</b></span>`).join('');

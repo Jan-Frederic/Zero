@@ -71,6 +71,7 @@
     { id: 'unlock-all', icon: '🗺', name: 'GRAND TOURER', info: 'Unlock every circuit.' },
     { id: 'egg', icon: '🥚', name: 'EGG HUNTER', info: 'Find the secret on the title screen.' },
     { id: 'share', icon: '📣', name: 'BRAGGING RIGHTS', info: 'Share a race result.' },
+    { id: 'nemesis', icon: '☠', name: 'NEMESIS HUNTER', info: 'Destroy all three nemeses in one race.' },
   ];
   profile.achievements = profile.achievements || {}; profile.stats = Object.assign({ cats: 0, ufos: 0, rivals: 0, powerTypes: [] }, profile.stats);
   const achQueue = []; let achShownAt = -9;
@@ -164,7 +165,13 @@
     ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
     ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
     ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
-  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot'];
+  const NEMESES = [
+    { id: 'vex', name: 'VEX', title: 'THE VIPER QUEEN', color: '#ff2a8a', dark: '#4a0420' },
+    { id: 'kronos', name: 'KRONOS', title: 'THE IRON TITAN', color: '#ffb347', dark: '#4a2a04' },
+    { id: 'null9', name: 'NULL-9', title: 'THE ROGUE AI', color: '#7dfcff', dark: '#06343a' },
+    { id: 'blaze', name: 'BLAZE', title: 'THE SHOW-OFF', color: '#ff5a1c', dark: '#3a0e02' },
+  ];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
   const voiceBuffers = new Map();
   let voiceSource = null;
   let shake = 0, steerVisual = 0, distance = 0, bestLap = 0, previousTime = 0, muted = false, beat = 0;

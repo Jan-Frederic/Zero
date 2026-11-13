@@ -310,7 +310,14 @@
               const flicker = Math.sin(time * 40) > .3 ? '#ffffff' : r.color;
               drawShip(rx, ry + rw * .02 * t, rw * .115, t > .7 ? flicker : r.color, '#1d1828', 0, false, false, false, r.dying.spin * (t * t * 14 + t * 2));
               drawSmoke(rx, ry, rw * .115, r);
-            } else drawShip(rx, ry, rw * .115, r.color, '#393156', Math.sin(time + r.seed) * .1, false, r.boosting);
+            } else {
+              drawShip(rx, ry, rw * .115, r.color, r.dark || '#393156', Math.sin(time + r.seed) * .1, false, r.boosting);
+              if (r.nemesis && rw * .115 > 26) {
+                const fs = Math.max(11, Math.min(15, rw * .03)); ctx.save(); ctx.font = `${fs}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center';
+                const label = `☠ ${r.nemesis.name}  ${'▮'.repeat(Math.max(0, r.hull))}`; const w = ((ctx.measureText(label) || {}).width || label.length * fs * .6) + 12, ty = ry - rw * .115 * .95;
+                ctx.fillStyle = '#09091acc'; ctx.fillRect(rx - w / 2, ty - fs, w, fs + 6); ctx.fillStyle = r.nemesis.color; ctx.fillText(label, rx, ty); ctx.restore();
+              }
+            }
           }
         }
       }
@@ -437,7 +444,7 @@
     };
     map.beginPath(); for (let i = 0; i <= 180; i++) { const [x, y] = point(i / 180); i ? map.lineTo(x, y) : map.moveTo(x, y); }
     map.strokeStyle = '#ffffff18'; map.lineWidth = 9; map.stroke(); map.strokeStyle = tracks[trackIndex].second; map.lineWidth = 1.5; map.stroke();
-    for (const r of rivals) { if (!r.alive) continue; const [x, y] = point(mod(r.distance, LENGTH) / LENGTH); map.fillStyle = r.color; map.beginPath(); map.arc(x, y, 2.5, 0, TAU); map.fill(); }
+    for (const r of rivals) { if (!r.alive) continue; const [x, y] = point(mod(r.distance, LENGTH) / LENGTH); map.fillStyle = r.color; map.beginPath(); map.arc(x, y, r.nemesis ? 4 : 2.5, 0, TAU); map.fill(); }
     const [x, y] = point(position / LENGTH); map.shadowColor = '#ddff46'; map.shadowBlur = 9; map.fillStyle = '#ddff46'; map.beginPath(); map.arc(x, y, 4, 0, TAU); map.fill(); map.shadowBlur = 0;
   }
   function drawStick() {

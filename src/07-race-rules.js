@@ -99,6 +99,9 @@
     const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
     rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace * diff().pace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
+    // Three named nemeses race at the front of the grid: tougher hulls, they hunt the player and talk trash.
+    const nemesisPick = [0, 1, 2, 3].filter(i => i !== trackIndex % 4).slice(0, 3);
+    nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
     if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
     endlessRun = false; trialRun = gameMode() === 'trial';
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
@@ -170,9 +173,9 @@
       target.hull = hyper() ? 0 : target.hull - 1; target.stunnedUntil = time + .32;
       createExplosion(target.distance, lane, target.color, target.hull > 0 ? .3 : .45);
       if (target.hull <= 0) {
-        knockOut(target); showMessage('RIVAL DESTROYED  /  +1 PLACE', 1.1);
+        knockOut(target); showMessage(target.nemesis ? `NEMESIS ${target.nemesis.name} DESTROYED!` : 'RIVAL DESTROYED  /  +1 PLACE', 1.1);
       } else {
-        showMessage(`RIVAL HIT  /  HULL ${target.hull}/3`, .8); playImpactSound(.48);
+        showMessage(target.nemesis ? `${target.nemesis.name} HIT  /  HULL ${target.hull}/6` : `RIVAL HIT  /  HULL ${target.hull}/3`, .8); playImpactSound(.48);
       }
     } else if (laserAmmo === 0) showMessage('TARGET MISSED  /  LASERS LOW', .65);
   }
@@ -180,6 +183,11 @@
   const WRECK_TIME = 1.5;
   // A beaten rival is flung off the track: it careens across the whole screen, smoking and spinning, then explodes.
   function knockOut(rival) {
+    if (rival.nemesis) {
+      raceStats.nemeses = (raceStats.nemeses || 0) + 1; showCallout(`${rival.nemesis.name} IS OUT!`, rival.nemesis.color);
+      robotSay(`${rival.nemesis.name} is out`, `down-${rival.nemesis.id}`); if (mode === 'racing') addCredits(100, 'NEMESIS DOWN');
+      if (raceStats.nemeses >= 3) unlockAchievement('nemesis');
+    }
     if (stat('rivals') >= 50) unlockAchievement('rivals50');
     if (mode === 'racing') raceStats.rivals++;
     if (mode === 'racing') addCredits(15, 'RIVAL DOWN');

@@ -71,6 +71,7 @@
     { id: 'unlock-all', icon: '🗺', name: 'GRAND TOURER', info: 'Unlock every circuit.' },
     { id: 'egg', icon: '🥚', name: 'EGG HUNTER', info: 'Find the secret on the title screen.' },
     { id: 'share', icon: '📣', name: 'BRAGGING RIGHTS', info: 'Share a race result.' },
+    { id: 'nemesis', icon: '☠', name: 'NEMESIS HUNTER', info: 'Destroy all three nemeses in one race.' },
   ];
   profile.achievements = profile.achievements || {}; profile.stats = Object.assign({ cats: 0, ufos: 0, rivals: 0, powerTypes: [] }, profile.stats);
   const achQueue = []; let achShownAt = -9;
@@ -164,7 +165,13 @@
     ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
     ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
     ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
-  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot'];
+  const NEMESES = [
+    { id: 'vex', name: 'VEX', title: 'THE VIPER QUEEN', color: '#ff2a8a', dark: '#4a0420' },
+    { id: 'kronos', name: 'KRONOS', title: 'THE IRON TITAN', color: '#ffb347', dark: '#4a2a04' },
+    { id: 'null9', name: 'NULL-9', title: 'THE ROGUE AI', color: '#7dfcff', dark: '#06343a' },
+    { id: 'blaze', name: 'BLAZE', title: 'THE SHOW-OFF', color: '#ff5a1c', dark: '#3a0e02' },
+  ];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
   const voiceBuffers = new Map();
   let voiceSource = null;
   let shake = 0, steerVisual = 0, distance = 0, bestLap = 0, previousTime = 0, muted = false, beat = 0;
@@ -1763,6 +1770,9 @@
     const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
     rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace * diff().pace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
+    // Three named nemeses race at the front of the grid: tougher hulls, they hunt the player and talk trash.
+    const nemesisPick = [0, 1, 2, 3].filter(i => i !== trackIndex % 4).slice(0, 3);
+    nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
     if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
     endlessRun = false; trialRun = gameMode() === 'trial';
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
@@ -1834,9 +1844,9 @@
       target.hull = hyper() ? 0 : target.hull - 1; target.stunnedUntil = time + .32;
       createExplosion(target.distance, lane, target.color, target.hull > 0 ? .3 : .45);
       if (target.hull <= 0) {
-        knockOut(target); showMessage('RIVAL DESTROYED  /  +1 PLACE', 1.1);
+        knockOut(target); showMessage(target.nemesis ? `NEMESIS ${target.nemesis.name} DESTROYED!` : 'RIVAL DESTROYED  /  +1 PLACE', 1.1);
       } else {
-        showMessage(`RIVAL HIT  /  HULL ${target.hull}/3`, .8); playImpactSound(.48);
+        showMessage(target.nemesis ? `${target.nemesis.name} HIT  /  HULL ${target.hull}/6` : `RIVAL HIT  /  HULL ${target.hull}/3`, .8); playImpactSound(.48);
       }
     } else if (laserAmmo === 0) showMessage('TARGET MISSED  /  LASERS LOW', .65);
   }
@@ -1844,6 +1854,11 @@
   const WRECK_TIME = 1.5;
   // A beaten rival is flung off the track: it careens across the whole screen, smoking and spinning, then explodes.
   function knockOut(rival) {
+    if (rival.nemesis) {
+      raceStats.nemeses = (raceStats.nemeses || 0) + 1; showCallout(`${rival.nemesis.name} IS OUT!`, rival.nemesis.color);
+      robotSay(`${rival.nemesis.name} is out`, `down-${rival.nemesis.id}`); if (mode === 'racing') addCredits(100, 'NEMESIS DOWN');
+      if (raceStats.nemeses >= 3) unlockAchievement('nemesis');
+    }
     if (stat('rivals') >= 50) unlockAchievement('rivals50');
     if (mode === 'racing') raceStats.rivals++;
     if (mode === 'racing') addCredits(15, 'RIVAL DOWN');
@@ -2210,11 +2225,17 @@
       }
       r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt * worldPace();
       r.x = r.lane + .13 * Math.sin(time * .8 + r.seed * 2);
-      r.laserCooldown -= dt * worldPace();
+      if (r.nemesis) {
+        // Hunt the player: drift towards the player's lane when close, and taunt when overtaking.
+        const gap = r.distance - distance;
+        if (Math.abs(gap) < 9000) r.lane = lerp(r.lane, clamp(playerX / track.width, -.6, .6), dt * .6);
+        if (gap > 0 && gap < 2200 && time - r.tauntAt > 25) nemesisTaunt(r);
+      }
+      r.laserCooldown -= dt * worldPace() * (r.nemesis ? 1.6 : 1);
       if (r.laserCooldown <= 0) {
         r.laserCooldown = 4.4 + random(Math.floor(time * 5) + r.seed * 31) * 3.2;
         if (r.distance > distance + 1700 && r.distance < distance + 17000 && Math.abs(r.x * track.width - playerX) < track.width * .48) {
-          enemyShots.push({ sourceDistance: r.distance, sourceLane: r.x, targetLane: clamp(playerX / track.width, -.85, .85), color: r.color,
+          enemyShots.push({ from: r, sourceDistance: r.distance, sourceLane: r.x, targetLane: clamp(playerX / track.width, -.85, .85), color: r.color,
             started: time, impactAt: time + .46, expires: time + .76, resolved: false, x: W * .5, y: H * .5 });
           showMessage('RIVAL LASER LOCK!  BREAK LINE OF SIGHT', .9); playLaserSound();
         }
@@ -2236,8 +2257,10 @@
       shot.resolved = true;
       if (jumpHeight < 105 && Math.abs(playerX - shot.targetLane * track.width) < .21 * track.width) {
         shake = Math.max(shake, .55); screenFlash = Math.max(screenFlash, .18);
-        showMessage('ENEMY LASER HIT  /  ' + shieldText(8), .95); playImpactSound(.68);
-        if (damageShield(8)) { updateHUD(); return; }
+        const nem = shot.from && shot.from.nemesis;
+        showMessage((nem ? `${nem.name} HIT YOU  /  ` : 'ENEMY LASER HIT  /  ') + shieldText(nem ? 11 : 8), .95); playImpactSound(.68);
+        if (nem) nemesisTaunt(shot.from);
+        if (damageShield(nem ? 11 : 8)) { updateHUD(); return; }
       }
     }
     enemyShots = enemyShots.filter(shot => time < shot.expires);
@@ -2258,6 +2281,11 @@
     document.body.classList.toggle('boosting', boosting || jumpBoostTimer > 0); updateHUD();
   }
   let powerChipsHtml = '';
+  function nemesisTaunt(r) {
+    if (time - (r.tauntAt || 0) < 8) return; r.tauntAt = time;
+    const lines = { vex: 'YOU ARE GOING DOWN, ROOKIE!', kronos: 'KRONOS OWNS THIS TRACK!', null9: 'TARGET ACQUIRED.', blaze: 'EAT MY EXHAUST!' };
+    showCallout(`${r.nemesis.name}: “${lines[r.nemesis.id]}”`, r.nemesis.color); robotSay(lines[r.nemesis.id], `taunt-${r.nemesis.id}`);
+  }
   function updateHUD() {
     if (time - creditPopAt > 1.4) $('credit-pop').classList.remove('visible');
     const chips = POWERUP_ORDER.filter(powerOn).map(t => `<span style="--c:${POWERUPS[t].color}">${POWERUPS[t].icon} ${POWERUPS[t].name}${t === 'bubble' ? ' ×' + bubbleHits : ''} <b>${Math.max(0, power[t] - time).toFixed(1)}</b></span>`).join('');
@@ -2598,7 +2626,14 @@
               const flicker = Math.sin(time * 40) > .3 ? '#ffffff' : r.color;
               drawShip(rx, ry + rw * .02 * t, rw * .115, t > .7 ? flicker : r.color, '#1d1828', 0, false, false, false, r.dying.spin * (t * t * 14 + t * 2));
               drawSmoke(rx, ry, rw * .115, r);
-            } else drawShip(rx, ry, rw * .115, r.color, '#393156', Math.sin(time + r.seed) * .1, false, r.boosting);
+            } else {
+              drawShip(rx, ry, rw * .115, r.color, r.dark || '#393156', Math.sin(time + r.seed) * .1, false, r.boosting);
+              if (r.nemesis && rw * .115 > 26) {
+                const fs = Math.max(11, Math.min(15, rw * .03)); ctx.save(); ctx.font = `${fs}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center';
+                const label = `☠ ${r.nemesis.name}  ${'▮'.repeat(Math.max(0, r.hull))}`; const w = ((ctx.measureText(label) || {}).width || label.length * fs * .6) + 12, ty = ry - rw * .115 * .95;
+                ctx.fillStyle = '#09091acc'; ctx.fillRect(rx - w / 2, ty - fs, w, fs + 6); ctx.fillStyle = r.nemesis.color; ctx.fillText(label, rx, ty); ctx.restore();
+              }
+            }
           }
         }
       }
@@ -2725,7 +2760,7 @@
     };
     map.beginPath(); for (let i = 0; i <= 180; i++) { const [x, y] = point(i / 180); i ? map.lineTo(x, y) : map.moveTo(x, y); }
     map.strokeStyle = '#ffffff18'; map.lineWidth = 9; map.stroke(); map.strokeStyle = tracks[trackIndex].second; map.lineWidth = 1.5; map.stroke();
-    for (const r of rivals) { if (!r.alive) continue; const [x, y] = point(mod(r.distance, LENGTH) / LENGTH); map.fillStyle = r.color; map.beginPath(); map.arc(x, y, 2.5, 0, TAU); map.fill(); }
+    for (const r of rivals) { if (!r.alive) continue; const [x, y] = point(mod(r.distance, LENGTH) / LENGTH); map.fillStyle = r.color; map.beginPath(); map.arc(x, y, r.nemesis ? 4 : 2.5, 0, TAU); map.fill(); }
     const [x, y] = point(position / LENGTH); map.shadowColor = '#ddff46'; map.shadowBlur = 9; map.fillStyle = '#ddff46'; map.beginPath(); map.arc(x, y, 4, 0, TAU); map.fill(); map.shadowBlur = 0;
   }
   function drawStick() {
