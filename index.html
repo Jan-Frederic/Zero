@@ -73,7 +73,7 @@
     <div class="progress-track"><div id="progress"></div></div>
   </section>
 
-  <section id="health-screen" class="modal hidden" role="alertdialog" aria-modal="true" aria-labelledby="health-title"><div class="modal-card dialog-card health-card"><span class="eyebrow">⚠ PLEASE READ BEFORE PLAYING</span><h2 id="health-title">HEALTH WARNING</h2>
+  <section id="health-screen" data-no-i18n class="modal hidden" role="alertdialog" aria-modal="true" aria-labelledby="health-title"><div class="modal-card dialog-card health-card"><span class="eyebrow">⚠ PLEASE READ BEFORE PLAYING</span><h2 id="health-title">HEALTH WARNING</h2>
       <div class="health-text">
         <p><b>Photosensitive seizures.</b> This game contains flashing lights, rapidly changing colours, strobe-like explosions and fast-moving patterns. A very small percentage of people may experience seizures or blackouts when exposed to such images, even without any history of epilepsy.</p>
         <p><b>Stop playing immediately and consult a doctor</b> if you or anyone watching experiences dizziness, altered vision, eye or muscle twitching, disorientation, involuntary movements or convulsions. Parents should supervise children while they play.</p>
@@ -104,6 +104,7 @@
         <div class="setup-row"><span class="small-label">VIBRATION</span><div class="setup-options"><button class="setup-option" data-haptics="on">〰 ON</button><button class="setup-option" data-haptics="off">∅ OFF</button></div></div>
         <div class="setup-row"><span class="small-label">CALM MODE<br><small>LESS SHAKE &amp; FLASHING</small></span><div class="setup-options"><button class="setup-option" data-setting="calm" data-value="on">ON</button><button class="setup-option" data-setting="calm" data-value="off">OFF</button></div></div>
         <div class="setup-row"><span class="small-label">COLOUR-BLIND<br><small>⚠ DANGER MARKS</small></span><div class="setup-options"><button class="setup-option" data-setting="cb" data-value="on">ON</button><button class="setup-option" data-setting="cb" data-value="off">OFF</button></div></div>
+        <div class="setup-row"><span class="small-label">LANGUAGE<br><small data-no-i18n>EN / DE</small></span><div class="setup-options"><button class="setup-option" data-setting="lang" data-value="en" data-no-i18n>🇬🇧 ENGLISH</button><button class="setup-option" data-setting="lang" data-value="de" data-no-i18n>🇩🇪 DEUTSCH</button></div></div>
         <div class="setup-row"><span class="small-label">PERFORMANCE<br><small id="perf-note">AUTO</small></span><div class="setup-options"><button class="setup-option" data-setting="perf" data-value="auto">AUTO</button><button class="setup-option" data-setting="perf" data-value="low">LOW FX</button><button class="setup-option" data-setting="perf" data-value="full">FULL</button></div></div>
         <div class="setup-row"><span class="small-label">SUBTITLES<br><small>FOR VOICES</small></span><div class="setup-options"><button class="setup-option" data-setting="subtitles" data-value="on">ON</button><button class="setup-option" data-setting="subtitles" data-value="off">OFF</button></div></div>
         <div class="setup-row"><span class="small-label">TUTORIAL</span><div class="setup-options"><button id="tutorial-replay" class="setup-option" type="button">↺ PLAY IT AGAIN</button></div></div>
@@ -112,7 +113,7 @@
       </div>
       <button class="start-button" type="button" data-close-dialog><span>DONE</span><b>✓</b></button></div></section>
   <section id="changelog-screen" class="modal hidden" role="dialog" aria-label="Changelog"><div class="modal-card dialog-card"><span class="eyebrow">WHAT'S NEW</span><h2>CHANGELOG</h2>
-      <div id="changelog-body" class="changelog"></div>
+      <div id="changelog-body" class="changelog" data-no-i18n></div>
       <button class="start-button" type="button" data-close-dialog><span>CLOSE</span><b>✕</b></button></div></section>
   <section id="pause-screen" class="modal hidden"><div class="modal-card"><span class="eyebrow">TAKE A BREATH, PILOT</span><h2>RACE PAUSED</h2><p>The future can wait a moment.</p><button id="resume" class="start-button"><span>BACK TO OVERDRIVE</span><b>↗</b></button><button id="quit" class="text-button">RETURN TO GARAGE</button></div></section>
   <section id="results" class="modal hidden"><div class="modal-card results-card"><span id="result-eyebrow" class="eyebrow">NEON GRAND PRIX / RACE COMPLETE</span><h2 id="result-title">PODIUM FINISH</h2><div class="result-position"><b id="result-position">01</b><span>/ 30</span></div><div class="result-stats"><div><span>RACE TIME</span><b id="result-time"></b></div><div><span>BEST LAP</span><b id="result-lap"></b></div></div><p id="result-record"></p><p id="result-credits" class="result-credits"></p><button id="again" class="start-button"><span>RACE AGAIN</span><b>↗</b></button><button id="share" class="share-button" type="button">⤴ SHARE RESULT</button><button id="garage" class="text-button">RETURN TO GARAGE</button></div></section>
