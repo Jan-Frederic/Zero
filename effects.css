@@ -459,3 +459,48 @@ body.photo .photo-bar{display:flex;position:fixed;left:50%;bottom:calc(14px + en
 .photo-bar button{min-width:40px;min-height:40px;padding:0 10px;background:#171329;border:1px solid #ffffff33;color:#fff;font:12px var(--mono);letter-spacing:1px}
 .photo-bar .photo-save{background:var(--acid);color:#111;border-color:var(--acid)}
 .share-clip{margin-top:6px;border-color:#ff4eb8!important;color:#ff9bd8!important}
+
+/* ---- Phone race HUD: everything in a slim strip at the top, so most of the screen shows the track. ---- */
+@media (max-width:600px) and (orientation:portrait),(max-height:520px) and (orientation:landscape){
+  body.racing .topbar,body.racing .bottom-bar,body.racing .telemetry,body.racing #boost-label,body.racing .boost-hint,
+  body.racing .shield-readout,body.racing .energy-label,body.racing .laser-label,body.racing #best-label{display:none!important}
+  body.racing .vignette{opacity:0!important}
+  body.racing .hud{inset:calc(8px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left))!important}
+  body.racing .race-top{align-items:center;gap:8px}
+  body.racing .position-box{display:flex;align-items:center;gap:8px;background:#09091a99;padding:4px 10px 4px 8px;border-left:2px solid var(--acid)}
+  body.racing .position-box>.small-label{display:none}
+  body.racing .position-box b#position{font-size:30px!important;line-height:1}
+  body.racing .position-box div>span{font-size:14px!important}
+  body.racing .race-lives-row .small-label{display:none}
+  body.racing .race-lives-row{font-size:13px}
+  body.racing .lap-box{padding:4px 10px!important;gap:1px!important;flex-direction:column;margin:0 auto}
+  body.racing .lap-box .small-label{font-size:10px!important;letter-spacing:1px}
+  body.racing #timer{font-size:16px!important}
+  body.racing .pause-button{padding:0!important;width:40px;height:40px;font-size:15px!important}
+  body.racing .pause-button span{display:none}
+  /* Speed and the three bars become one compact panel. */
+  body.racing .race-bottom{position:absolute!important;top:52px;bottom:auto!important;left:auto!important;right:0!important;display:block}
+  body.racing .speedometer{width:190px!important;padding:6px 10px!important;background:#09091a99!important;display:grid;grid-template-columns:auto 1fr;column-gap:10px;row-gap:5px;align-items:center;transform:none!important}
+  body.racing .hyper-meter{grid-column:1/-1;margin:0!important}
+  body.racing .speed-value{grid-column:1;grid-row:2/span 3;flex-direction:column;align-items:flex-start;gap:0!important}
+  body.racing .speed-value b{font-size:30px!important;line-height:1}
+  body.racing .speed-value>span{font-size:9px!important}
+  body.racing .shield-track,body.racing .energy-track,body.racing .laser-track{grid-column:2;height:6px!important;margin:0 0 0 16px!important;position:relative;overflow:visible}
+  body.racing .shield-track::before,body.racing .energy-track::before,body.racing .laser-track::before{position:absolute;left:-16px;top:50%;transform:translateY(-50%) skew(15deg);font:11px var(--mono);line-height:1}
+  body.racing .shield-track::before{content:'⛨';color:var(--cyan)}body.racing .energy-track::before{content:'ϟ';color:var(--acid)}body.racing .laser-track::before{content:'◎';color:var(--pink)}
+  body.racing .ufo-label{grid-column:1/-1;margin:0!important;font-size:9px!important;letter-spacing:.5px}
+  body.racing .touch-controls{bottom:calc(14px + env(safe-area-inset-bottom))!important}
+  body.racing .powerups{top:auto}
+}
+/* Landscape phones: one strip along the top, the speed panel to the right of the lap timer. */
+@media (max-height:520px) and (orientation:landscape){
+  body.racing .race-bottom{top:0!important;right:52px!important}
+  body.racing .speedometer{width:200px!important;padding:4px 10px!important;row-gap:3px}
+  body.racing .speed-value b{font-size:24px!important}
+  body.racing .ufo-label{display:none!important}
+  body.racing .lap-box{margin:0 auto 0 0}
+}
+@media (max-width:600px) and (orientation:portrait),(max-height:520px) and (orientation:landscape){
+  body.racing .ufo-label{justify-content:flex-start;gap:6px}body.racing .ufo-label span{display:none}body.racing .ufo-label b::before{content:'🛸 '}
+  body.final .topbar,body.final .bottom-bar,body.disco .topbar,body.disco .bottom-bar{display:none!important}
+}
