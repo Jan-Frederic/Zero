@@ -13,7 +13,7 @@
   // ---- Lifetime statistics.
   function recordRaceStats(finished) {
     const st = profile.stats;
-    st.races = (st.races || 0) + 1; st.km = (st.km || 0) + distance / LENGTH * 7.2;
+    st.races = (st.races || 0) + 1; st.km = (st.km || 0) + distance / LENGTH * 7.2; mission('km', distance / LENGTH * 7.2);
     st.perTrack = st.perTrack || {}; st.perTrack[trackIndex] = (st.perTrack[trackIndex] || 0) + 1;
     if (finished && !trialRun) { if (rank === 1) st.wins = (st.wins || 0) + 1; if (rank <= 3) st.podiums = (st.podiums || 0) + 1; }
     saveProfile();
@@ -69,7 +69,7 @@
       $('result-title').textContent = place === 1 ? 'CHAMPION!' : `CUP P${place}.`;
       if (bonus) addCredits(bonus, `CUP P${place}`);
       $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
-      if (place === 1) { unlockAchievement('cup'); showCallout('🏆 CHAMPION!', '#ffd35a'); launchConfetti(); playFanfare(); robotSay('Congratulations', 'congratulations'); }
+      if (place === 1) { unlockAchievement('cup'); mission('cup'); showCallout('🏆 CHAMPION!', '#ffd35a'); launchConfetti(); playFanfare(); robotSay('Congratulations', 'congratulations'); }
       profile.stats.cups = (profile.stats.cups || 0) + (place === 1 ? 1 : 0); saveProfile();
     }
   }
@@ -79,7 +79,7 @@
   function updateSurvival(track) {
     if (!survival || mode !== 'racing') return;
     if (elapsed >= survival.level * SURVIVAL_LEVEL_TIME) {
-      survival.level++;
+      survival.level++; mission('survival', survival.level);
       for (const r of rivals) r.speed *= 1.05;
       if (ufos.length < 6) ufos.push(makeUfo(ufos.length, ufos.length, time));
       showCallout(`LEVEL ${survival.level}`, '#ff9b2e'); showMessage('FASTER RIVALS  ·  MORE UFOS', 1.6); playToneSweep(300, 1500, .5, 'sawtooth', .05);

@@ -509,3 +509,17 @@ body.photo .photo-bar{display:flex;position:fixed;left:50%;bottom:calc(14px + en
 .mode-options .setup-option{min-width:calc(20% - 6px)}
 @media (max-width:1100px){.mode-options .setup-option{min-width:calc(33% - 6px)}}
 @media (max-width:600px) and (orientation:portrait){.mode-options{grid-template-columns:repeat(3,1fr)}}
+
+/* Weekly missions. */
+.missions-button{display:block;width:100%;margin-top:8px;padding:8px 12px;text-align:left;background:#ffd35a10;border:1px solid #ffd35a55;color:#ffd35a;font:11px var(--mono);letter-spacing:1px}
+.missions-list{display:flex;flex-direction:column;gap:10px;margin:14px 0 6px;text-align:left}
+.mission{padding:10px 12px;background:#ffffff06;border:1px solid #ffffff18;display:flex;flex-direction:column;gap:6px}.mission.done{border-color:#ffd35a88;background:#ffd35a10}
+.mission b{font:13px var(--mono);letter-spacing:1px;font-weight:400;color:#fff}.mission small{font:11px var(--mono);color:#b9b2cc}
+.mission-bar{height:6px;background:#ffffff18;display:block}.mission-bar i{display:block;height:100%;background:#ffd35a;box-shadow:0 0 10px #ffd35a88}
+.mission-bonus{font:12px var(--mono)!important;letter-spacing:1px;color:#b9b2cc!important;margin:4px 0 0}.mission-bonus.done{color:#ffd35a!important}
+@media (max-height:720px){.missions-button{margin-top:6px;padding:6px 10px}}
+@media (max-height:520px) and (orientation:landscape){
+  body:not(.racing) #daily-meta,body:not(.racing) #track-lock{display:none}
+  .missions-button{margin-top:5px;padding:4px 10px}
+  .home-actions .home-action{min-height:30px}
+}

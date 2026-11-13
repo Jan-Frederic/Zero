@@ -97,7 +97,7 @@
   // A beaten rival is flung off the track: it careens across the whole screen, smoking and spinning, then explodes.
   function knockOut(rival) {
     if (rival.nemesis) {
-      raceStats.nemeses = (raceStats.nemeses || 0) + 1; showCallout(`${rival.nemesis.name} IS OUT!`, rival.nemesis.color);
+      raceStats.nemeses = (raceStats.nemeses || 0) + 1; mission('nemesis'); showCallout(`${rival.nemesis.name} IS OUT!`, rival.nemesis.color);
       robotSay(`${rival.nemesis.name} is out`, `down-${rival.nemesis.id}`); if (mode === 'racing') addCredits(100, 'NEMESIS DOWN');
       if (raceStats.nemeses >= 3) unlockAchievement('nemesis');
     }
@@ -226,7 +226,7 @@
     recordRaceStats(true);
     if (trialRun) { finishTrial(); return; }
     addCredits(Math.max(0, (PILOT_COUNT + 1 - rank) * 10) + (rank <= 3 ? 100 : 0) + (rank === 1 ? 150 : 0), `P${rank} FINISH`);
-    unlockAchievement('first-race'); if (rank <= 3) unlockAchievement('podium'); if (rank === 1) { unlockAchievement('win'); if (!lostLifeThisRace) unlockAchievement('flawless'); }
+    unlockAchievement('first-race'); if (rank <= 3) { unlockAchievement('podium'); mission('podium'); } if (rank === 1) { unlockAchievement('win'); if (!lostLifeThisRace) unlockAchievement('flawless'); }
     let unlockedNow = '';
     if (rank <= 3 && trackIndex + 1 < tracks.length && trackLocked(trackIndex + 1)) { profile.unlocked = trackIndex + 2; saveProfile(); unlockedNow = tracks[trackIndex + 1].name; }
     if ((profile.unlocked || 1) >= tracks.length) unlockAchievement('unlock-all');

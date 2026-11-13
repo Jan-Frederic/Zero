@@ -71,7 +71,7 @@
   renderLock();
   // ---- Home screen dialogs: settings and changelog.
   function openDialog(id) { $(id).classList.remove('hidden'); document.body.classList.add('dialog-open'); }
-  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen', 'trophy-screen', 'stats-screen', 'story-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
+  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen', 'trophy-screen', 'stats-screen', 'story-screen', 'missions-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
   // Health warning: shown on every visit (not again after an in-app update reload within the same session).
   let healthSeen = false;
   try { healthSeen = sessionStorage.getItem('morbid-health-ok') === '1'; } catch { /* show it */ }
@@ -167,3 +167,5 @@
   $('story-next').addEventListener('click', () => { storyChapter = Math.min(storyUnlocked() - 1, storyChapter + 1); renderStory(); });
   $('story-new').addEventListener('click', () => openStory(storyUnlocked() - 1));
   renderStoryButton(); window.morbidStory = { open: openStory };
+  $('open-missions').addEventListener('click', () => { renderMissions(); openDialog('missions-screen'); });
+  renderMissionsButton(); window.morbidMissions = { list: () => weeklyMissions().map(m => ({ id: m.id, target: m.target })), week: weekKey };

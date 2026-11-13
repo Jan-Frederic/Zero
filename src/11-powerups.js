@@ -78,7 +78,7 @@
       if (t) m.lane = lerp(m.lane, t.x, Math.min(1, dt * 5));
       if (t && m.distance >= t.distance - 120) {
         m.done = true; knockOut(t); createExplosion(t.distance, t.x * track.width, '#ff8a2e', 1.1); playExplosionSound(1.1);
-        showMessage(t.nemesis ? `MISSILE GOT ${t.nemesis.name}!` : 'MISSILE HIT  /  RIVAL DESTROYED', 1.1);
+        showMessage(t.nemesis ? `MISSILE GOT ${t.nemesis.name}!` : 'MISSILE HIT  /  RIVAL DESTROYED', 1.1); mission('missile');
       } else if (time - m.started > 3) { m.done = true; createExplosion(m.distance, m.lane * track.width, '#ff8a2e', .7); }
     }
     missiles = missiles.filter(m => !m.done);
@@ -106,7 +106,7 @@
     if (slip > .5) {
       energy = Math.min(100, energy + dt * 16);
       if (!boosting) speed = Math.min(12200 * machines[shipIndex].top * topSpeed(), speed + dt * 1600);
-      if (!slipShown) { slipShown = true; showMessage('SLIPSTREAM  /  BOOST CHARGING', .9); playToneSweep(300, 700, .3, 'sine', .03); }
+      if (!slipShown) { slipShown = true; mission('slip'); showMessage('SLIPSTREAM  /  BOOST CHARGING', .9); playToneSweep(300, 700, .3, 'sine', .03); }
     } else if (slip === 0) slipShown = false;
   }
   function drawSlipstream() {
@@ -137,7 +137,7 @@
         const bonus = Math.min(30, Math.round(driftTime * 8));
         energy = Math.min(100, energy + bonus); speed = Math.min(14900 * machines[shipIndex].top * topSpeed(), speed + 900);
         showMessage(`DRIFT ${driftTime.toFixed(1)} S  /  +${bonus} BOOST`, 1); playToneSweep(400, 1200, .25, 'triangle', .05);
-        raceStats.drifts = (raceStats.drifts || 0) + 1; profile.stats.driftSeconds = (profile.stats.driftSeconds || 0) + driftTime;
+        raceStats.drifts = (raceStats.drifts || 0) + 1; mission('drift', driftTime); profile.stats.driftSeconds = (profile.stats.driftSeconds || 0) + driftTime;
       }
       if (drift === 0) driftTime = 0;
     }
