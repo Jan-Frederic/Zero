@@ -46,11 +46,19 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run smoke
+      # Layout regression: start screen and dialogs compared with tests/visual/ baselines.
+      - run: npm run visual
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: smoke-screenshots
           path: smoke-shots/
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: visual-diff
+          path: visual-diff/
           retention-days: 14
 
   release:
@@ -102,7 +110,7 @@ jobs:
           BUILD="${APP_VERSION}+${GITHUB_SHA::7}"
           mkdir _site
           cp index.html game.js pwa.js sw.js manifest.webmanifest og-image.jpg CHANGELOG.md style.css effects.css .nojekyll *.mp3 _site/
-          cp -r icons voice _site/
+          cp -r icons voice fonts _site/
           sed -i "s/const VERSION = 'dev';/const VERSION = '${BUILD}';/" _site/sw.js
           sed -i "s/id=\"app-version\">dev</id=\"app-version\">${APP_VERSION}</" _site/index.html
           printf '{"version":"%s","build":"%s","commit":"%s"}\n' "$APP_VERSION" "$BUILD" "$GITHUB_SHA" > _site/version.json
