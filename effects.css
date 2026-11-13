@@ -458,3 +458,4 @@ body.photo .photo-bar{display:flex;position:fixed;left:50%;bottom:calc(14px + en
 .photo-tools,.photo-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 .photo-bar button{min-width:40px;min-height:40px;padding:0 10px;background:#171329;border:1px solid #ffffff33;color:#fff;font:12px var(--mono);letter-spacing:1px}
 .photo-bar .photo-save{background:var(--acid);color:#111;border-color:var(--acid)}
+.share-clip{margin-top:6px;border-color:#ff4eb8!important;color:#ff9bd8!important}

@@ -3,7 +3,7 @@
   function update(dt) {
     if (photo) return;
     time += dt; screenFlash = Math.max(0, screenFlash - dt * 2.4);
-    updateBoot(); tickAchievement();
+    updateBoot(); tickAchievement(); updateClip();
     if (frameClock - subtitleAt > 2.8 && $('subtitle')) $('subtitle').classList.remove('visible');
     if (['racing', 'final', 'respawning', 'countdown'].includes(mode)) { playClock += dt; if (playClock > 15) { profile.stats.seconds = (profile.stats.seconds || 0) + playClock; playClock = 0; saveProfile(); } }
     if (analyser && !audio.paused && !muted) { analyser.getByteFrequencyData(frequency); beat = lerp(beat, frequency.slice(0, 12).reduce((a, b) => a + b, 0) / (12 * 255), .2); } else beat *= .95;

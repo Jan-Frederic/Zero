@@ -81,3 +81,36 @@
     if (event.code === 'Escape') { event.stopImmediatePropagation(); exitPhoto(); } else if (map[event.code]) { event.preventDefault(); photoAdjust(...map[event.code]); }
   }, true);
   window.morbidPhoto = { enter: enterPhoto, exit: exitPhoto, adjust: photoAdjust, shot: photoShot, state: () => photo && { ...photo } };
+  // ---- Highlight clip: the last ~10 s of the final lap are recorded (picture and sound) and can be shared after a win.
+  const CLIP_TYPES = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  let clip = null, clipBlob = null;
+  function clipSupported() { return typeof MediaRecorder === 'function' && typeof canvas.captureStream === 'function'; }
+  function startClip() {
+    if (clip || !clipSupported()) return;
+    try {
+      const video = canvas.captureStream(30), tracks = [...video.getVideoTracks()];
+      if (audioContext && audioContext.createMediaStreamDestination) {
+        if (!startClip.dest) { startClip.dest = audioContext.createMediaStreamDestination(); musicGain.connect(startClip.dest); sfxBus.connect(startClip.dest); }
+        tracks.push(...startClip.dest.stream.getAudioTracks());
+      }
+      const stream = typeof MediaStream === 'function' ? new MediaStream(tracks) : video;
+      const type = CLIP_TYPES.find(t => !MediaRecorder.isTypeSupported || MediaRecorder.isTypeSupported(t)) || '';
+      const rec = new MediaRecorder(stream, type ? { mimeType: type, videoBitsPerSecond: 4e6 } : undefined), chunks = [];
+      rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = () => { clipBlob = chunks.length ? new Blob(chunks, { type: rec.mimeType || type || 'video/webm' }) : null; renderClipButton(); };
+      rec.start(500); clip = { rec, started: time, stopAt: 0 }; clipBlob = null;
+    } catch { clip = null; }
+  }
+  function stopClip() { if (!clip) return; const rec = clip.rec; clip = null; try { if (rec.state !== 'inactive') rec.stop(); } catch { /* already stopped */ } }
+  function cancelClip() { stopClip(); clipBlob = null; renderClipButton(); }
+  function updateClip() {
+    if (clip && clip.stopAt && time >= clip.stopAt) stopClip();
+    if (mode === 'racing' && !clip && !clipBlob && lap === LAP_COUNT && !trialRun && (LENGTH * LAP_COUNT - distance) / Math.max(speed, 3000) < 10) startClip();
+  }
+  function finishClip() { if (clip) clip.stopAt = time + 1.5; }
+  function renderClipButton() { const b = $('share-clip'); if (b) b.classList.toggle('hidden', !(clipBlob && mode === 'finished' && rank === 1)); }
+  $('share-clip').addEventListener('click', () => {
+    if (!clipBlob) return;
+    const ext = /mp4/.test(clipBlob.type) ? 'mp4' : 'webm';
+    shareFile(clipBlob, `morbid-racers-finish.${ext}`, `My finish in Morbid Racers 🏁 ${tracks[trackIndex].name}`, 'https://jan-frederic.github.io/Zero/').then(ok => { if (ok) unlockAchievement('share'); });
+  });

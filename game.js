@@ -431,6 +431,7 @@
     'SNOWFALL · SLIPPERY TRACKS · FREE PAINT: FROSTBITE': 'SCHNEEFALL · RUTSCHIGE STRECKEN · GRATIS-LACK: FROSTBISS', 'PUMPKIN PATCH': 'KÜRBISFELD', 'FROSTBITE': 'FROSTBISS',
     '❄ SNOWFALL': '❄ SCHNEEFALL', 'SLIPPERY TRACK — STEER GENTLY': 'RUTSCHIGE STRECKE — SANFT LENKEN', '👻 GHOST FOG': '👻 GEISTERNEBEL', 'SOMETHING IS WATCHING…': 'ETWAS BEOBACHTET DICH …',
     '📷 PHOTO MODE': '📷 FOTOMODUS', '📸 SAVE / SHARE': '📸 SPEICHERN / TEILEN', '✕ EXIT': '✕ BEENDEN', 'SHIP: HIDDEN': 'SCHIFF: AUS', 'SHIP: SHOWN': 'SCHIFF: AN',
+    '🎬 SHARE CLIP': '🎬 CLIP TEILEN',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -1585,7 +1586,7 @@
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
-    $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE'; $('cup-standings').classList.add('hidden'); $('story-new').classList.add('hidden'); if ($('again').firstElementChild) $('again').firstElementChild.textContent = 'RACE AGAIN';
+    $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE'; $('cup-standings').classList.add('hidden'); $('story-new').classList.add('hidden'); cancelClip(); if ($('again').firstElementChild) $('again').firstElementChild.textContent = 'RACE AGAIN';
     $('race-message').classList.remove('visible'); messageTime = 0;
     if (settings.steering === 'gyro' && !enableGyro.listening) enableGyro();
     playMusic(); primeSpeech(); calibrateTilt(); applyScreenSetting(true); updateHUD();
@@ -1602,7 +1603,7 @@
   }
   function garage() {
     if (tutorial) { tutorial = null; $('tutorial').classList.remove('visible'); }
-    clearFinale(); mode = 'menu'; keys.clear(); resetGesture(); speed = 0; playerX = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; boosting = false;
+    clearFinale(); cancelClip(); mode = 'menu'; keys.clear(); resetGesture(); speed = 0; playerX = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; boosting = false;
     explosions = []; laserShots = []; enemyShots = []; bombs = []; ufos = []; particles = []; screenFlash = 0;
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; callout = null; hyperTime = 0; boss = null; bossAttacks = []; document.body.classList.remove('hyper', 'boss');
     $('menu').classList.remove('hidden'); ['hud', 'pause-screen', 'results'].forEach(id => $(id).classList.add('hidden'));
@@ -1784,6 +1785,7 @@
     $('results').classList.remove('hidden'); invasionArmed = false; soundEffect(880, .6); if (record) playFanfare();
   }
   function finishRace() {
+    finishClip();
     recordRaceStats(true);
     if (trialRun) { finishTrial(); return; }
     addCredits(Math.max(0, (PILOT_COUNT + 1 - rank) * 10) + (rank <= 3 ? 100 : 0) + (rank === 1 ? 150 : 0), `P${rank} FINISH`);
@@ -1927,7 +1929,7 @@
   function update(dt) {
     if (photo) return;
     time += dt; screenFlash = Math.max(0, screenFlash - dt * 2.4);
-    updateBoot(); tickAchievement();
+    updateBoot(); tickAchievement(); updateClip();
     if (frameClock - subtitleAt > 2.8 && $('subtitle')) $('subtitle').classList.remove('visible');
     if (['racing', 'final', 'respawning', 'countdown'].includes(mode)) { playClock += dt; if (playClock > 15) { profile.stats.seconds = (profile.stats.seconds || 0) + playClock; playClock = 0; saveProfile(); } }
     if (analyser && !audio.paused && !muted) { analyser.getByteFrequencyData(frequency); beat = lerp(beat, frequency.slice(0, 12).reduce((a, b) => a + b, 0) / (12 * 255), .2); } else beat *= .95;
@@ -3870,6 +3872,39 @@
     if (event.code === 'Escape') { event.stopImmediatePropagation(); exitPhoto(); } else if (map[event.code]) { event.preventDefault(); photoAdjust(...map[event.code]); }
   }, true);
   window.morbidPhoto = { enter: enterPhoto, exit: exitPhoto, adjust: photoAdjust, shot: photoShot, state: () => photo && { ...photo } };
+  // ---- Highlight clip: the last ~10 s of the final lap are recorded (picture and sound) and can be shared after a win.
+  const CLIP_TYPES = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  let clip = null, clipBlob = null;
+  function clipSupported() { return typeof MediaRecorder === 'function' && typeof canvas.captureStream === 'function'; }
+  function startClip() {
+    if (clip || !clipSupported()) return;
+    try {
+      const video = canvas.captureStream(30), tracks = [...video.getVideoTracks()];
+      if (audioContext && audioContext.createMediaStreamDestination) {
+        if (!startClip.dest) { startClip.dest = audioContext.createMediaStreamDestination(); musicGain.connect(startClip.dest); sfxBus.connect(startClip.dest); }
+        tracks.push(...startClip.dest.stream.getAudioTracks());
+      }
+      const stream = typeof MediaStream === 'function' ? new MediaStream(tracks) : video;
+      const type = CLIP_TYPES.find(t => !MediaRecorder.isTypeSupported || MediaRecorder.isTypeSupported(t)) || '';
+      const rec = new MediaRecorder(stream, type ? { mimeType: type, videoBitsPerSecond: 4e6 } : undefined), chunks = [];
+      rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = () => { clipBlob = chunks.length ? new Blob(chunks, { type: rec.mimeType || type || 'video/webm' }) : null; renderClipButton(); };
+      rec.start(500); clip = { rec, started: time, stopAt: 0 }; clipBlob = null;
+    } catch { clip = null; }
+  }
+  function stopClip() { if (!clip) return; const rec = clip.rec; clip = null; try { if (rec.state !== 'inactive') rec.stop(); } catch { /* already stopped */ } }
+  function cancelClip() { stopClip(); clipBlob = null; renderClipButton(); }
+  function updateClip() {
+    if (clip && clip.stopAt && time >= clip.stopAt) stopClip();
+    if (mode === 'racing' && !clip && !clipBlob && lap === LAP_COUNT && !trialRun && (LENGTH * LAP_COUNT - distance) / Math.max(speed, 3000) < 10) startClip();
+  }
+  function finishClip() { if (clip) clip.stopAt = time + 1.5; }
+  function renderClipButton() { const b = $('share-clip'); if (b) b.classList.toggle('hidden', !(clipBlob && mode === 'finished' && rank === 1)); }
+  $('share-clip').addEventListener('click', () => {
+    if (!clipBlob) return;
+    const ext = /mp4/.test(clipBlob.type) ? 'mp4' : 'webm';
+    shareFile(clipBlob, `morbid-racers-finish.${ext}`, `My finish in Morbid Racers 🏁 ${tracks[trackIndex].name}`, 'https://jan-frederic.github.io/Zero/').then(ok => { if (ok) unlockAchievement('share'); });
+  });
   // ==== Start-up.
   // Lets the update job wait until no race is in progress.
   window.morbidBusy = () => ['countdown', 'racing', 'respawning', 'paused', 'wrecked', 'invasion', 'final'].includes(mode) || (mode === 'disco' && !(finale && finale.resultsShown));

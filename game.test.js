@@ -889,3 +889,23 @@ test('photo mode: freezes the race, moves the camera, cycles filters and makes a
   assert.equal(el('body').classList.contains('photo'), false);
   assert.equal(el('pause-screen').classList.contains('hidden'), false);
 });
+
+test('highlight clip: the final seconds are recorded and offered after a win', () => {
+  const { element: el, step, key, inspect, sandbox, setRacePosition, disableAirRaid, eliminateRivals } = harness();
+  const recorders = [];
+  sandbox.MediaRecorder = class { constructor(stream, opts) { this.state = 'inactive'; this.mimeType = (opts && opts.mimeType) || 'video/webm'; recorders.push(this); }
+    start() { this.state = 'recording'; } stop() { this.state = 'inactive'; this.ondataavailable({ data: { size: 10 } }); this.onstop(); } };
+  sandbox.MediaRecorder.isTypeSupported = t => t === 'video/webm';
+  sandbox.Blob = class { constructor(parts, o) { this.parts = parts; this.type = o.type; } };
+  el('game').captureStream = () => ({ getVideoTracks: () => [] });
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid(); eliminateRivals();
+  for (let lap = 0; lap < 5; lap++) { setRacePosition((lap + 1) * 240000 - 60, 0); step(.3); }
+  assert.equal(recorders.length, 0, 'nothing recorded before the final lap');
+  setRacePosition(6 * 240000 - 60000, 0); step(.1);
+  assert.equal(recorders.length, 1); assert.equal(recorders[0].state, 'recording');
+  setRacePosition(6 * 240000 - 60, 0); step(.3);
+  assert.equal(inspect().mode, 'finished');
+  step(2);
+  assert.equal(recorders[0].state, 'inactive', 'stops shortly after the finish');
+  assert.equal(el('share-clip').classList.contains('hidden'), false, 'clip offered after the win');
+});
