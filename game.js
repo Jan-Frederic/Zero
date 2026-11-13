@@ -107,6 +107,7 @@
     { id: 'unlock-all', icon: '🗺', name: 'GRAND TOURER', info: 'Unlock every circuit.' },
     { id: 'egg', icon: '🥚', name: 'EGG HUNTER', info: 'Find the secret on the title screen.' },
     { id: 'share', icon: '📣', name: 'BRAGGING RIGHTS', info: 'Share a race result.' },
+    { id: 'cup', icon: '🏆', name: 'CHAMPION OF THE GALAXY', info: 'Win a championship.' },
     { id: 'nemesis', icon: '☠', name: 'NEMESIS HUNTER', info: 'Destroy all three nemeses in one race.' },
   ];
   profile.achievements = profile.achievements || {}; profile.stats = Object.assign({ cats: 0, ufos: 0, rivals: 0, powerTypes: [] }, profile.stats);
@@ -358,6 +359,8 @@
     'HOMING MISSILE': 'ZIELSUCH-RAKETE', 'MINE LAYER': 'MINENLEGER', 'EMP BLAST': 'EMP-STOSS', 'LOCKS ON TO THE NEXT RIVAL AHEAD': 'ERFASST DEN NÄCHSTEN RIVALEN VOR DIR',
     'THREE MINES DROPPED BEHIND YOU': 'DREI MINEN HINTER DIR ABGEWORFEN', 'RIVALS AHEAD LOSE BOOST AND LASERS': 'RIVALEN VOR DIR VERLIEREN BOOST UND LASER',
     'MISSILE HIT': 'RAKETENTREFFER', 'RIVAL HIT YOUR MINE!': 'RIVALE AUF DEINE MINE GEFAHREN!', 'SLIPSTREAM': 'WINDSCHATTEN', 'BOOST CHARGING': 'BOOST LÄDT',
+    '🏆 CUP': '🏆 CUP', 'CHAMPIONSHIP': 'MEISTERSCHAFT', 'CUP STANDINGS': 'CUP-WERTUNG', 'FINAL STANDINGS': 'ENDSTAND', 'NEW CHAMPIONSHIP': 'NEUE MEISTERSCHAFT', 'CHAMPION!': 'CHAMPION!',
+    '🏆 CHAMPION!': '🏆 CHAMPION!', 'YOU': 'DU', 'RACE AGAIN': 'NOCHMAL FAHREN', 'Win a championship.': 'Gewinne eine Meisterschaft.',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -386,6 +389,8 @@
     [/^SHIP DESTROYED  \/  (\d+) LI(?:VES|FE) LEFT$/, 'SCHIFF ZERSTÖRT  /  NOCH $1 LEBEN'], [/^SHIP DESTROYED!  (\d+) LI(?:VES|FE) LEFT$/, 'SCHIFF ZERSTÖRT!  NOCH $1 LEBEN'],
     [/^MOTHERSHIP HIT  \/  (\d+)%$/, 'MUTTERSCHIFF GETROFFEN  /  $1 %'], [/^RIVAL HIT  \/  HULL (.+)$/, 'RIVALE GETROFFEN  /  RUMPF $1'], [/^(.+) HIT  \/  HULL (\d\/6)$/, '$1 GETROFFEN  /  RUMPF $2'],
     [/^EMP  \/  (\d+) RIVALS STALLED$/, 'EMP  /  $1 RIVALEN LAHMGELEGT'], [/^MISSILE GOT (.+)!$/, 'RAKETE ERWISCHT $1!'],
+    [/^4 RACES · F1 POINTS · (.+)$/, '4 RENNEN · F1-PUNKTE · $1'], [/^CHAMPIONSHIP · RACE (\d+)\/(\d+)$/, 'MEISTERSCHAFT · RENNEN $1/$2'], [/^NEXT: (.+)$/, 'NÄCHSTES: $1'],
+    [/^CUP P(\d+)\.$/, 'CUP PLATZ $1.'], [/^(\d+)\. (.+)$/, (m, n, name) => `${n}. ${tr(name)}`], [/^(\d+) PTS$/, '$1 PKT'],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
@@ -1345,13 +1350,59 @@
     if (finished && !trialRun) { if (rank === 1) st.wins = (st.wins || 0) + 1; if (rank <= 3) st.podiums = (st.podiums || 0) + 1; }
     saveProfile();
   }
-  const GAME_MODES = { race: 'GRAND PRIX', trial: 'TIME TRIAL', endless: 'ENDLESS BOSSES' };
+  const GAME_MODES = { race: 'GRAND PRIX', cup: 'CHAMPIONSHIP', trial: 'TIME TRIAL', endless: 'ENDLESS BOSSES' };
   const gameMode = () => GAME_MODES[settings.gameMode] ? settings.gameMode : 'race';
   function renderGameMode() {
-    document.body.classList.toggle('mode-trial', gameMode() === 'trial'); document.body.classList.toggle('mode-endless', gameMode() === 'endless');
+    document.body.classList.toggle('mode-cup', gameMode() === 'cup'); document.body.classList.toggle('mode-trial', gameMode() === 'trial'); document.body.classList.toggle('mode-endless', gameMode() === 'endless');
     const best = profile.stats.trial && profile.stats.trial[trackIndex];
-    if ($('mode-info')) $('mode-info').textContent = gameMode() === 'trial' ? `NO RIVALS, NO UFOS · BEST ${best ? formatTime(best) : '— —:—'}` : gameMode() === 'endless' ? `BOSS AFTER BOSS UNTIL YOU FALL · RECORD ${profile.stats.endlessBest || 0} WAVES` : `${PILOT_COUNT} PILOTS · ${LAP_COUNT} LAPS · WIN TO FACE THE INVASION`;
+    if ($('mode-info')) $('mode-info').textContent = gameMode() === 'trial' ? `NO RIVALS, NO UFOS · BEST ${best ? formatTime(best) : '— —:—'}` : gameMode() === 'endless' ? `BOSS AFTER BOSS UNTIL YOU FALL · RECORD ${profile.stats.endlessBest || 0} WAVES` : gameMode() === 'cup' ? `4 RACES · F1 POINTS · ${cupTracks().map(i => tracks[i].name).join(' → ')}` : `${PILOT_COUNT} PILOTS · ${LAP_COUNT} LAPS · WIN TO FACE THE INVASION`;
     renderLock();
+  }
+  // ---- Championship: four circuits in a row, F1 points for every pilot, standings after each race, a ceremony at the end.
+  const CUP_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1], CUP_RACES = 4;
+  const CALLSIGNS = ['ACE', 'NOVA', 'RIOT', 'ZED', 'KAI', 'LUX', 'ONYX', 'JINX', 'ROOK', 'VOLT', 'HEX', 'ZORA', 'DASH', 'PIKE', 'ECHO', 'MAKO', 'RUNE', 'SKYE', 'FURY', 'IVO', 'NEXA', 'BOLT', 'KIRA', 'TANK', 'WREN', 'ORYX'];
+  let cup = null;
+  function cupTracks() {
+    const pool = tracks.map((_, i) => i).filter(i => !trackLocked(i)), start = Math.max(0, pool.indexOf(trackIndex));
+    return Array.from({ length: CUP_RACES }, (_, k) => pool[(start + k) % pool.length]);
+  }
+  const rivalName = (r, i) => r.nemesis ? r.nemesis.name : CALLSIGNS[i % CALLSIGNS.length];
+  // Called by startRace: begins a new cup or moves on to the next round's circuit.
+  function prepareCupRace() {
+    if (!cup || cup.done) cup = { round: 0, tracks: cupTracks(), player: 0, rivals: [], names: [] };
+    const next = cup.tracks[cup.round];
+    if (next !== trackIndex) { trackIndex = next; buildTrack(); selectTrack(0); }
+  }
+  function scoreCupRace() {
+    // Finishing order: the player at their rank, rivals still running by distance, knocked-out rivals at the back.
+    const order = rivals.map((r, i) => ({ i, r })).sort((a, b) => (b.r.alive - a.r.alive) || (b.r.distance - a.r.distance));
+    order.splice(rank - 1, 0, { player: true });
+    order.forEach((e, pos) => {
+      const pts = CUP_POINTS[pos] || 0;
+      if (e.player) cup.player += pts; else { cup.rivals[e.i] = (cup.rivals[e.i] || 0) + pts; cup.names[e.i] = rivalName(e.r, e.i); }
+    });
+    cup.round++; cup.done = cup.round >= CUP_RACES;
+    const table = [{ name: 'YOU', pts: cup.player, you: true }, ...cup.rivals.map((pts, i) => ({ name: cup.names[i], pts: pts || 0 })).filter(e => e.name)]
+      .sort((a, b) => b.pts - a.pts || (b.you ? 1 : 0) - (a.you ? 1 : 0));
+    const place = table.findIndex(e => e.you) + 1;
+    return { table, place };
+  }
+  function showCupResults() {
+    const { table, place } = scoreCupRace();
+    $('result-eyebrow').textContent = `CHAMPIONSHIP · RACE ${cup.round}/${CUP_RACES}`;
+    const rows = table.slice(0, 5); if (place > 5) rows.push(table[place - 1]);
+    $('cup-standings').innerHTML = `<b>${cup.done ? 'FINAL STANDINGS' : 'CUP STANDINGS'}</b>` + rows.map(e => `<div class="${e.you ? 'you' : ''}"><span>${table.indexOf(e) + 1}. ${e.name}</span><em>${e.pts} PTS</em></div>`).join('');
+    $('cup-standings').classList.remove('hidden');
+    const again = $('again').firstElementChild; if (again) again.textContent = cup.done ? 'NEW CHAMPIONSHIP' : `NEXT: ${tracks[cup.tracks[cup.round]].name}`;
+    invasionArmed = false;
+    if (cup.done) {
+      const bonus = [600, 300, 150][place - 1] || 0;
+      $('result-title').textContent = place === 1 ? 'CHAMPION!' : `CUP P${place}.`;
+      if (bonus) addCredits(bonus, `CUP P${place}`);
+      $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
+      if (place === 1) { unlockAchievement('cup'); showCallout('🏆 CHAMPION!', '#ffd35a'); launchConfetti(); playFanfare(); robotSay('Congratulations', 'congratulations'); }
+      profile.stats.cups = (profile.stats.cups || 0) + (place === 1 ? 1 : 0); saveProfile();
+    }
   }
   // ==== Daily challenge and streak.
   // ---- Daily challenge: one goal per calendar day (same for everyone), bonus credits and a day streak.
@@ -1395,6 +1446,7 @@
   // ==== Race start/pause/garage, lasers, wrecks, lives, results.
   function startRace() {
     if (gameMode() === 'endless') { startEndless(); return; }
+    if (gameMode() === 'cup') prepareCupRace(); else cup = null;
     if (trackLocked(trackIndex)) { renderLock(); playToneSweep(220, 120, .25, 'square', .05); showLockedHint(); return; }
     mode = 'countdown'; position = 0; distance = 0; playerX = 0; speed = 0; energy = 100; elapsed = 0; lap = 1; lapStart = 0;
     laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = laserCap(); laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
@@ -1411,7 +1463,7 @@
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
-    $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE';
+    $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE'; $('cup-standings').classList.add('hidden'); if ($('again').firstElementChild) $('again').firstElementChild.textContent = 'RACE AGAIN';
     $('race-message').classList.remove('visible'); messageTime = 0;
     if (settings.steering === 'gyro' && !enableGyro.listening) enableGyro();
     playMusic(); primeSpeech(); calibrateTilt(); applyScreenSetting(true); updateHUD();
@@ -1628,7 +1680,8 @@
     if (record) { bestLap = fastest; try { localStorage.setItem(`chroma-best-${trackIndex}`, String(bestLap)); } catch {} }
     soundEffect(880, .6);
     invasionArmed = rank === 1;
-    if (rank === 1) { launchConfetti(); playFanfare(); robotSay('First place. Flawless victory', 'first-place'); }
+    if (cup) showCupResults();
+    else if (rank === 1) { launchConfetti(); playFanfare(); robotSay('First place. Flawless victory', 'first-place'); }
     checkDaily();
   }
   // ==== Playful boot panel on the start screen.

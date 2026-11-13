@@ -1,6 +1,7 @@
   // ==== Race start/pause/garage, lasers, wrecks, lives, results.
   function startRace() {
     if (gameMode() === 'endless') { startEndless(); return; }
+    if (gameMode() === 'cup') prepareCupRace(); else cup = null;
     if (trackLocked(trackIndex)) { renderLock(); playToneSweep(220, 120, .25, 'square', .05); showLockedHint(); return; }
     mode = 'countdown'; position = 0; distance = 0; playerX = 0; speed = 0; energy = 100; elapsed = 0; lap = 1; lapStart = 0;
     laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = laserCap(); laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
@@ -17,7 +18,7 @@
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
-    $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE';
+    $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE'; $('cup-standings').classList.add('hidden'); if ($('again').firstElementChild) $('again').firstElementChild.textContent = 'RACE AGAIN';
     $('race-message').classList.remove('visible'); messageTime = 0;
     if (settings.steering === 'gyro' && !enableGyro.listening) enableGyro();
     playMusic(); primeSpeech(); calibrateTilt(); applyScreenSetting(true); updateHUD();
@@ -234,6 +235,7 @@
     if (record) { bestLap = fastest; try { localStorage.setItem(`chroma-best-${trackIndex}`, String(bestLap)); } catch {} }
     soundEffect(880, .6);
     invasionArmed = rank === 1;
-    if (rank === 1) { launchConfetti(); playFanfare(); robotSay('First place. Flawless victory', 'first-place'); }
+    if (cup) showCupResults();
+    else if (rank === 1) { launchConfetti(); playFanfare(); robotSay('First place. Flawless victory', 'first-place'); }
     checkDaily();
   }

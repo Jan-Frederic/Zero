@@ -409,3 +409,11 @@ body.cb .hull-critical,body.cb.critical #shield-fill{background:repeating-linear
 /* Performance mode: drop expensive compositor effects. */
 body.lowfx *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 body.lowfx .home-bg,body.lowfx .scanlines{animation:none!important}
+
+/* Championship standings on the results card. */
+.mode-options{flex-wrap:wrap}.mode-options .setup-option{min-width:calc(25% - 6px)}
+@media (max-width:600px) and (orientation:portrait){.mode-options{grid-template-columns:repeat(2,1fr)}}
+.cup-standings{margin:10px 0 4px;padding:8px 10px;border:1px solid #ffd35a55;background:#ffd35a0d;font:12px var(--mono);letter-spacing:1px}
+.cup-standings b{display:block;color:#ffd35a;font-weight:400;margin-bottom:4px}
+.cup-standings div{display:flex;justify-content:space-between;padding:2px 0;color:#d8d2e8}.cup-standings div.you{color:var(--acid)}
+.cup-standings em{font-style:normal}

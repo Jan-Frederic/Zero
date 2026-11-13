@@ -18,6 +18,7 @@
     { id: 'unlock-all', icon: '🗺', name: 'GRAND TOURER', info: 'Unlock every circuit.' },
     { id: 'egg', icon: '🥚', name: 'EGG HUNTER', info: 'Find the secret on the title screen.' },
     { id: 'share', icon: '📣', name: 'BRAGGING RIGHTS', info: 'Share a race result.' },
+    { id: 'cup', icon: '🏆', name: 'CHAMPION OF THE GALAXY', info: 'Win a championship.' },
     { id: 'nemesis', icon: '☠', name: 'NEMESIS HUNTER', info: 'Destroy all three nemeses in one race.' },
   ];
   profile.achievements = profile.achievements || {}; profile.stats = Object.assign({ cats: 0, ufos: 0, rivals: 0, powerTypes: [] }, profile.stats);
