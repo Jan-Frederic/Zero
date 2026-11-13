@@ -397,3 +397,11 @@ body.gamepad .controls::after{content:'🎮 A GO · X LASER · Y BOOST · B BRAK
 .profile-transfer{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.profile-transfer .setup-option{min-height:44px}
 .profile-code{width:100%;margin-top:8px;background:#09091a;border:1px solid #ffffff2a;color:#d9f9ff;font:11px var(--mono);padding:8px;resize:vertical;user-select:text;-webkit-user-select:text}
 @media (max-width:600px){.stats-list{grid-template-columns:1fr}}
+
+/* Accessibility. */
+.setup-row .small-label small{font-size:10px;color:#8f87a2;letter-spacing:.5px}
+.subtitle{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:62;max-width:calc(100% - 24px);padding:6px 12px;background:#000c;color:#fff;font:14px var(--mono);letter-spacing:.8px;text-align:center;opacity:0;transition:opacity .2s;pointer-events:none}
+.subtitle.visible{opacity:1}
+body.calm #game{animation:none!important}
+body.calm *,body.calm *::before,body.calm *::after{animation-duration:.001s!important;animation-iteration-count:1!important}
+body.cb .hull-critical,body.cb.critical #shield-fill{background:repeating-linear-gradient(45deg,#ffe600 0 6px,#000 6px 12px)!important}

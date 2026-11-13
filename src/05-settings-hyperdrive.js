@@ -1,7 +1,8 @@
   // ---- Setup: steering (touch or gyro) and screen orientation, chosen on the start screen and remembered.
   // Defaults: gyro steering in landscape. (v2 key: earlier builds saved touch/portrait implicitly.)
   const SETTINGS_KEY = 'morbid-settings-v2';
-  const settings = { difficulty: 'normal', haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
+  const reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const settings = { calm: reducedMotion, cb: false, subtitles: false, difficulty: 'normal', haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch { /* defaults */ }
   const tilt = { x: 0, neutral: 0, live: false };
   // Difficulty: rival pace, damage taken, extra lives and credit payout.
@@ -17,6 +18,16 @@
     const value = raw === 'on' ? true : raw === 'off' ? false : raw;
     settings[key] = value; saveSettings(); renderSettings();
     if (settingHooks[key]) settingHooks[key](value);
+  }
+  // Accessibility helpers: calm mode tones down shake and flashes, colour-blind marks danger with a pattern.
+  const shakeAmount = () => shake * (settings.calm ? .12 : 1);
+  const flashAmount = v => v * (settings.calm ? .18 : 1);
+  function cbMark(x, y, r) {
+    if (!settings.cb) return;
+    ctx.save(); ctx.setLineDash([r * .3, r * .2]); ctx.lineWidth = Math.max(2, r * .12); ctx.strokeStyle = '#ffe600';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = `bold ${Math.max(12, r * .9)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.strokeText('⚠', x, y); ctx.fillStyle = '#ffe600'; ctx.fillText('⚠', x, y); ctx.restore();
   }
   function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ } }
   function screenAngle() { return (screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : Number(window.orientation) || 0) * Math.PI / 180; }
@@ -50,6 +61,7 @@
     document.querySelectorAll('[data-screen]').forEach(b => b.classList.toggle('selected', b.dataset.screen === settings.screen));
     document.querySelectorAll('[data-haptics]').forEach(b => b.classList.toggle('selected', (b.dataset.haptics === 'on') === settings.haptics));
     document.querySelectorAll('[data-setting]').forEach(b => { const v = b.dataset.value, cur = settings[b.dataset.setting]; b.classList.toggle('selected', String(cur) === (v === 'on' ? 'true' : v === 'off' ? 'false' : v)); });
+    document.body.classList.toggle('calm', !!settings.calm); document.body.classList.toggle('cb', !!settings.cb);
     if ($('difficulty-badge')) $('difficulty-badge').textContent = diff().name;
     $('steer-hint').textContent = settings.steering === 'gyro' ? 'TILT ◀ ▶' : 'DRAG ◀ ▶';
     document.body.classList.toggle('gyro', settings.steering === 'gyro');

@@ -729,7 +729,7 @@
   function renderFinale() {
     const f = finale;
     ctx.save();
-    if (shake > .03) ctx.translate(Math.sin(time * 121) * shake * 8, Math.cos(time * 93) * shake * 5);
+    if (shakeAmount() > .03) ctx.translate(Math.sin(time * 121) * shakeAmount() * 8, Math.cos(time * 93) * shakeAmount() * 5);
     if (f.phase === 'disco') { drawDisco(); ctx.restore(); return; }
     drawSpace();
     const L = finaleLayout(), shipPx = f.shipX * W;
@@ -756,7 +756,7 @@
       if (b.kind === 'bite') {
         ctx.save();
         if (!b.fired) {
-          const k = clamp(1 - (b.warnUntil - time), 0, 1); ctx.translate(b.x, L.shipY + L.ship * .35);
+          const k = clamp(1 - (b.warnUntil - time), 0, 1); cbMark(b.x, L.shipY + L.ship * .35, L.ship * .9); ctx.translate(b.x, L.shipY + L.ship * .35);
           for (let r = 4; r > 0; r--) { ctx.fillStyle = `hsla(${(time * 200 + r * 60) % 360},100%,55%,${.3 + k * .25})`; ctx.beginPath(); ctx.ellipse(0, 0, L.ship * (.8 + r * .5) * (.4 + k * .6), L.ship * (.18 + r * .1), time * 3, 0, TAU); ctx.fill(); }
           ctx.font = `bold ${Math.max(12, L.ship * .35)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.fillStyle = Math.sin(time * 20) > 0 ? '#ff6a3d' : '#ffffff'; ctx.fillText('⚠ WORMHOLE — MOVE!', 0, -L.ship * 1.3);
         } else {
@@ -767,7 +767,7 @@
       }
       if (b.kind === 'eyebeam') {
         ctx.save();
-        if (!b.fired) { ctx.globalAlpha = Math.sin(time * 30) > 0 ? .7 : .25; line(b.x, b.fromY, b.x, H, '#ff3b55', 2); ctx.fillStyle = 'rgba(255,40,70,.35)'; ctx.beginPath(); ctx.ellipse(b.x, L.shipY + L.ship * .3, L.ship, L.ship * .25, 0, 0, TAU); ctx.fill(); }
+        if (!b.fired) { cbMark(b.x, L.shipY + L.ship * .3, L.ship * .8); ctx.globalAlpha = Math.sin(time * 30) > 0 ? .7 : .25; line(b.x, b.fromY, b.x, H, '#ff3b55', 2); ctx.fillStyle = 'rgba(255,40,70,.35)'; ctx.beginPath(); ctx.ellipse(b.x, L.shipY + L.ship * .3, L.ship, L.ship * .25, 0, 0, TAU); ctx.fill(); }
         else { ctx.globalCompositeOperation = 'lighter'; line(b.fromX, b.fromY, b.x, H, 'rgba(255,60,90,.55)', L.ship * 1.2); line(b.fromX, b.fromY, b.x, H, '#ff9aa8', L.ship * .45); line(b.fromX, b.fromY, b.x, H, '#ffffff', 4); }
         ctx.restore(); continue;
       }
@@ -785,6 +785,6 @@
     drawCrashLayer();
     drawShards();
     drawFinaleHud(L);
-    if (screenFlash > .015) { ctx.fillStyle = `rgba(255,255,240,${screenFlash * .55})`; ctx.fillRect(-60, -60, W + 120, H + 120); }
+    if (flashAmount(screenFlash) > .015) { ctx.fillStyle = `rgba(255,255,240,${flashAmount(screenFlash) * .55})`; ctx.fillRect(-60, -60, W + 120, H + 120); }
     ctx.restore();
   }

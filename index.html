@@ -102,6 +102,9 @@
         <div class="setup-row"><span class="small-label">STEERING</span><div class="setup-options"><button class="setup-option" data-steer="gyro">⟲ GYRO</button><button class="setup-option" data-steer="touch">☝ TOUCH / KEYS</button></div></div>
         <div class="setup-row"><span class="small-label">DIFFICULTY</span><div class="setup-options setup-3"><button class="setup-option" data-setting="difficulty" data-value="easy">EASY</button><button class="setup-option" data-setting="difficulty" data-value="normal">NORMAL</button><button class="setup-option" data-setting="difficulty" data-value="hard">HARD</button></div></div>
         <div class="setup-row"><span class="small-label">VIBRATION</span><div class="setup-options"><button class="setup-option" data-haptics="on">〰 ON</button><button class="setup-option" data-haptics="off">∅ OFF</button></div></div>
+        <div class="setup-row"><span class="small-label">CALM MODE<br><small>LESS SHAKE &amp; FLASHING</small></span><div class="setup-options"><button class="setup-option" data-setting="calm" data-value="on">ON</button><button class="setup-option" data-setting="calm" data-value="off">OFF</button></div></div>
+        <div class="setup-row"><span class="small-label">COLOUR-BLIND<br><small>⚠ DANGER MARKS</small></span><div class="setup-options"><button class="setup-option" data-setting="cb" data-value="on">ON</button><button class="setup-option" data-setting="cb" data-value="off">OFF</button></div></div>
+        <div class="setup-row"><span class="small-label">SUBTITLES<br><small>FOR VOICES</small></span><div class="setup-options"><button class="setup-option" data-setting="subtitles" data-value="on">ON</button><button class="setup-option" data-setting="subtitles" data-value="off">OFF</button></div></div>
         <div class="setup-row"><span class="small-label">TUTORIAL</span><div class="setup-options"><button id="tutorial-replay" class="setup-option" type="button">↺ PLAY IT AGAIN</button></div></div>
         <div class="setup-row"><span class="small-label">SCREEN</span><div class="setup-options"><button class="setup-option" data-screen="landscape">▭ LANDSCAPE</button><button class="setup-option" data-screen="portrait">▯ PORTRAIT</button></div></div>
         <div id="setup-note" class="setup-note"></div>
@@ -117,6 +120,7 @@
   <div id="touch-controls" class="touch-controls"><button data-key="ArrowLeft" aria-label="Steer left">◀</button><button data-key="ArrowRight" aria-label="Steer right">▶</button><button data-key="Space" aria-label="Boost">ϟ</button><button data-key="KeyX" aria-label="Fire laser">◎</button><button data-key="ArrowUp" aria-label="Accelerate">▲</button><button data-key="ArrowDown" aria-label="Brake">▼</button></div>
   <div id="rotate-overlay" class="rotate-overlay hidden" role="alertdialog" aria-label="Rotate your device"><div><div class="rotate-icon">📱</div><b id="rotate-title">ROTATE TO LANDSCAPE</b><p>Your screen setting is <span id="rotate-setting">LANDSCAPE</span>. Turn your device to play.</p><button id="rotate-switch" class="text-button">SWITCH TO <span id="rotate-other">PORTRAIT</span> INSTEAD</button></div></div>
   <div id="achievement" class="achievement" role="status" aria-live="polite"></div>
+  <div id="subtitle" class="subtitle" aria-live="polite"></div>
   <canvas id="confetti" class="confetti" aria-hidden="true"></canvas>
   <audio id="soundtrack" src="Morbid_Fingers%20-%20live-%20Emmerich_Juli_2003%20-%2003%20Redemption.mp3" loop preload="none"></audio>
   <script src="game.js"></script>

@@ -136,6 +136,7 @@
     for (const a of bossAttacks) {
       const rx = bossAttackRoadX(a.lane), ry = H * .8;
       if (!a.fired) {
+        cbMark(rx, ry, W * .05);
         const blink = Math.sin(time * 30) > 0 ? .55 : .25;
         ctx.save(); ctx.globalAlpha = blink; ctx.fillStyle = a.type === 'laser' ? '#ff2d55' : '#9fe8ff';
         ctx.beginPath(); ctx.ellipse(rx, ry, W * (a.type === 'laser' ? .085 : .06), H * .03, 0, 0, TAU); ctx.fill();

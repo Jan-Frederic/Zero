@@ -1,3 +1,4 @@
+  let subtitleAt = -9;
   function setupAudio() {
     if (audioContext) { audioContext.resume().catch(() => {}); return; }
     try {
@@ -157,6 +158,7 @@
   }
   // Retro robot announcer: plays the pre-rendered clip; falls back to the system voice if it is not loaded.
   function robotSay(text, clip) {
+    if (settings.subtitles && text && $('subtitle')) { $('subtitle').textContent = `🔊 ${String(text).replace(/[!.]+$/, '').toUpperCase()}`; $('subtitle').classList.add('visible'); subtitleAt = frameClock; }
     if (muted) return;
     const buffer = clip && voiceBuffers.get(clip);
     if (buffer && audioContext) {

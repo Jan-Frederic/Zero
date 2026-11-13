@@ -262,6 +262,7 @@
     document.querySelector('.map-line').style.stroke = t.second;
     document.querySelector('.map-glow').style.stroke = t.second;
   }
+  let subtitleAt = -9;
   function setupAudio() {
     if (audioContext) { audioContext.resume().catch(() => {}); return; }
     try {
@@ -421,6 +422,7 @@
   }
   // Retro robot announcer: plays the pre-rendered clip; falls back to the system voice if it is not loaded.
   function robotSay(text, clip) {
+    if (settings.subtitles && text && $('subtitle')) { $('subtitle').textContent = `🔊 ${String(text).replace(/[!.]+$/, '').toUpperCase()}`; $('subtitle').classList.add('visible'); subtitleAt = frameClock; }
     if (muted) return;
     const buffer = clip && voiceBuffers.get(clip);
     if (buffer && audioContext) {
@@ -606,6 +608,7 @@
     for (const a of bossAttacks) {
       const rx = bossAttackRoadX(a.lane), ry = H * .8;
       if (!a.fired) {
+        cbMark(rx, ry, W * .05);
         const blink = Math.sin(time * 30) > 0 ? .55 : .25;
         ctx.save(); ctx.globalAlpha = blink; ctx.fillStyle = a.type === 'laser' ? '#ff2d55' : '#9fe8ff';
         ctx.beginPath(); ctx.ellipse(rx, ry, W * (a.type === 'laser' ? .085 : .06), H * .03, 0, 0, TAU); ctx.fill();
@@ -787,7 +790,8 @@
   // ---- Setup: steering (touch or gyro) and screen orientation, chosen on the start screen and remembered.
   // Defaults: gyro steering in landscape. (v2 key: earlier builds saved touch/portrait implicitly.)
   const SETTINGS_KEY = 'morbid-settings-v2';
-  const settings = { difficulty: 'normal', haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
+  const reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const settings = { calm: reducedMotion, cb: false, subtitles: false, difficulty: 'normal', haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch { /* defaults */ }
   const tilt = { x: 0, neutral: 0, live: false };
   // Difficulty: rival pace, damage taken, extra lives and credit payout.
@@ -803,6 +807,16 @@
     const value = raw === 'on' ? true : raw === 'off' ? false : raw;
     settings[key] = value; saveSettings(); renderSettings();
     if (settingHooks[key]) settingHooks[key](value);
+  }
+  // Accessibility helpers: calm mode tones down shake and flashes, colour-blind marks danger with a pattern.
+  const shakeAmount = () => shake * (settings.calm ? .12 : 1);
+  const flashAmount = v => v * (settings.calm ? .18 : 1);
+  function cbMark(x, y, r) {
+    if (!settings.cb) return;
+    ctx.save(); ctx.setLineDash([r * .3, r * .2]); ctx.lineWidth = Math.max(2, r * .12); ctx.strokeStyle = '#ffe600';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = `bold ${Math.max(12, r * .9)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.strokeText('⚠', x, y); ctx.fillStyle = '#ffe600'; ctx.fillText('⚠', x, y); ctx.restore();
   }
   function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ } }
   function screenAngle() { return (screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : Number(window.orientation) || 0) * Math.PI / 180; }
@@ -836,6 +850,7 @@
     document.querySelectorAll('[data-screen]').forEach(b => b.classList.toggle('selected', b.dataset.screen === settings.screen));
     document.querySelectorAll('[data-haptics]').forEach(b => b.classList.toggle('selected', (b.dataset.haptics === 'on') === settings.haptics));
     document.querySelectorAll('[data-setting]').forEach(b => { const v = b.dataset.value, cur = settings[b.dataset.setting]; b.classList.toggle('selected', String(cur) === (v === 'on' ? 'true' : v === 'off' ? 'false' : v)); });
+    document.body.classList.toggle('calm', !!settings.calm); document.body.classList.toggle('cb', !!settings.cb);
     if ($('difficulty-badge')) $('difficulty-badge').textContent = diff().name;
     $('steer-hint').textContent = settings.steering === 'gyro' ? 'TILT ◀ ▶' : 'DRAG ◀ ▶';
     document.body.classList.toggle('gyro', settings.steering === 'gyro');
@@ -1612,7 +1627,7 @@
   function renderFinale() {
     const f = finale;
     ctx.save();
-    if (shake > .03) ctx.translate(Math.sin(time * 121) * shake * 8, Math.cos(time * 93) * shake * 5);
+    if (shakeAmount() > .03) ctx.translate(Math.sin(time * 121) * shakeAmount() * 8, Math.cos(time * 93) * shakeAmount() * 5);
     if (f.phase === 'disco') { drawDisco(); ctx.restore(); return; }
     drawSpace();
     const L = finaleLayout(), shipPx = f.shipX * W;
@@ -1639,7 +1654,7 @@
       if (b.kind === 'bite') {
         ctx.save();
         if (!b.fired) {
-          const k = clamp(1 - (b.warnUntil - time), 0, 1); ctx.translate(b.x, L.shipY + L.ship * .35);
+          const k = clamp(1 - (b.warnUntil - time), 0, 1); cbMark(b.x, L.shipY + L.ship * .35, L.ship * .9); ctx.translate(b.x, L.shipY + L.ship * .35);
           for (let r = 4; r > 0; r--) { ctx.fillStyle = `hsla(${(time * 200 + r * 60) % 360},100%,55%,${.3 + k * .25})`; ctx.beginPath(); ctx.ellipse(0, 0, L.ship * (.8 + r * .5) * (.4 + k * .6), L.ship * (.18 + r * .1), time * 3, 0, TAU); ctx.fill(); }
           ctx.font = `bold ${Math.max(12, L.ship * .35)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.fillStyle = Math.sin(time * 20) > 0 ? '#ff6a3d' : '#ffffff'; ctx.fillText('⚠ WORMHOLE — MOVE!', 0, -L.ship * 1.3);
         } else {
@@ -1650,7 +1665,7 @@
       }
       if (b.kind === 'eyebeam') {
         ctx.save();
-        if (!b.fired) { ctx.globalAlpha = Math.sin(time * 30) > 0 ? .7 : .25; line(b.x, b.fromY, b.x, H, '#ff3b55', 2); ctx.fillStyle = 'rgba(255,40,70,.35)'; ctx.beginPath(); ctx.ellipse(b.x, L.shipY + L.ship * .3, L.ship, L.ship * .25, 0, 0, TAU); ctx.fill(); }
+        if (!b.fired) { cbMark(b.x, L.shipY + L.ship * .3, L.ship * .8); ctx.globalAlpha = Math.sin(time * 30) > 0 ? .7 : .25; line(b.x, b.fromY, b.x, H, '#ff3b55', 2); ctx.fillStyle = 'rgba(255,40,70,.35)'; ctx.beginPath(); ctx.ellipse(b.x, L.shipY + L.ship * .3, L.ship, L.ship * .25, 0, 0, TAU); ctx.fill(); }
         else { ctx.globalCompositeOperation = 'lighter'; line(b.fromX, b.fromY, b.x, H, 'rgba(255,60,90,.55)', L.ship * 1.2); line(b.fromX, b.fromY, b.x, H, '#ff9aa8', L.ship * .45); line(b.fromX, b.fromY, b.x, H, '#ffffff', 4); }
         ctx.restore(); continue;
       }
@@ -1668,7 +1683,7 @@
     drawCrashLayer();
     drawShards();
     drawFinaleHud(L);
-    if (screenFlash > .015) { ctx.fillStyle = `rgba(255,255,240,${screenFlash * .55})`; ctx.fillRect(-60, -60, W + 120, H + 120); }
+    if (flashAmount(screenFlash) > .015) { ctx.fillStyle = `rgba(255,255,240,${flashAmount(screenFlash) * .55})`; ctx.fillRect(-60, -60, W + 120, H + 120); }
     ctx.restore();
   }
   const worldPace = () => powerOn('warp') ? .45 : 1;
@@ -2049,6 +2064,7 @@
   function update(dt) {
     time += dt; screenFlash = Math.max(0, screenFlash - dt * 2.4);
     updateBoot(); tickAchievement();
+    if (frameClock - subtitleAt > 2.8 && $('subtitle')) $('subtitle').classList.remove('visible');
     if (['racing', 'final', 'respawning', 'countdown'].includes(mode)) { playClock += dt; if (playClock > 15) { profile.stats.seconds = (profile.stats.seconds || 0) + playClock; playClock = 0; saveProfile(); } }
     if (analyser && !audio.paused && !muted) { analyser.getByteFrequencyData(frequency); beat = lerp(beat, frequency.slice(0, 12).reduce((a, b) => a + b, 0) / (12 * 255), .2); } else beat *= .95;
     if (engineGain) {
@@ -2622,6 +2638,7 @@
     line(0, -size * .55, size * .2, -size * .95, '#fff2a1', Math.max(1, size * .08));
     ctx.fillStyle = '#fff1a0'; ctx.beginPath(); ctx.arc(size * .23, -size, Math.max(1, size * .09), 0, TAU); ctx.fill();
     ctx.restore();
+    if (bomb.landed) cbMark(x, roadY, Math.max(10, size * 1.6));
   }
   function drawExplosion(x, y, width, explosion) {
     const progress = clamp((time - explosion.started) / explosion.duration, 0, 1);
@@ -2866,7 +2883,7 @@
   function render() {
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
     ctx.save();
-    if (shake > .03 && (mode === 'racing' || mode === 'wrecked' || mode === 'invasion' || mode === 'respawning')) ctx.translate(Math.sin(time * 121) * shake * 8, Math.cos(time * 93) * shake * 5);
+    if (shakeAmount() > .03 && (mode === 'racing' || mode === 'wrecked' || mode === 'invasion' || mode === 'respawning')) ctx.translate(Math.sin(time * 121) * shakeAmount() * 8, Math.cos(time * 93) * shakeAmount() * 5);
     background(); drawRoad(); drawLaserBeams();
     const isMenu = mode === 'menu';
     const m = machines[shipIndex];
@@ -2897,10 +2914,10 @@
     drawWeather();
     if (hyperTime > 0 && mode !== 'menu') drawWarpOverlay();
     if (mode !== 'menu') drawCrashLayer();
-    if (screenFlash > .015) {
+    if (flashAmount(screenFlash) > .015) {
       const flash = ctx.createRadialGradient(W * .5, H * .62, 2, W * .5, H * .62, Math.max(W, H) * .72);
-      flash.addColorStop(0, `rgba(255,246,205,${screenFlash * .45})`);
-      flash.addColorStop(.24, `rgba(255,55,153,${screenFlash * .2})`); flash.addColorStop(1, '#ff3b9a00');
+      flash.addColorStop(0, `rgba(255,246,205,${flashAmount(screenFlash) * .45})`);
+      flash.addColorStop(.24, `rgba(255,55,153,${flashAmount(screenFlash) * .2})`); flash.addColorStop(1, '#ff3b9a00');
       ctx.fillStyle = flash; ctx.fillRect(0, 0, W, H);
     }
     if (gesture.id !== null && (mode === 'racing' || mode === 'countdown')) drawStick();

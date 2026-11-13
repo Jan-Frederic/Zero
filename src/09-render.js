@@ -214,6 +214,7 @@
     line(0, -size * .55, size * .2, -size * .95, '#fff2a1', Math.max(1, size * .08));
     ctx.fillStyle = '#fff1a0'; ctx.beginPath(); ctx.arc(size * .23, -size, Math.max(1, size * .09), 0, TAU); ctx.fill();
     ctx.restore();
+    if (bomb.landed) cbMark(x, roadY, Math.max(10, size * 1.6));
   }
   function drawExplosion(x, y, width, explosion) {
     const progress = clamp((time - explosion.started) / explosion.duration, 0, 1);
@@ -458,7 +459,7 @@
   function render() {
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
     ctx.save();
-    if (shake > .03 && (mode === 'racing' || mode === 'wrecked' || mode === 'invasion' || mode === 'respawning')) ctx.translate(Math.sin(time * 121) * shake * 8, Math.cos(time * 93) * shake * 5);
+    if (shakeAmount() > .03 && (mode === 'racing' || mode === 'wrecked' || mode === 'invasion' || mode === 'respawning')) ctx.translate(Math.sin(time * 121) * shakeAmount() * 8, Math.cos(time * 93) * shakeAmount() * 5);
     background(); drawRoad(); drawLaserBeams();
     const isMenu = mode === 'menu';
     const m = machines[shipIndex];
@@ -489,10 +490,10 @@
     drawWeather();
     if (hyperTime > 0 && mode !== 'menu') drawWarpOverlay();
     if (mode !== 'menu') drawCrashLayer();
-    if (screenFlash > .015) {
+    if (flashAmount(screenFlash) > .015) {
       const flash = ctx.createRadialGradient(W * .5, H * .62, 2, W * .5, H * .62, Math.max(W, H) * .72);
-      flash.addColorStop(0, `rgba(255,246,205,${screenFlash * .45})`);
-      flash.addColorStop(.24, `rgba(255,55,153,${screenFlash * .2})`); flash.addColorStop(1, '#ff3b9a00');
+      flash.addColorStop(0, `rgba(255,246,205,${flashAmount(screenFlash) * .45})`);
+      flash.addColorStop(.24, `rgba(255,55,153,${flashAmount(screenFlash) * .2})`); flash.addColorStop(1, '#ff3b9a00');
       ctx.fillStyle = flash; ctx.fillRect(0, 0, W, H);
     }
     if (gesture.id !== null && (mode === 'racing' || mode === 'countdown')) drawStick();
