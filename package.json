@@ -15,7 +15,7 @@
     "lighthouse": "node tests/lighthouse.js"
   },
   "devDependencies": {
-    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/changelog": "^7.0.0",
     "@semantic-release/git": "^10.0.1",
     "esbuild": "0.25.12",
     "pixelmatch": "5.3.0",
