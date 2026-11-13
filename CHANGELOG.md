@@ -1,5 +1,26 @@
 # Changelog
 
+# [1.17.0](https://github.com/Jan-Frederic/Zero/compare/v1.16.0...v1.17.0) (2026-11-13)
+
+
+### Features
+
+* championship mode with F1 points and a final ceremony ([6ce431a](https://github.com/Jan-Frederic/Zero/commit/6ce431a00eb3261e0ad6de84cf15691d5202d548))
+* compact race HUD on phones so more of the track is visible ([751b783](https://github.com/Jan-Frederic/Zero/commit/751b783a06c66778cea220478a749672f6f70241))
+* highlight clip of the finish to share after a win ([46aa38f](https://github.com/Jan-Frederic/Zero/commit/46aa38f74087e6ce97428ba1d67f121048003352))
+* mutators (mirror, night, low gravity, reverse) ([075cab1](https://github.com/Jan-Frederic/Zero/commit/075cab1cf973af8028dc2ff5dd4ada625edaa6c4))
+* photo mode ([07e2d3d](https://github.com/Jan-Frederic/Zero/commit/07e2d3d5eacda217b84b34bf0aa4f10708d18972))
+* risky track shortcuts through tunnel portals ([d784712](https://github.com/Jan-Frederic/Zero/commit/d784712767e97373f12f0e48a46ad121b93501c8))
+* seasonal events for Halloween and winter ([2c87543](https://github.com/Jan-Frederic/Zero/commit/2c8754388a780a96bcf8abdd2194a82ffc2b04d5))
+* slipstream boost and attack items (homing missile, mine layer, EMP) ([decfb75](https://github.com/Jan-Frederic/Zero/commit/decfb753a28ac9e9a32f69ce5afd836b16bd9ce8))
+* story comic with one chapter per circuit ([44f06db](https://github.com/Jan-Frederic/Zero/commit/44f06db902dcc18c40f30e6293f2001b0400f590))
+* two special machines unlocked by trophies ([c54270a](https://github.com/Jan-Frederic/Zero/commit/c54270a4556d6165cfbb8a3da19f1fc20a03b5ca))
+
+
+### Performance Improvements
+
+* smaller downloads and a Lighthouse check in CI ([66aa80c](https://github.com/Jan-Frederic/Zero/commit/66aa80c6be0be5eb5d7b5f000bcce9232b8bb59f))
+
 # [1.16.0](https://github.com/Jan-Frederic/Zero/compare/v1.15.0...v1.16.0) (2026-11-13)
 
 
