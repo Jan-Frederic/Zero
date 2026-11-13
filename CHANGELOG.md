@@ -1,5 +1,23 @@
 # Changelog
 
+# [1.16.0](https://github.com/Jan-Frederic/Zero/compare/v1.15.0...v1.16.0) (2026-11-13)
+
+
+### Features
+
+* accessibility options (calm mode, colour-blind danger marks, voice subtitles) ([37efba2](https://github.com/Jan-Frederic/Zero/commit/37efba2a1882da04521496c76868c1752cdab401))
+* daily challenge with a day streak ([8cc0ed5](https://github.com/Jan-Frederic/Zero/commit/8cc0ed5df5f39e101ebc4b5bdc108748e7af4889))
+* first-run tutorial ([7ce2c3f](https://github.com/Jan-Frederic/Zero/commit/7ce2c3ffdfcc691c9832d54a85ebfd8ddeabc41b))
+* gamepad support ([c9f2eac](https://github.com/Jan-Frederic/Zero/commit/c9f2eac53a116e92e638e5cd86be59042f5a8877))
+* German translation with language switch in the settings ([06fbeeb](https://github.com/Jan-Frederic/Zero/commit/06fbeeb355cb2e2962aaf9041e1a632ea9c18ebd))
+* named nemesis rivals ([f5a7bfd](https://github.com/Jan-Frederic/Zero/commit/f5a7bfd2afee7aad146292554b279963e623f728))
+* paint shop for the player's ship ([67b17a3](https://github.com/Jan-Frederic/Zero/commit/67b17a34975f59e03d7516e340f4d1fd02ca6815))
+* performance mode with automatic low-FPS detection ([8af2250](https://github.com/Jan-Frederic/Zero/commit/8af2250b01d887bfb7b2c7317cf09b3a6f7b142a))
+* selectable difficulty (easy, normal, hard) ([9d3de30](https://github.com/Jan-Frederic/Zero/commit/9d3de3038096273269dc8591c0a3a8e0eeef3196))
+* stats page and profile transfer between devices ([2f16a01](https://github.com/Jan-Frederic/Zero/commit/2f16a01f6417a899ebb73925fef539ab256afdf7))
+* time trial and endless boss rush game modes ([c93578b](https://github.com/Jan-Frederic/Zero/commit/c93578b1e47bb0143f10964da34d8811490ffe10))
+* weather and track events ([4d3e805](https://github.com/Jan-Frederic/Zero/commit/4d3e805c2ba05b4dfe780d903a124159e3aee3c4))
+
 # [1.15.0](https://github.com/Jan-Frederic/Zero/compare/v1.14.0...v1.15.0) (2026-11-08)
 
 
