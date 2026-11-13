@@ -214,6 +214,7 @@
     line(0, -size * .55, size * .2, -size * .95, '#fff2a1', Math.max(1, size * .08));
     ctx.fillStyle = '#fff1a0'; ctx.beginPath(); ctx.arc(size * .23, -size, Math.max(1, size * .09), 0, TAU); ctx.fill();
     ctx.restore();
+    if (bomb.landed) cbMark(x, roadY, Math.max(10, size * 1.6));
   }
   function drawExplosion(x, y, width, explosion) {
     const progress = clamp((time - explosion.started) / explosion.duration, 0, 1);
@@ -310,7 +311,14 @@
               const flicker = Math.sin(time * 40) > .3 ? '#ffffff' : r.color;
               drawShip(rx, ry + rw * .02 * t, rw * .115, t > .7 ? flicker : r.color, '#1d1828', 0, false, false, false, r.dying.spin * (t * t * 14 + t * 2));
               drawSmoke(rx, ry, rw * .115, r);
-            } else drawShip(rx, ry, rw * .115, r.color, '#393156', Math.sin(time + r.seed) * .1, false, r.boosting);
+            } else {
+              drawShip(rx, ry, rw * .115, r.color, r.dark || '#393156', Math.sin(time + r.seed) * .1, false, r.boosting);
+              if (r.nemesis && rw * .115 > 26) {
+                const fs = Math.max(11, Math.min(15, rw * .03)); ctx.save(); ctx.font = `${fs}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center';
+                const label = `☠ ${r.nemesis.name}  ${'▮'.repeat(Math.max(0, r.hull))}`; const w = ((ctx.measureText(label) || {}).width || label.length * fs * .6) + 12, ty = ry - rw * .115 * .95;
+                ctx.fillStyle = '#09091acc'; ctx.fillRect(rx - w / 2, ty - fs, w, fs + 6); ctx.fillStyle = r.nemesis.color; ctx.fillText(label, rx, ty); ctx.restore();
+              }
+            }
           }
         }
       }
@@ -370,6 +378,8 @@
   }
   function drawShip(x, y, width, color, dark, steer, player, rivalBoost = false, airborne = false, spin = 0) {
     if (width < 1) return;
+    let paint = null;
+    if (player) { paint = playerPaint(machines[shipIndex]); color = paint.color; dark = paint.dark; }
     ctx.save(); ctx.translate(x, y); ctx.scale(width / 100, width / 100); ctx.rotate(steer * (player ? .1 : .06) + spin);
     const bob = Math.sin(time * 8) * (player ? 2 : 1); ctx.translate(0, bob);
     const boosted = player ? boosting || jumpBoostTimer > 0 : rivalBoost;
@@ -387,6 +397,10 @@
     polygon([[84, -1], [43, -15], [35, 6], [96, 22]], color);
     const hull = ctx.createLinearGradient(-28, 0, 30, 0); hull.addColorStop(0, color); hull.addColorStop(.48, '#e3f5ff'); hull.addColorStop(.55, '#b3cbdf'); hull.addColorStop(1, dark);
     polygon([[0, -81], [-24, -45], [-30, 14], [0, 27], [30, 14], [24, -45]], hull);
+    if (paint && paint.pattern === 'flames') for (const s of [-1, 1]) { polygon([[s * 40, -12], [s * 92, 18], [s * 70, 4], [s * 80, 16], [s * 58, 2], [s * 62, 12], [s * 44, 4]], paint.accent); polygon([[s * 42, -6], [s * 78, 14], [s * 60, 6], [s * 52, 8]], '#ffffff'); }
+    if (paint && paint.pattern === 'stripes') { polygon([[-7, -80], [7, -80], [9, 26], [-9, 26]], paint.accent); polygon([[-3, -80], [3, -80], [4, 26], [-4, 26]], color); }
+    if (paint && paint.pattern === 'spots') { ctx.fillStyle = paint.accent; for (const [sx, sy, r] of [[-60, 6, 5], [62, 4, 6], [-14, -30, 4], [16, -10, 5], [-74, 14, 3], [80, 14, 3]]) { ctx.beginPath(); ctx.arc(sx, sy, r, 0, TAU); ctx.fill(); } }
+    if (paint && paint.pattern === 'rainbow') for (let i = 0; i < 5; i++) line(-90 + i * 4, 20 - i * 3, 90 - i * 4, 20 - i * 3, `hsl(${(time * 90 + i * 60) % 360},100%,65%)`, 2);
     polygon([[0, -54], [-15, -28], [-13, -4], [13, -4], [15, -28]], '#10132f', '#86d9ef', 1.5);
     polygon([[0, -49], [-10, -28], [10, -28]], '#7568b6');
     polygon([[-49, -25], [-63, -14], [-66, 13], [-43, 13]], '#16152c', '#ddf9ff', 1);
@@ -431,7 +445,7 @@
     };
     map.beginPath(); for (let i = 0; i <= 180; i++) { const [x, y] = point(i / 180); i ? map.lineTo(x, y) : map.moveTo(x, y); }
     map.strokeStyle = '#ffffff18'; map.lineWidth = 9; map.stroke(); map.strokeStyle = tracks[trackIndex].second; map.lineWidth = 1.5; map.stroke();
-    for (const r of rivals) { if (!r.alive) continue; const [x, y] = point(mod(r.distance, LENGTH) / LENGTH); map.fillStyle = r.color; map.beginPath(); map.arc(x, y, 2.5, 0, TAU); map.fill(); }
+    for (const r of rivals) { if (!r.alive) continue; const [x, y] = point(mod(r.distance, LENGTH) / LENGTH); map.fillStyle = r.color; map.beginPath(); map.arc(x, y, r.nemesis ? 4 : 2.5, 0, TAU); map.fill(); }
     const [x, y] = point(position / LENGTH); map.shadowColor = '#ddff46'; map.shadowBlur = 9; map.fillStyle = '#ddff46'; map.beginPath(); map.arc(x, y, 4, 0, TAU); map.fill(); map.shadowBlur = 0;
   }
   function drawStick() {
@@ -445,7 +459,7 @@
   function render() {
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
     ctx.save();
-    if (shake > .03 && (mode === 'racing' || mode === 'wrecked' || mode === 'invasion' || mode === 'respawning')) ctx.translate(Math.sin(time * 121) * shake * 8, Math.cos(time * 93) * shake * 5);
+    if (shakeAmount() > .03 && (mode === 'racing' || mode === 'wrecked' || mode === 'invasion' || mode === 'respawning')) ctx.translate(Math.sin(time * 121) * shakeAmount() * 8, Math.cos(time * 93) * shakeAmount() * 5);
     background(); drawRoad(); drawLaserBeams();
     const isMenu = mode === 'menu';
     const m = machines[shipIndex];
@@ -473,12 +487,13 @@
       const glow = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .7); glow.addColorStop(0, '#6d29ff00'); glow.addColorStop(1, '#7644ff40'); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
     }
     for (const p of particles) { ctx.globalAlpha = Math.min(1, p.life * 3); line(p.x, p.y, p.x - p.vx * .03, p.y - p.vy * .03, p.color, 2); } ctx.globalAlpha = 1;
+    drawWeather();
     if (hyperTime > 0 && mode !== 'menu') drawWarpOverlay();
     if (mode !== 'menu') drawCrashLayer();
-    if (screenFlash > .015) {
+    if (flashAmount(screenFlash) > .015) {
       const flash = ctx.createRadialGradient(W * .5, H * .62, 2, W * .5, H * .62, Math.max(W, H) * .72);
-      flash.addColorStop(0, `rgba(255,246,205,${screenFlash * .45})`);
-      flash.addColorStop(.24, `rgba(255,55,153,${screenFlash * .2})`); flash.addColorStop(1, '#ff3b9a00');
+      flash.addColorStop(0, `rgba(255,246,205,${flashAmount(screenFlash) * .45})`);
+      flash.addColorStop(.24, `rgba(255,55,153,${flashAmount(screenFlash) * .2})`); flash.addColorStop(1, '#ff3b9a00');
       ctx.fillStyle = flash; ctx.fillRect(0, 0, W, H);
     }
     if (gesture.id !== null && (mode === 'racing' || mode === 'countdown')) drawStick();
@@ -487,8 +502,32 @@
     ctx.fillStyle = '#05051b12'; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
     ctx.restore();
   }
+  // ---- Gamepad (standard mapping): stick/D-pad steer, A/RT accelerate, B/LT brake, X/RB laser, Y/LB boost,
+  // START pause; in menus A starts / races again / resumes. Buttons are fed in as virtual keys.
+  const PAD_KEYS = { ArrowUp: [0, 7], ArrowDown: [1, 6], KeyX: [2, 5], Space: [3, 4] };
+  let padHeld = new Set(), padSteer = 0, padPrev = {}, padSeen = false;
+  function pollGamepad() {
+    const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+    const pad = pads[0];
+    if (!pad) { if (padHeld.size) { padHeld.forEach(k => keys.delete(k)); padHeld.clear(); } padSteer = 0; return; }
+    if (!padSeen) { padSeen = true; document.body.classList.add('gamepad'); showMessage('🎮 GAMEPAD CONNECTED', 1.4); }
+    const pressed = i => !!(pad.buttons[i] && (pad.buttons[i].pressed || pad.buttons[i].value > .4));
+    const edge = i => { const now = pressed(i), was = padPrev[i]; padPrev[i] = now; return now && !was; };
+    const stick = pad.axes[0] || 0;
+    padSteer = Math.abs(stick) > .18 ? clamp((stick - Math.sign(stick) * .18) / .7, -1, 1) : pressed(15) ? 1 : pressed(14) ? -1 : 0;
+    for (const [code, buttons] of Object.entries(PAD_KEYS)) {
+      const on = buttons.some(pressed) && (mode === 'racing' || mode === 'countdown' || mode === 'final' || mode === 'respawning');
+      if (on && !padHeld.has(code)) { padHeld.add(code); keys.add(code); } else if (!on && padHeld.has(code)) { padHeld.delete(code); keys.delete(code); }
+    }
+    const a = edge(0), start = edge(9);
+    if (start && ['racing', 'countdown', 'paused'].includes(mode)) pauseRace();
+    if (a && !document.body.classList.contains('dialog-open')) {
+      if (mode === 'menu') startRace(); else if (mode === 'paused') pauseRace();
+      else if (mode === 'finished' || (finale && finale.resultsShown)) raceAgain();
+    } else if (a && !$('health-screen').classList.contains('hidden')) $('health-accept').click();
+  }
   function frame(now) {
-    frameClock = now / 1000;
+    frameClock = now / 1000; pollGamepad();
     const dt = previousTime ? Math.min((now - previousTime) / 1000, .05) : 1 / 60; previousTime = now;
-    update(dt); render(); updateConfetti(dt); requestAnimationFrame(frame);
+    measureFps(dt); update(dt); render(); updateConfetti(dt); requestAnimationFrame(frame);
   }

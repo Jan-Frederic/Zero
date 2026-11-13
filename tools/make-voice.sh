@@ -53,3 +53,12 @@ scream scream-overlord "Aaaaaaarrrrrrrgggghhhhhh" en-us+croak 5 70 "asetrate=220
 scream scream-cyclops "Noooooooooooooooo" en-us+klatt3 95 75 "asetrate=22050*1.35,aresample=22050,vibrato=f=9:d=0.8,flanger=delay=4:depth=6:speed=1.5,aecho=0.8:0.6:120:0.4"
 scream scream-maggot "Eeeeeeeeeeeeeeeeeeek" en-us+female5 99 90 "asetrate=22050*1.6,aresample=22050,vibrato=f=14:d=0.9,chorus=0.6:0.9:20|30:0.6|0.5:0.6|0.9:3|5,aecho=0.7:0.5:40:0.5"
 scream scream-robot "Error. Error. System failure. Shutting dowwwn" en-us+UniversalRobot 25 115 "aeval='val(0)*(0.45+0.55*sin(2*PI*70*t))':c=same,aresample=8000,acrusher=bits=5:mode=lin:mix=0.9,aresample=22050,aecho=0.85:0.5:15|30:0.5|0.3"
+# Nemesis rivals: a taunt and a defeat line each.
+say taunt-vex "Vex here. You are going down, rookie!" en-us+female3 70
+say down-vex "Impossible! Vex is out!" en-us+female3 70
+say taunt-kronos "Kronos owns this track!" en-us+Mr_Serious 10
+say down-kronos "Kronos will return!" en-us+Mr_Serious 10
+say taunt-null9 "Null nine. Target acquired." en-us+UniversalRobot 5
+say down-null9 "Null nine. Offline." en-us+UniversalRobot 5
+say taunt-blaze "Ha! Eat my exhaust!" en-us+Andy 60
+say down-blaze "Noooo, my beautiful ship!" en-us+Andy 60

@@ -1,5 +1,5 @@
   function resize() {
-    W = innerWidth; H = innerHeight; dpr = Math.min(devicePixelRatio || 1, 1.6);
+    W = innerWidth; H = innerHeight; dpr = lowFx() ? 1 : Math.min(devicePixelRatio || 1, 1.6);
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
@@ -64,7 +64,7 @@
     $('track-class').textContent = t.class; $('feed-label').textContent = t.feed;
     document.querySelector('.map-caption').textContent = t.sector;
     document.querySelector('.pill').textContent = `${String(trackIndex + 1).padStart(2, '0')} — ${String(tracks.length).padStart(2, '0')}`;
-    renderLock();
+    renderGameMode();
     $('difficulty').innerHTML = '▰'.repeat(t.difficulty) + '<em>' + '▰'.repeat(8 - t.difficulty) + '</em>';
     const points = Array.from({ length: 96 }, (_, i) => {
       const angle = i / 96 * TAU, wobble = Math.sin(angle * (trackIndex + 2)) * (3 + t.curve * 1.4);

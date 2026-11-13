@@ -72,6 +72,50 @@
     } else setupNote('DRAG ON THE TRACK TO STEER');
     settings.steering = button.dataset.steer; saveSettings(); renderSettings();
   }));
+  document.querySelectorAll('[data-setting]').forEach(button => button.addEventListener('click', () => setSetting(button.dataset.setting, button.dataset.value)));
+  settingHooks.gameMode = () => renderGameMode();
+  renderGameMode(); renderDaily();
+  // ---- Statistics and profile transfer (a copy-paste code, no server needed).
+  function renderStats() {
+    const s = profile.stats, fav = Object.entries(s.perTrack || {}).sort((a, b) => b[1] - a[1])[0];
+    const hours = Math.floor((s.seconds || 0) / 3600), mins = Math.floor((s.seconds || 0) % 3600 / 60);
+    const rows = [
+      ['RACES', s.races || 0], ['WINS', s.wins || 0], ['PODIUMS', s.podiums || 0], ['DISTANCE', `${Math.round(s.km || 0).toLocaleString()} KM`],
+      ['PLAY TIME', `${hours}H ${String(mins).padStart(2, '0')}M`], ['FAVOURITE', fav ? tracks[fav[0]].name : '—'],
+      ['RIVALS DESTROYED', s.rivals || 0], ['UFOs SHOT DOWN', s.ufos || 0], ['CATS POPPED', s.cats || 0], ['BOSSES DEFEATED', s.bosses || 0],
+      ['ENDLESS RECORD', `${s.endlessBest || 0} WAVES`], ['DAILY STREAK', `${profile.daily.streak || 0} DAYS`],
+      ['TROPHIES', `${Object.keys(profile.achievements).length}/${ACHIEVEMENTS.length}`], ['CREDITS', `${profile.credits} CR`],
+    ];
+    $('stats-list').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+    $('profile-code').value = ''; $('profile-note').textContent = '';
+  }
+  const exportCode = () => 'MR1-' + btoa(unescape(encodeURIComponent(JSON.stringify({ profile, settings, best: Object.fromEntries(tracks.map((_, i) => { try { return [i, localStorage.getItem(`chroma-best-${i}`)]; } catch { return [i, null]; } })) }))));
+  function importCode(code) {
+    try {
+      const data = JSON.parse(decodeURIComponent(escape(atob(String(code).trim().replace(/^MR1-/, '')))));
+      if (!data || typeof data.profile !== 'object') throw new Error('bad');
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(data.profile));
+      if (data.settings) localStorage.setItem(SETTINGS_KEY, JSON.stringify(data.settings));
+      for (const [i, v] of Object.entries(data.best || {})) if (v) localStorage.setItem(`chroma-best-${i}`, v);
+      return true;
+    } catch { return false; }
+  }
+  $('open-stats').addEventListener('click', () => { renderStats(); openDialog('stats-screen'); });
+  $('profile-export').addEventListener('click', async () => {
+    const code = exportCode(); $('profile-code').value = code;
+    try { await navigator.clipboard.writeText(code); $('profile-note').textContent = 'CODE COPIED — PASTE IT ON YOUR OTHER DEVICE.'; } catch { $('profile-note').textContent = 'COPY THE CODE BELOW AND PASTE IT ON YOUR OTHER DEVICE.'; }
+  });
+  $('profile-import').addEventListener('click', () => {
+    if (!$('profile-code').value.trim()) { $('profile-note').textContent = 'PASTE A PROFILE CODE INTO THE BOX FIRST.'; return; }
+    if (importCode($('profile-code').value)) { $('profile-note').textContent = 'PROFILE IMPORTED — RESTARTING…'; setTimeout(() => location.reload(), 700); }
+    else $('profile-note').textContent = 'THAT CODE DOES NOT LOOK RIGHT. CHECK IT AND TRY AGAIN.';
+  });
+  window.morbidProfile = { exportCode, importCode };
+  $('tutorial-skip').addEventListener('click', () => endTutorial(true));
+  $('tutorial-replay').addEventListener('click', () => { profile.tutorialDone = false; saveProfile(); setupNote('THE TUTORIAL RUNS IN YOUR NEXT GRAND PRIX'); });
+  $('daily-go').addEventListener('click', () => { const d = dailyChallenge(); if (gameMode() !== 'race') setSetting('gameMode', 'race'); selectTrack(d.track - trackIndex); });
+  settingHooks.difficulty = () => setupNote(`DIFFICULTY: ${diff().name} · ${diff().lives > 0 ? '+1 LIFE, ' : diff().lives < 0 ? '-1 LIFE, ' : ''}${Math.round(diff().credits * 100)}% CREDITS`);
+  window.morbidSettings = { set: setSetting, get: () => settings };
   document.querySelectorAll('[data-haptics]').forEach(button => button.addEventListener('click', () => {
     settings.haptics = button.dataset.haptics === 'on'; saveSettings(); renderSettings();
     const canVibrate = typeof navigator !== 'undefined' && !!navigator.vibrate;
@@ -90,7 +134,7 @@
   renderLock();
   // ---- Home screen dialogs: settings and changelog.
   function openDialog(id) { $(id).classList.remove('hidden'); document.body.classList.add('dialog-open'); }
-  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen', 'trophy-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
+  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen', 'trophy-screen', 'stats-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
   // Health warning: shown on every visit (not again after an in-app update reload within the same session).
   let healthSeen = false;
   try { healthSeen = sessionStorage.getItem('morbid-health-ok') === '1'; } catch { /* show it */ }
@@ -132,13 +176,14 @@
   // Easter egg: tap the big MORBID RACERS title 5 times quickly (or type B-O-S-S on the start screen)
   // to skip the race and go straight to the invasion; the number of bosses follows the selected circuit.
   let eggTaps = [], eggTyped = '';
-  function bossRush() {
-    unlockAchievement('egg');
+  function startEndless() { endlessRun = true; trialRun = false; bossRush(true); }
+  function bossRush(endless = false) {
+    if (!endless) { unlockAchievement('egg'); endlessRun = false; }
     eggTaps = []; eggTyped = '';
     setupAudio(); primeSpeech();
     $('menu').classList.add('hidden'); $('hud').classList.add('hidden');
     document.body.classList.add('racing'); document.body.classList.remove('paused');
-    rivals = []; ufos = []; bombs = []; shield = 100; lives = finaleWaveCount(); raceEarned = 0;
+    rivals = []; ufos = []; bombs = []; shield = 100; lives = startLives(); raceEarned = 0;
     startInvasion();
   }
   $('title-egg').addEventListener('click', () => {
@@ -163,7 +208,19 @@
       return `<div class="shop-row"><div class="shop-info"><b>${u.icon} ${u.name}</b><span class="pips">${pips}</span><small>${maxed ? 'MAXED OUT — ' : 'NOW: '}${u.info(lvl)}${maxed ? '' : `<br>NEXT: ${u.info(lvl + 1)}`}</small></div>`
         + `<button class="setup-option shop-buy" data-buy="${key}" ${maxed || profile.credits < cost ? 'disabled' : ''}>${maxed ? 'MAX' : `UPGRADE · ${cost} CR`}</button></div>`;
     }).join('');
+    $('paint-list').innerHTML = PAINTS.map(p => {
+      const owned = paintOwned(p), active = (profile.paint || 'factory') === p.id;
+      const swatch = p.pattern === 'rainbow' ? 'linear-gradient(90deg,#ff4eb8,#ddff46,#4df8ff,#a88aff)' : p.id === 'factory' ? machines[shipIndex].color : `linear-gradient(135deg,${p.color} 55%,${p.accent} 55%)`;
+      const label = active ? 'EQUIPPED' : owned ? 'EQUIP' : p.trophy ? `🏆 ${ACHIEVEMENTS.find(a => a.id === p.trophy).name}` : `BUY · ${p.cost} CR`;
+      return `<button class="paint ${active ? 'active' : ''} ${owned ? 'owned' : ''}" data-paint="${p.id}" ${!owned && (p.trophy || profile.credits < p.cost) ? 'disabled' : ''}><i style="background:${swatch}"></i><b>${p.name}</b><small>${label}</small></button>`;
+    }).join('');
   }
+  function choosePaint(id) {
+    const p = PAINTS.find(x => x.id === id); if (!p) return false;
+    if (!paintOwned(p)) { if (p.trophy || profile.credits < p.cost) return false; profile.credits -= p.cost; profile.paints.push(p.id); playToneSweep(500, 1500, .3, 'square', .05); }
+    profile.paint = p.id; saveProfile(); renderShop(); return true;
+  }
+  if ($('paint-list').addEventListener) $('paint-list').addEventListener('click', event => { const b = event.target && event.target.closest && event.target.closest('[data-paint]'); if (b) choosePaint(b.dataset.paint); });
   function buyUpgrade(key) {
     const lvl = profile.upgrades[key], cost = UPGRADE_COST[lvl];
     if (lvl >= UPGRADE_MAX || profile.credits < cost) return false;
@@ -175,7 +232,7 @@
   $('open-shop').addEventListener('click', () => { renderShop(); openDialog('shop-screen'); });
   renderShop(); renderTrophyButton();
   $('open-trophies').addEventListener('click', () => { renderTrophies(); openDialog('trophy-screen'); });
-  window.morbidShop = { buy: buyUpgrade, profile };
+  window.morbidShop = { buy: buyUpgrade, paint: choosePaint, profile };
   // ---- Share card: a 1200×630 image of the result, shared via the system share sheet (or downloaded).
   function shareCard() {
     const c = document.createElement('canvas'); c.width = 1200; c.height = 630; const g = c.getContext('2d');
@@ -212,5 +269,5 @@
   window.morbidBusy = () => ['countdown', 'racing', 'respawning', 'paused', 'wrecked', 'invasion', 'final'].includes(mode) || (mode === 'disco' && !(finale && finale.resultsShown));
   window.addEventListener('resize', resize);
   preloadSoundtrack(); prefetchVoices();
-  resize(); buildTrack(); requestAnimationFrame(frame);
+  applyPerf(); applyLanguage(); resize(); buildTrack(); requestAnimationFrame(frame);
 })();

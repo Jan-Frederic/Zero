@@ -1,6 +1,7 @@
   function showCallout(text, color = '#ddff46') { callout = { text, color, started: time }; }
   function shootDownUfo(ufo) {
     if (stat('ufos') >= 25) unlockAchievement('ufo25');
+    if (mode === 'racing') raceStats.ufos++;
     ufos = ufos.filter(u => u !== ufo);
     const start = ufo.screen && time - ufo.screen.at < .3 ? ufo.screen : { x: W * .5, y: H * .38, size: Math.min(W, H) * .03 };
     const seed = Math.floor(time * 997) + ufo.seed * 31;
@@ -42,7 +43,7 @@
     }
     crashingUfos = crashingUfos.filter(u => !u.done);
     for (const p of smoke) { p.x += p.vx * dt; p.y += p.vy * dt; p.r *= 1 + dt * .9; p.life -= dt; }
-    smoke = smoke.filter(p => p.life > 0);
+    smoke = smoke.filter(p => p.life > 0); if (lowFx() && smoke.length > 40) smoke = smoke.slice(-40);
     if (smoke.length > 420) smoke.splice(0, smoke.length - 420);
     megaBlasts = megaBlasts.filter(b => time - b.started < b.duration);
     for (const r of ufoRespawns) if (time >= r.at && mode === 'racing') {
@@ -135,6 +136,7 @@
     for (const a of bossAttacks) {
       const rx = bossAttackRoadX(a.lane), ry = H * .8;
       if (!a.fired) {
+        cbMark(rx, ry, W * .05);
         const blink = Math.sin(time * 30) > 0 ? .55 : .25;
         ctx.save(); ctx.globalAlpha = blink; ctx.fillStyle = a.type === 'laser' ? '#ff2d55' : '#9fe8ff';
         ctx.beginPath(); ctx.ellipse(rx, ry, W * (a.type === 'laser' ? .085 : .06), H * .03, 0, 0, TAU); ctx.fill();
@@ -266,7 +268,7 @@
   const confettiCanvas = $('confetti'), confettiCtx = confettiCanvas && confettiCanvas.getContext('2d');
   function launchConfetti() {
     const colors = ['#ddff46', '#ff4eb8', '#4df8ff', '#fff16b', '#a88aff', '#ff8a3d', '#ffffff'];
-    for (let i = 0; i < 360; i++) {
+    for (let i = 0, n = lowFx() ? 110 : 360; i < n; i++) {
       const cannon = i % 3, fromSide = cannon < 2;
       confetti.push({ x: fromSide ? (cannon ? W + 10 : -10) : Math.random() * W, y: fromSide ? H * (.55 + Math.random() * .3) : -20 - Math.random() * H * .6,
         vx: fromSide ? (cannon ? -1 : 1) * (380 + Math.random() * 620) : (Math.random() - .5) * 120, vy: fromSide ? -(620 + Math.random() * 700) : 60 + Math.random() * 160,

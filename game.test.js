@@ -24,22 +24,22 @@ function harness(opts = {}) {
   }
   const ships = [0, 1, 2].map(n => { const el = element(`ship${n}`); el.dataset.ship = String(n); return el; });
   const hapticButtons = ['on', 'off'].map(v => { const el = element(`haptics-${v}`); el.dataset.haptics = v; return el; });
-  const windowEvents = {}, storage = new Map(opts.fresh ? [] : [['morbid-profile-v1', JSON.stringify({ unlocked: 8 })]]), vibrations = [];
+  const windowEvents = {}, storage = new Map([['morbid-settings-v2', JSON.stringify({ perf: opts.perf || 'full' })], ...(opts.fresh ? [] : [['morbid-profile-v1', JSON.stringify({ unlocked: 8 })]])]), vibrations = [];
   let frame, now = 0;
   const sandbox = {
-    console, Math, Uint8Array, navigator: { vibrate: pattern => { vibrations.push(pattern); return true; } }, innerWidth: 1280, innerHeight: 800, devicePixelRatio: 1,
+    console, Math, Uint8Array, btoa: s => Buffer.from(s, 'binary').toString('base64'), atob: s => Buffer.from(s, 'base64').toString('binary'), escape, unescape, navigator: { vibrate: pattern => { vibrations.push(pattern); return true; } }, innerWidth: 1280, innerHeight: 800, devicePixelRatio: 1,
     document: { getElementById: element, querySelector: element, querySelectorAll: query => query === '[data-ship]' ? ships : query === '[data-haptics]' ? hapticButtons : [], body: element('body'), addEventListener() {} },
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
     requestAnimationFrame: fn => { frame = fn; },
     addEventListener: (event, fn) => (windowEvents[event] ||= []).push(fn),
   };
   sandbox.window = sandbox;
-  const source = fs.readFileSync('game.js', 'utf8').replace('  resize(); buildTrack(); requestAnimationFrame(frame);\n})();',
-    '  resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ power: Object.keys(power).filter(k => power[k] > time), bubbleHits, powerups: segments.filter(s => s.powerup).map(s => ({ index: s.index, lane: s.powerup.lane, type: s.powerup.type })), lives, raceInvulnUntil, speed,  racerCrashes: crashingUfos.filter(c => c.kind === \'racer\').length, blasts2: megaBlasts.length, ufoKills, boss: boss && { hp: boss.hp, lane: boss.lane, dying: !!boss.dying }, bossAttacks: bossAttacks.length, hyperTime, stargates: segments.filter(s => s.stargate).map(s => ({ index: s.index, lane: s.stargate.lane })), energy, ufoList: ufos.map(u => ({ lane: u.lane, slot: u.slot })), crashing: crashingUfos.length, blasts: megaBlasts.length, confetti: confetti.length, callout: callout && callout.text, dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__setUfoKills = n => { ufoKills = n; };\n  window.__setBossHp = n => { if (boss) boss.hp = n; };\n  window.__finaleAim = col => { finale.formVx = 0; finale.boss.v = 0; finale.boss.off = 0; finale.cool = 0; finale.rowSwing = 0; finale.rowPhase = 0; finale.boss.arrive = Math.min(finale.boss.arrive, time - 5); const L = finaleLayout(); finale.shipX = (L.left + (col + .5) * L.cw) / W; };\n  window.__finaleOpen = col => { finale.invaders.forEach(v => { if (v.c === col) v.alive = false; }); finale.boss.hp = 1; };\n  window.__wave = n => { finale.bolts = []; startWave(n); finale.boss.arrive -= 2; finale.nextBossShot = time + .1; };\n  window.__musicLoading = p => { soundtrackReady = false; soundtrackProgress = p; };\n  window.__musicLoaded = () => { soundtrackReady = true; soundtrackProgress = 1; };\n  window.__finaleKillShip = () => { shield = 0; finale.invulnUntil = 0; finale.bolts = [{ kind: "zap", x: finale.shipX * W, y: finaleLayout().shipY, vx: 0, vy: 0, dmg: 1 }]; };\n  window.__finale = () => finale && { lives: finale.lives, shield, phase: finale.phase, wall: finale.invaders && finale.invaders.filter(v => v.alive).length, hp: finale.boss && finale.boss.hp, wave: finale.wave, waves: finale.waves, kind: finale.cfg && finale.cfg.type.kind, rows: finale.cfg && finale.cfg.rows, attacks: finale.bolts && finale.bolts.filter(b => b.kind !== "zap").map(b => b.kind) };\n  window.__eliminateRivals = () => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
+  const source = fs.readFileSync('game.js', 'utf8').replace('  applyPerf(); applyLanguage(); resize(); buildTrack(); requestAnimationFrame(frame);\n})();',
+    '  applyPerf(); applyLanguage(); resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ tutorialStep: tutorial ? tutorial.step : -1,  weather: weather && weather.type, meteors: bombs.filter(b => b.meteor).length,  nemeses: rivals.filter(r => r.nemesis).map(r => ({ name: r.nemesis.name, hull: r.hull, alive: r.alive })),  power: Object.keys(power).filter(k => power[k] > time), bubbleHits, powerups: segments.filter(s => s.powerup).map(s => ({ index: s.index, lane: s.powerup.lane, type: s.powerup.type })), lives, raceInvulnUntil, speed,  racerCrashes: crashingUfos.filter(c => c.kind === \'racer\').length, blasts2: megaBlasts.length, ufoKills, boss: boss && { hp: boss.hp, lane: boss.lane, dying: !!boss.dying }, bossAttacks: bossAttacks.length, hyperTime, stargates: segments.filter(s => s.stargate).map(s => ({ index: s.index, lane: s.stargate.lane })), energy, ufoList: ufos.map(u => ({ lane: u.lane, slot: u.slot })), crashing: crashingUfos.length, blasts: megaBlasts.length, confetti: confetti.length, callout: callout && callout.text, dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__setUfoKills = n => { ufoKills = n; };\n  window.__setBossHp = n => { if (boss) boss.hp = n; };\n  window.__finaleAim = col => { finale.formVx = 0; finale.boss.v = 0; finale.boss.off = 0; finale.cool = 0; finale.rowSwing = 0; finale.rowPhase = 0; finale.boss.arrive = Math.min(finale.boss.arrive, time - 5); const L = finaleLayout(); finale.shipX = (L.left + (col + .5) * L.cw) / W; };\n  window.__finaleOpen = col => { finale.invaders.forEach(v => { if (v.c === col) v.alive = false; }); finale.boss.hp = 1; };\n  window.__wave = n => { finale.bolts = []; startWave(n); finale.boss.arrive -= 2; finale.nextBossShot = time + .1; };\n  window.__forceDaily = () => { DAILY_GOALS.length = 0; DAILY_GOALS.push({ id: "win", text: t => "WIN " + t, check: () => rank === 1 }); renderDaily(); };\n  window.__weatherNow = () => { nextWeatherAt = time; };\n  window.__say = text => robotSay(text);\n  window.__musicLoading = p => { soundtrackReady = false; soundtrackProgress = p; };\n  window.__musicLoaded = () => { soundtrackReady = true; soundtrackProgress = 1; };\n  window.__finaleKillShip = () => { shield = 0; finale.invulnUntil = 0; finale.bolts = [{ kind: "zap", x: finale.shipX * W, y: finaleLayout().shipY, vx: 0, vy: 0, dmg: 1 }]; };\n  window.__finale = () => finale && { lives: finale.lives, shield, phase: finale.phase, wall: finale.invaders && finale.invaders.filter(v => v.alive).length, hp: finale.boss && finale.boss.hp, wave: finale.wave, waves: finale.waves, kind: finale.cfg && finale.cfg.type.kind, rows: finale.cfg && finale.cfg.rows, attacks: finale.bolts && finale.bolts.filter(b => b.kind !== "zap").map(b => b.kind) };\n  window.__eliminateRivals = () => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
   vm.runInNewContext(source, sandbox);
   const step = seconds => { for (let i = 0; i < Math.ceil(seconds * 20); i++) { now += 50; frame(now); } };
   const key = (code, type = 'keydown') => (windowEvents[type] || []).forEach(fn => fn({ code, repeat: false, target: element('body'), preventDefault() {} }));
-  return { sandbox, vibrations, element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b), eliminateRivals: () => sandbox.__eliminateRivals(), finaleAim: c => sandbox.__finaleAim(c), finaleState: () => sandbox.__finale(), finaleOpen: c => sandbox.__finaleOpen(c), finaleKillShip: () => sandbox.__finaleKillShip(), musicLoading: p => sandbox.__musicLoading(p), musicLoaded: () => sandbox.__musicLoaded(), setUfoKills: n => sandbox.__setUfoKills(n), setBossHp: n => sandbox.__setBossHp(n) };
+  return { sandbox, vibrations, element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b), eliminateRivals: () => sandbox.__eliminateRivals(), weatherNow: () => sandbox.__weatherNow(), finaleAim: c => sandbox.__finaleAim(c), finaleState: () => sandbox.__finale(), finaleOpen: c => sandbox.__finaleOpen(c), finaleKillShip: () => sandbox.__finaleKillShip(), musicLoading: p => sandbox.__musicLoading(p), musicLoaded: () => sandbox.__musicLoaded(), setUfoKills: n => sandbox.__setUfoKills(n), setBossHp: n => sandbox.__setBossHp(n) };
 }
 
 test('circuit selection, driving, boost, pause, full race, records and restart', () => {
@@ -557,8 +557,8 @@ test('achievements unlock and are listed in the trophy cabinet', () => {
   for (const id of ['first-race', 'podium', 'win', 'flawless']) assert.ok(got.includes(id), id);
   assert.match(el('achievement').innerHTML, /ACHIEVEMENT UNLOCKED/);
   el('garage').fire('click'); el('open-trophies').fire('click');
-  assert.match(el('trophy-count').textContent, /^4 \/ 17$/);
-  assert.match(el('open-trophies').textContent, /4\/17/);
+  assert.match(el('trophy-count').textContent, /^4 \/ 18$/);
+  assert.match(el('open-trophies').textContent, /4\/18/);
 });
 
 test('the boss roster has six different bosses before any MK II repeat', () => {
@@ -571,4 +571,173 @@ test('the boss roster has six different bosses before any MK II repeat', () => {
   const kinds = [];
   for (let n = 0; n < 6; n++) { sandbox.__wave(n); kinds.push(finaleState().kind); step(3); }
   assert.deepEqual(kinds, ['overlord', 'cyclops', 'maggot', 'robot', 'spider', 'shark']);
+});
+
+test('difficulty: easy gives an extra life and softer hits, hard the opposite', () => {
+  const run = level => {
+    const h = harness(); h.sandbox.morbidSettings.set('difficulty', level);
+    h.element('start').fire('click'); h.key('ArrowUp'); h.step(4); h.disableAirRaid();
+    const lives = h.inspect().lives; h.setReserves(100, 10, 100); h.key('ArrowRight'); h.step(1.2);
+    return { lives, shield: Number.parseInt(h.element('shield-text').textContent) };
+  };
+  const easy = run('easy'), normal = run('normal'), hard = run('hard');
+  assert.deepEqual([easy.lives, normal.lives, hard.lives], [2, 1, 0]);
+  assert.ok(easy.shield > normal.shield && normal.shield > hard.shield, `${easy.shield} > ${normal.shield} > ${hard.shield}`);
+});
+
+test('time trial: alone on the track, best time saved, no invasion afterwards', () => {
+  const { element: el, step, key, inspect, setRacePosition, sandbox, storage } = harness();
+  sandbox.morbidSettings.set('gameMode', 'trial');
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  assert.equal(inspect().ufos, 0, 'no UFOs in a time trial');
+  for (let lap = 0; lap < 6 && inspect().mode === 'racing'; lap++) { setRacePosition((lap + 1) * 240000 - 60, 0); step(.5); }
+  assert.equal(inspect().mode, 'finished');
+  assert.match(el('result-title').textContent, /NEW BEST TIME/);
+  assert.ok(JSON.parse(storage.get('morbid-profile-v1')).stats.trial[0] > 0);
+  el('again').fire('click');
+  assert.equal(inspect().mode, 'countdown', 'RACE AGAIN starts another trial, not the invasion');
+});
+
+test('endless boss rush keeps sending bosses and records the waves cleared', () => {
+  const { element: el, step, key, inspect, finaleState, finaleOpen, finaleAim, finaleKillShip, sandbox, storage } = harness();
+  el('health-accept').fire('click');
+  sandbox.morbidSettings.set('gameMode', 'endless');
+  el('start').fire('click'); step(11.4);
+  assert.equal(inspect().mode, 'final');
+  for (let w = 0; w < 7; w++) { finaleOpen(5); finaleAim(5); key('KeyX'); step(.05); key('KeyX', 'keyup'); step(3.6); }
+  assert.equal(finaleState().wave, 7, 'past the six regular bosses');
+  assert.match(finaleState().kind, /overlord|cyclops/);
+  for (let i = 0; i < 4 && finaleState().phase !== 'lost'; i++) { finaleKillShip(); step(.05); step(2.8); }
+  step(3);
+  assert.match(el('result-title').textContent, /7 WAVES/);
+  assert.equal(JSON.parse(storage.get('morbid-profile-v1')).stats.endlessBest, 7);
+});
+
+test('paint shop: buy and equip a paint job, trophy paints stay locked', () => {
+  const { storage, sandbox } = (() => { const h = harness(); return h; })();
+  const shop = sandbox.morbidShop;
+  shop.profile.credits = 700;
+  assert.equal(shop.paint('gold'), false, 'trophy paint needs its trophy');
+  assert.equal(shop.paint('chrome'), true, 'chrome bought');
+  assert.equal(shop.profile.credits, 300);
+  assert.equal(JSON.parse(storage.get('morbid-profile-v1')).paint, 'chrome');
+  assert.equal(shop.paint('flames'), false, 'not enough credits for hot rods');
+  assert.equal(shop.paint('factory'), true, 'factory paint is always available');
+});
+
+test('daily challenge: the goal of the day pays a bonus and starts a streak', () => {
+  const { element: el, step, key, inspect, setRacePosition, disableAirRaid, eliminateRivals, sandbox, storage } = harness({ fresh: true }); // fresh pilot: only circuit 1 is open, so it is today's circuit
+  // Force today's challenge to be 'win' on the first circuit.
+  sandbox.__forceDaily();
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  disableAirRaid(); eliminateRivals();
+  for (let lap = 0; lap < 6 && inspect().mode === 'racing'; lap++) { setRacePosition((lap + 1) * 240000 - 60, 0); step(.5); }
+  assert.match(el('result-record').textContent, /DAILY CHALLENGE COMPLETE/);
+  const daily = JSON.parse(storage.get('morbid-profile-v1')).daily;
+  assert.equal(daily.streak, 1);
+  assert.match(el('daily-text').textContent, /DONE/);
+});
+
+test('three named nemeses race with tougher hulls and pay a bounty', () => {
+  const { element: el, step, key, inspect } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  const nem = inspect().nemeses;
+  assert.equal(nem.length, 3);
+  assert.ok(nem.every(n => n.hull === 6), 'nemeses take six hits');
+  assert.equal(new Set(nem.map(n => n.name)).size, 3);
+});
+
+test('weather events: a random event starts, does its thing and clears again', () => {
+  const { element: el, step, key, inspect, weatherNow } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(4);
+  const seen = new Set();
+  for (let i = 0; i < 6; i++) { weatherNow(); step(.6); seen.add(inspect().weather); if (inspect().weather === 'meteors') { let most = 0; for (let k = 0; k < 20; k++) { step(.1); most = Math.max(most, inspect().meteors); } assert.ok(most > 0, 'meteors fall'); } step(9.5); }
+  assert.ok(seen.size >= 2, `several event types: ${[...seen]}`);
+  assert.equal(inspect().weather, null, 'events end');
+});
+
+test('first-run tutorial: prompts advance as the player steers, boosts and fires', () => {
+  const { element: el, step, key, inspect, storage } = harness({ fresh: true });
+  el('health-accept').fire('click');
+  el('start').fire('click'); step(3.05);
+  assert.equal(inspect().tutorialStep, 0);
+  assert.match(el('tutorial-text').textContent, /STEER/);
+  key('ArrowLeft'); step(1); key('ArrowLeft', 'keyup');
+  assert.equal(inspect().tutorialStep, 1, 'steering done');
+  key('ArrowUp'); step(1.5); key('Space'); step(.8); key('Space', 'keyup');
+  assert.equal(inspect().tutorialStep, 2, 'boost done');
+  key('KeyX'); step(.1); key('KeyX', 'keyup');
+  assert.equal(inspect().tutorialStep, 3, 'laser done');
+  step(22);
+  assert.equal(inspect().tutorialStep, -1, 'tutorial finished');
+  assert.equal(JSON.parse(storage.get('morbid-profile-v1')).tutorialDone, true);
+});
+
+test('gamepad: A starts the race, the stick steers, X fires', () => {
+  const { element: el, step, inspect, sandbox } = harness();
+  el('health-accept').fire('click');
+  const pad = { axes: [0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+  sandbox.navigator.getGamepads = () => [pad];
+  const press = (i, on = true) => { pad.buttons[i] = { pressed: on, value: on ? 1 : 0 }; };
+  press(0); step(.05); press(0, false);
+  assert.equal(inspect().mode, 'countdown', 'A starts the race');
+  step(3.1); press(7); step(1);
+  const x0 = inspect().playerX; pad.axes[0] = 1; step(.6); pad.axes[0] = 0;
+  assert.ok(inspect().playerX > x0 + .2, 'stick steers right');
+  const ammo = inspect().laserAmmo; press(2); step(.1); press(2, false); step(.05);
+  assert.ok(inspect().laserAmmo < ammo, 'X fires the laser');
+});
+
+test('stats are counted and a profile code moves progress to another device', () => {
+  const a = harness();
+  a.element('start').fire('click'); a.key('ArrowUp'); a.step(3.05); a.disableAirRaid(); a.eliminateRivals();
+  for (let lap = 0; lap < 6 && a.inspect().mode === 'racing'; lap++) { a.setRacePosition((lap + 1) * 240000 - 60, 0); a.step(.5); }
+  const stats = JSON.parse(a.storage.get('morbid-profile-v1')).stats;
+  assert.equal(stats.races, 1); assert.equal(stats.wins, 1); assert.ok(stats.km > 40);
+  const code = a.sandbox.morbidProfile.exportCode();
+  assert.match(code, /^MR1-/);
+  const b = harness({ fresh: true });
+  assert.equal(b.sandbox.morbidProfile.importCode('nonsense'), false, 'bad codes are rejected');
+  assert.equal(b.sandbox.morbidProfile.importCode(code), true);
+  assert.equal(JSON.parse(b.storage.get('morbid-profile-v1')).stats.wins, 1, 'progress arrives on the other device');
+});
+
+test('accessibility: calm mode removes shake and flashes, subtitles show voice lines', () => {
+  const { element: el, step, key, sandbox } = harness();
+  sandbox.morbidSettings.set('calm', 'on'); sandbox.morbidSettings.set('subtitles', 'on');
+  assert.equal(el('body').classList.contains('calm'), true);
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  sandbox.__say('Alien killer');
+  assert.match(el('subtitle').textContent, /ALIEN KILLER/);
+  assert.equal(el('subtitle').classList.contains('visible'), true);
+});
+
+test('performance mode switches on automatically when the frame rate stays low', () => {
+  const { element: el, step, key, storage, sandbox } = harness({ perf: 'auto' });
+  el('health-accept').fire('click');
+  el('start').fire('click'); key('ArrowUp'); step(3.2);
+  assert.equal(sandbox.document.body.classList.contains('lowfx'), false);
+  // 50 ms frames = 20 fps, sustained for several seconds.
+  step(5);
+  const saved = JSON.parse(storage.get('morbid-settings-v2'));
+  assert.equal(saved.perfAuto, true);
+  assert.equal(sandbox.document.body.classList.contains('lowfx'), true);
+  el('settings-screen'); sandbox.morbidSettings.set('perf', 'full');
+  assert.equal(sandbox.document.body.classList.contains('lowfx'), false);
+  assert.equal(JSON.parse(storage.get('morbid-settings-v2')).perfAuto, false);
+});
+
+test('german translation covers fixed phrases, numbers and composite messages', () => {
+  const { sandbox } = harness();
+  sandbox.morbidSettings.set('lang', 'de');
+  const tr = sandbox.morbidI18n.tr;
+  assert.equal(tr('SETTINGS'), 'EINSTELLUNGEN');
+  assert.equal(tr('  I UNDERSTAND '), '  VERSTANDEN ');
+  assert.equal(tr('DESTROY 13 RIVALS ON NEON HORIZON'), 'ZERSTÖRE 13 RIVALEN AUF NEON HORIZON');
+  assert.equal(tr('HULL CONTACT  /  SHIELD -12'), 'RUMPFKONTAKT  /  SCHILD -12');
+  assert.equal(tr('ZAPPED!  SHIELD -2'), 'GEGRILLT!  SCHILD -2');
+  assert.equal(tr('NEON HORIZON'), 'NEON HORIZON');
+  assert.equal(tr('565'), '565');
+  sandbox.morbidSettings.set('lang', 'en');
+  assert.equal(tr('SETTINGS'), 'SETTINGS');
 });
