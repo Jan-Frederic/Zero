@@ -91,12 +91,14 @@ const LAYOUT = root => {
         localStorage.setItem('morbid-profile-v1', JSON.stringify({ unlocked: 3, credits: 1234, tutorialDone: true, achievements: { 'first-race': Date.UTC(2026, 2, 1) }, stats: { races: 12, wins: 3, podiums: 5, km: 321, seconds: 5400 } }));
         localStorage.setItem('morbid-settings-v2', JSON.stringify({ perf: 'full', lang: 'en', screen, steering: 'touch' }));
       }, vp.mobile ? 'portrait' : 'landscape');
-      await page.goto(`http://localhost:${port}/`); await page.evaluate(() => document.fonts.ready);
+      await page.goto(`http://localhost:${port}/`);
+      // Load every font face up front: faces first used inside a dialog would otherwise still be loading on a slow machine.
+      await page.evaluate(async () => { await Promise.all([...document.fonts].map(f => f.load().catch(() => {}))); await document.fonts.ready; });
       await page.click('#health-accept'); await page.addStyleTag({ content: FREEZE });
       const mask = [page.locator('#boot'), page.locator('#app-version'), page.locator('#music-status')];
       for (const s of SCREENS) {
         if (s.open) { await page.click(s.open); }
-        await page.waitForTimeout(150);
+        await page.waitForTimeout(150); await page.evaluate(() => document.fonts.ready);
         const target = page.locator(s.shot).first();
         const png = await target.screenshot({ mask, animations: 'disabled' }), boxes = await target.evaluate(LAYOUT);
         results.push(compare(`${vp.name}-${s.name}`, png, boxes));
