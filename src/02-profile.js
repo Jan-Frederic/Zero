@@ -46,7 +46,7 @@
   let raceEarned = 0, creditPopAt = -9;
   function stat(key, add = 1) { profile.stats[key] = (profile.stats[key] || 0) + add; saveProfile(); return profile.stats[key]; }
   function addCredits(amount, why) {
-    amount = Math.round(amount * diff().credits); if (!amount) return;
+    amount = Math.round(amount * diff().credits * mutatorBonus()); if (!amount) return;
     profile.credits += amount; raceEarned += amount; saveProfile();
     $('credit-pop').textContent = `+${amount} CR  ${why}`; creditPopAt = time; $('credit-pop').classList.add('visible');
   }

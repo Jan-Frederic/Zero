@@ -110,6 +110,7 @@
     '🏆 CUP': '🏆 CUP', 'CHAMPIONSHIP': 'MEISTERSCHAFT', 'CUP STANDINGS': 'CUP-WERTUNG', 'FINAL STANDINGS': 'ENDSTAND', 'NEW CHAMPIONSHIP': 'NEUE MEISTERSCHAFT', 'CHAMPION!': 'CHAMPION!',
     '🏆 CHAMPION!': '🏆 CHAMPION!', 'YOU': 'DU', 'RACE AGAIN': 'NOCHMAL FAHREN', 'Win a championship.': 'Gewinne eine Meisterschaft.',
     '⤳ SHORTCUT!': '⤳ ABKÜRZUNG!', '⤳ SHORTCUT': '⤳ ABKÜRZUNG', 'TUNNEL WALL!': 'TUNNELWAND!',
+    'MUTATORS': 'MUTATOREN', '⇋ MIRROR': '⇋ SPIEGEL', '☾ NIGHT': '☾ NACHT', '⇡ LOW GRAVITY': '⇡ WENIG SCHWERKRAFT', '⟲ REVERSE': '⟲ RÜCKWÄRTS', 'OPTIONAL TWISTS · EACH ONE +15% CREDITS': 'OPTIONALE KNIFFE · JEDER +15 % CREDITS',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -141,6 +142,7 @@
     [/^4 RACES · F1 POINTS · (.+)$/, '4 RENNEN · F1-PUNKTE · $1'], [/^CHAMPIONSHIP · RACE (\d+)\/(\d+)$/, 'MEISTERSCHAFT · RENNEN $1/$2'], [/^NEXT: (.+)$/, 'NÄCHSTES: $1'],
     [/^CUP P(\d+)\.$/, 'CUP PLATZ $1.'], [/^(\d+)\. (.+)$/, (m, n, name) => `${n}. ${tr(name)}`], [/^(\d+) PTS$/, '$1 PKT'],
     [/^TUNNEL WARP  \/  \+([\d.]+) KM AHEAD$/, 'TUNNEL-SPRUNG  /  +$1 KM VORAUS'], [/^TUNNEL WALL!  SHIELD -(\d+)$/, 'TUNNELWAND!  SCHILD -$1'],
+    [/^\+(\d+)% CREDITS$/, '+$1 % CREDITS'],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],

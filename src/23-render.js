@@ -404,6 +404,7 @@
     const shipX = isMenu ? W * .56 : W * .5 + steerVisual * 12;
     const groundShipY = isMenu ? H * .73 : H * .79, shipY = groundShipY - jumpHeight;
     const shipSize = Math.min(W * (isMenu ? .085 : .074), isMenu ? 130 : 110);
+    if (mutator('night') && !isMenu) drawNight(shipX, shipY);
     if (mode === 'wrecked' && wreckBurst) drawExplosion(shipX, shipY, shipSize * .9, wreckBurst);
     else if (mode === 'respawning' || (time < raceInvulnUntil && Math.sin(time * 40) < 0)) { /* exploded / blinking */ }
     else {
@@ -438,6 +439,16 @@
     if (mode === 'invasion' && finale) drawAlarm();
     // A light scanline texture ties the entire scene together.
     ctx.fillStyle = '#05051b12'; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+    ctx.restore();
+  }
+  // Night mutator: darkness everywhere except the cone of the ship's headlights.
+  function drawNight(x, y) {
+    ctx.save();
+    const g = ctx.createRadialGradient(x, y - H * .2, H * .04, x, y - H * .16, Math.max(W, H) * .62);
+    g.addColorStop(0, 'rgba(3,2,14,0)'); g.addColorStop(.22, 'rgba(3,2,14,.5)'); g.addColorStop(.5, 'rgba(3,2,14,.93)'); g.addColorStop(1, 'rgba(3,2,14,.98)');
+    ctx.fillStyle = g; ctx.fillRect(-20, -20, W + 40, H + 40);
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .1; ctx.fillStyle = '#fff4c8';
+    ctx.beginPath(); ctx.moveTo(x - W * .03, y - H * .02); ctx.lineTo(x - W * .32, H * .44); ctx.lineTo(x + W * .32, H * .44); ctx.lineTo(x + W * .03, y - H * .02); ctx.fill();
     ctx.restore();
   }
   function frame(now) {

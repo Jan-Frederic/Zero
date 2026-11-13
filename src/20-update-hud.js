@@ -79,7 +79,7 @@
     updateWeather(dt, track);
     if (jumpHeight > 0 || jumpVelocity > 0) {
       jumpHeight = Math.max(0, jumpHeight + jumpVelocity * dt);
-      jumpVelocity -= 1450 * dt;
+      jumpVelocity -= (mutator('lowgrav') ? 620 : 1450) * dt;
       if (jumpHeight === 0 && jumpVelocity < 0) jumpVelocity = 0;
     }
     updateCrashingUfos(dt); updateBoss(dt);

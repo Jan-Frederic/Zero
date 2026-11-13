@@ -417,3 +417,10 @@ body.lowfx .home-bg,body.lowfx .scanlines{animation:none!important}
 .cup-standings b{display:block;color:#ffd35a;font-weight:400;margin-bottom:4px}
 .cup-standings div{display:flex;justify-content:space-between;padding:2px 0;color:#d8d2e8}.cup-standings div.you{color:var(--acid)}
 .cup-standings em{font-style:normal}
+
+/* Mutators on the start screen. */
+.mutator-picker{margin-top:12px}.mutator-options{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.mutator-options .setup-option{flex:1;min-height:34px;font-size:11px;min-width:calc(25% - 6px)}
+.mutator-options .setup-option.selected{border-color:#ff9b2e;color:#ffb366;background:#ff9b2e18}
+@media (max-width:600px) and (orientation:portrait){.mutator-options .setup-option{min-width:calc(50% - 6px);min-height:40px}}
+@media (max-height:520px) and (orientation:landscape){.mutator-picker{margin-top:6px}.mutator-options .setup-option{min-height:28px}}
+@media (max-height:720px){.mutator-picker .mode-info{display:none}}

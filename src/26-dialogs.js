@@ -7,6 +7,8 @@
     } else setupNote('DRAG ON THE TRACK TO STEER');
     settings.steering = button.dataset.steer; saveSettings(); renderSettings();
   }));
+  document.querySelectorAll('[data-mutator]').forEach(button => button.addEventListener('click', () => toggleMutator(button.dataset.mutator)));
+  renderMutators(); window.morbidMutators = { toggle: toggleMutator };
   document.querySelectorAll('[data-setting]').forEach(button => button.addEventListener('click', () => setSetting(button.dataset.setting, button.dataset.value)));
   settingHooks.gameMode = () => renderGameMode();
   renderGameMode(); renderDaily();

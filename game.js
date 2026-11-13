@@ -84,7 +84,7 @@
   let raceEarned = 0, creditPopAt = -9;
   function stat(key, add = 1) { profile.stats[key] = (profile.stats[key] || 0) + add; saveProfile(); return profile.stats[key]; }
   function addCredits(amount, why) {
-    amount = Math.round(amount * diff().credits); if (!amount) return;
+    amount = Math.round(amount * diff().credits * mutatorBonus()); if (!amount) return;
     profile.credits += amount; raceEarned += amount; saveProfile();
     $('credit-pop').textContent = `+${amount} CR  ${why}`; creditPopAt = time; $('credit-pop').classList.add('visible');
   }
@@ -152,6 +152,22 @@
     hard: { name: 'HARD', pace: 1.08, dmg: 1.4, lives: -1, credits: 1.5 },
   };
   const diff = () => DIFFICULTY[settings.difficulty] || DIFFICULTY.normal;
+  // Mutators: optional twists for a race, each one pays 15 % more credits.
+  const MUTATORS = { mirror: '⇋ MIRROR', night: '☾ NIGHT', lowgrav: '⇡ LOW GRAVITY', reverse: '⟲ REVERSE' };
+  const mutator = id => Array.isArray(settings.mutators) && settings.mutators.includes(id);
+  const mutatorBonus = () => 1 + .15 * Object.keys(MUTATORS).filter(mutator).length;
+  function toggleMutator(id) {
+    if (!MUTATORS[id]) return;
+    const list = new Set(Array.isArray(settings.mutators) ? settings.mutators : []);
+    if (list.has(id)) list.delete(id); else list.add(id);
+    settings.mutators = [...list]; saveSettings(); renderMutators();
+    if ((id === 'mirror' || id === 'reverse') && mode === 'menu') buildTrack();
+  }
+  function renderMutators() {
+    document.querySelectorAll('[data-mutator]').forEach(b => b.classList.toggle('selected', mutator(b.dataset.mutator)));
+    const n = Object.keys(MUTATORS).filter(mutator).length;
+    if ($('mutator-info')) $('mutator-info').textContent = n ? `${Object.keys(MUTATORS).filter(mutator).map(id => MUTATORS[id]).join(' · ')}  ·  +${n * 15}% CREDITS` : 'OPTIONAL TWISTS · EACH ONE +15% CREDITS';
+  }
   // Generic option buttons: <button data-setting="key" data-value="value">. Hooks run after a change.
   const settingHooks = {};
   function setSetting(key, raw) {
@@ -363,6 +379,7 @@
     '🏆 CUP': '🏆 CUP', 'CHAMPIONSHIP': 'MEISTERSCHAFT', 'CUP STANDINGS': 'CUP-WERTUNG', 'FINAL STANDINGS': 'ENDSTAND', 'NEW CHAMPIONSHIP': 'NEUE MEISTERSCHAFT', 'CHAMPION!': 'CHAMPION!',
     '🏆 CHAMPION!': '🏆 CHAMPION!', 'YOU': 'DU', 'RACE AGAIN': 'NOCHMAL FAHREN', 'Win a championship.': 'Gewinne eine Meisterschaft.',
     '⤳ SHORTCUT!': '⤳ ABKÜRZUNG!', '⤳ SHORTCUT': '⤳ ABKÜRZUNG', 'TUNNEL WALL!': 'TUNNELWAND!',
+    'MUTATORS': 'MUTATOREN', '⇋ MIRROR': '⇋ SPIEGEL', '☾ NIGHT': '☾ NACHT', '⇡ LOW GRAVITY': '⇡ WENIG SCHWERKRAFT', '⟲ REVERSE': '⟲ RÜCKWÄRTS', 'OPTIONAL TWISTS · EACH ONE +15% CREDITS': 'OPTIONALE KNIFFE · JEDER +15 % CREDITS',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -394,6 +411,7 @@
     [/^4 RACES · F1 POINTS · (.+)$/, '4 RENNEN · F1-PUNKTE · $1'], [/^CHAMPIONSHIP · RACE (\d+)\/(\d+)$/, 'MEISTERSCHAFT · RENNEN $1/$2'], [/^NEXT: (.+)$/, 'NÄCHSTES: $1'],
     [/^CUP P(\d+)\.$/, 'CUP PLATZ $1.'], [/^(\d+)\. (.+)$/, (m, n, name) => `${n}. ${tr(name)}`], [/^(\d+) PTS$/, '$1 PKT'],
     [/^TUNNEL WARP  \/  \+([\d.]+) KM AHEAD$/, 'TUNNEL-SPRUNG  /  +$1 KM VORAUS'], [/^TUNNEL WALL!  SHIELD -(\d+)$/, 'TUNNELWAND!  SCHILD -$1'],
+    [/^\+(\d+)% CREDITS$/, '+$1 % CREDITS'],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
@@ -474,11 +492,11 @@
   function buildTrack() {
     const t = tracks[trackIndex];
     segments = Array.from({ length: COUNT }, (_, i) => {
-      const angle = i / COUNT * TAU;
+      const flip = mutator('reverse'), angle = (flip ? mod(COUNT - i, COUNT) : i) / COUNT * TAU, sign = (flip ? -1 : 1) * (mutator('mirror') ? -1 : 1);
       const intro = Math.min(1, i / 90);
       const curve = t.bends.reduce((sum, [frequency, amplitude], bend) => sum + Math.sin(angle * frequency + bend * .7) * amplitude, 0);
       const padPosition = i % t.padEvery;
-      return { index: i, curve: curve * t.curve * intro,
+      return { index: i, curve: curve * t.curve * intro * sign,
         y: (Math.sin(angle * 2) * 1900 + Math.sin(angle * 5) * 700 + Math.sin(angle * 9) * 260) * t.hill,
         pad: padPosition >= t.padStart && padPosition < t.padStart + t.padLength, padLane: Math.floor(i / t.padEvery) % 2 === 0 ? -.48 : .48,
         arch: i % Math.max(90, 150 - trackIndex * 6) === 30, tower: i % 9 === 0, p1: {}, p2: {} };
@@ -1882,7 +1900,7 @@
     updateWeather(dt, track);
     if (jumpHeight > 0 || jumpVelocity > 0) {
       jumpHeight = Math.max(0, jumpHeight + jumpVelocity * dt);
-      jumpVelocity -= 1450 * dt;
+      jumpVelocity -= (mutator('lowgrav') ? 620 : 1450) * dt;
       if (jumpHeight === 0 && jumpVelocity < 0) jumpVelocity = 0;
     }
     updateCrashingUfos(dt); updateBoss(dt);
@@ -3300,6 +3318,7 @@
     const shipX = isMenu ? W * .56 : W * .5 + steerVisual * 12;
     const groundShipY = isMenu ? H * .73 : H * .79, shipY = groundShipY - jumpHeight;
     const shipSize = Math.min(W * (isMenu ? .085 : .074), isMenu ? 130 : 110);
+    if (mutator('night') && !isMenu) drawNight(shipX, shipY);
     if (mode === 'wrecked' && wreckBurst) drawExplosion(shipX, shipY, shipSize * .9, wreckBurst);
     else if (mode === 'respawning' || (time < raceInvulnUntil && Math.sin(time * 40) < 0)) { /* exploded / blinking */ }
     else {
@@ -3334,6 +3353,16 @@
     if (mode === 'invasion' && finale) drawAlarm();
     // A light scanline texture ties the entire scene together.
     ctx.fillStyle = '#05051b12'; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+    ctx.restore();
+  }
+  // Night mutator: darkness everywhere except the cone of the ship's headlights.
+  function drawNight(x, y) {
+    ctx.save();
+    const g = ctx.createRadialGradient(x, y - H * .2, H * .04, x, y - H * .16, Math.max(W, H) * .62);
+    g.addColorStop(0, 'rgba(3,2,14,0)'); g.addColorStop(.22, 'rgba(3,2,14,.5)'); g.addColorStop(.5, 'rgba(3,2,14,.93)'); g.addColorStop(1, 'rgba(3,2,14,.98)');
+    ctx.fillStyle = g; ctx.fillRect(-20, -20, W + 40, H + 40);
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .1; ctx.fillStyle = '#fff4c8';
+    ctx.beginPath(); ctx.moveTo(x - W * .03, y - H * .02); ctx.lineTo(x - W * .32, H * .44); ctx.lineTo(x + W * .32, H * .44); ctx.lineTo(x + W * .03, y - H * .02); ctx.fill();
     ctx.restore();
   }
   function frame(now) {
@@ -3449,6 +3478,8 @@
     } else setupNote('DRAG ON THE TRACK TO STEER');
     settings.steering = button.dataset.steer; saveSettings(); renderSettings();
   }));
+  document.querySelectorAll('[data-mutator]').forEach(button => button.addEventListener('click', () => toggleMutator(button.dataset.mutator)));
+  renderMutators(); window.morbidMutators = { toggle: toggleMutator };
   document.querySelectorAll('[data-setting]').forEach(button => button.addEventListener('click', () => setSetting(button.dataset.setting, button.dataset.value)));
   settingHooks.gameMode = () => renderGameMode();
   renderGameMode(); renderDaily();

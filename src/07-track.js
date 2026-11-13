@@ -22,11 +22,11 @@
   function buildTrack() {
     const t = tracks[trackIndex];
     segments = Array.from({ length: COUNT }, (_, i) => {
-      const angle = i / COUNT * TAU;
+      const flip = mutator('reverse'), angle = (flip ? mod(COUNT - i, COUNT) : i) / COUNT * TAU, sign = (flip ? -1 : 1) * (mutator('mirror') ? -1 : 1);
       const intro = Math.min(1, i / 90);
       const curve = t.bends.reduce((sum, [frequency, amplitude], bend) => sum + Math.sin(angle * frequency + bend * .7) * amplitude, 0);
       const padPosition = i % t.padEvery;
-      return { index: i, curve: curve * t.curve * intro,
+      return { index: i, curve: curve * t.curve * intro * sign,
         y: (Math.sin(angle * 2) * 1900 + Math.sin(angle * 5) * 700 + Math.sin(angle * 9) * 260) * t.hill,
         pad: padPosition >= t.padStart && padPosition < t.padStart + t.padLength, padLane: Math.floor(i / t.padEvery) % 2 === 0 ? -.48 : .48,
         arch: i % Math.max(90, 150 - trackIndex * 6) === 30, tower: i % 9 === 0, p1: {}, p2: {} };
