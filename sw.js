@@ -2,12 +2,11 @@
 // VERSION is replaced with the commit SHA on deploy, so every release gets a fresh cache.
 const VERSION = 'dev';
 const CACHE = `morbid-racers-${VERSION}`;
-const SOUNDTRACK = 'Morbid_Fingers%20-%20live-%20Emmerich_Juli_2003%20-%2003%20Redemption.mp3';
 const ASSETS = ['./', 'index.html', 'CHANGELOG.md', 'style.css', 'effects.css', 'game.js', 'pwa.js', 'manifest.webmanifest',
-  'fonts/fonts.css', 'fonts/barlow-400.woff2', 'fonts/barlow-500.woff2', 'fonts/barlow-600.woff2', 'fonts/barlow-700.woff2', 'fonts/barlow-800.woff2', 'fonts/barlow-900.woff2', 'fonts/barlow-condensed-500.woff2', 'fonts/barlow-condensed-600.woff2', 'fonts/barlow-condensed-700.woff2', 'fonts/barlow-condensed-800.woff2', 'fonts/barlow-condensed-900.woff2', 'fonts/share-tech-mono-400.woff2',
-  'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', SOUNDTRACK,
-  ...['alien-killer', 'fatality', 'ufo-obliterated', 'abduct-this', 'invasion-cancelled', 'close-encounter', 'saucer-smashed', 'green-men-down', 'probe-denied',
-    'area-51', 'toasted-saucer', 'mothership', 'ultra-kill', 'galactic-humiliation', 'no-parking', 'return-to-sender', 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', ...['vex', 'kronos', 'null9', 'blaze'].flatMap(n => [`taunt-${n}`, `down-${n}`])].map(clip => `voice/${clip}.mp3`)];
+  'fonts/barlow-400.woff2', 'fonts/barlow-500.woff2', 'fonts/barlow-600.woff2', 'fonts/barlow-700.woff2', 'fonts/barlow-800.woff2', 'fonts/barlow-900.woff2', 'fonts/barlow-condensed-500.woff2', 'fonts/barlow-condensed-600.woff2', 'fonts/barlow-condensed-700.woff2', 'fonts/barlow-condensed-800.woff2', 'fonts/barlow-condensed-900.woff2', 'fonts/share-tech-mono-400.woff2',
+  'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png'];
+// Music and voice clips are not precached: the page downloads them right after loading (in the format the browser
+// plays best) and the fetch handler below keeps that copy, so the game is fully playable offline after the first visit.
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS.map(path => new Request(path, { cache: 'reload' })))));

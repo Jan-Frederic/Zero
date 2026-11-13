@@ -11,11 +11,13 @@
     "build": "node tools/build.js",
     "smoke": "node tests/smoke.js",
     "typecheck": "tsc -p tsconfig.json",
-    "visual": "node tests/visual.js"
+    "visual": "node tests/visual.js",
+    "lighthouse": "node tests/lighthouse.js"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
+    "esbuild": "0.25.12",
     "pixelmatch": "5.3.0",
     "playwright": "1.63.0",
     "pngjs": "7.0.0",

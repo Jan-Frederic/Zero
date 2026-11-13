@@ -1,8 +1,11 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
-const root = __dirname;
-const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.mp3': 'audio/mpeg', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.md': 'text/markdown; charset=utf-8', '.json': 'application/json' };
+const zlib = require('node:zlib');
+// ROOT=_site serves the deploy build (see tools/build-site.js); text files are gzipped like on GitHub Pages.
+const root = path.resolve(process.env.ROOT || __dirname);
+const COMPRESS = new Set(['.html', '.css', '.js', '.md', '.json', '.webmanifest', '.svg']);
+const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.mp3': 'audio/mpeg', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.md': 'text/markdown; charset=utf-8', '.json': 'application/json', '.webm': 'audio/webm', '.woff2': 'font/woff2', '.jpg': 'image/jpeg' };
 http.createServer((req, res) => {
   let pathname;
   try { pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); } catch { res.writeHead(400).end(); return; }
@@ -18,8 +21,13 @@ http.createServer((req, res) => {
       res.writeHead(206, { ...headers, 'Content-Range': `bytes ${start}-${end}/${stat.size}`, 'Content-Length': end - start + 1 });
       fs.createReadStream(file, { start, end }).pipe(res);
     } else {
-      res.writeHead(200, { ...headers, 'Content-Length': stat.size });
-      fs.createReadStream(file).pipe(res);
+      if (COMPRESS.has(path.extname(file)) && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
+        res.writeHead(200, { ...headers, 'Content-Encoding': 'gzip', Vary: 'Accept-Encoding' });
+        fs.createReadStream(file).pipe(zlib.createGzip()).pipe(res);
+      } else {
+        res.writeHead(200, { ...headers, 'Content-Length': stat.size });
+        fs.createReadStream(file).pipe(res);
+      }
     }
   });
 }).listen(Number(process.env.PORT) || 3000, '0.0.0.0', function () { console.log(`MORBID RACERS → http://localhost:${this.address().port}`); });

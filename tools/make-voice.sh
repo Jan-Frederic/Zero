@@ -62,3 +62,6 @@ say taunt-null9 "Null nine. Target acquired." en-us+UniversalRobot 5
 say down-null9 "Null nine. Offline." en-us+UniversalRobot 5
 say taunt-blaze "Ha! Eat my exhaust!" en-us+Andy 60
 say down-blaze "Noooo, my beautiful ship!" en-us+Andy 60
+
+# Opus copies (smaller; the game picks them where the browser can play WebM/Opus, else the MP3s).
+for f in voice/*.mp3; do ffmpeg -hide_banner -loglevel error -y -i "$f" -ac 1 -c:a libopus -b:a 32k "${f%.mp3}.webm"; done

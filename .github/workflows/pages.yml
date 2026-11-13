@@ -61,8 +61,28 @@ jobs:
           path: visual-diff/
           retention-days: 14
 
+  # Lighthouse on the minified deploy build: performance, accessibility, best practices, SEO with minimum scores.
+  lighthouse:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run lighthouse
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-report
+          path: lighthouse/
+          retention-days: 14
+
   release:
-    needs: [test, smoke]
+    needs: [test, smoke, lighthouse]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -102,15 +122,18 @@ jobs:
         with:
           # Include the release commit (CHANGELOG.md) made by the release job.
           ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       - name: Prepare site
         env:
           APP_VERSION: ${{ needs.release.outputs.version }}
         run: |
           test -n "$APP_VERSION"
           BUILD="${APP_VERSION}+${GITHUB_SHA::7}"
-          mkdir _site
-          cp index.html game.js pwa.js sw.js manifest.webmanifest og-image.jpg CHANGELOG.md style.css effects.css .nojekyll *.mp3 _site/
-          cp -r icons voice fonts _site/
+          node tools/build-site.js
           sed -i "s/const VERSION = 'dev';/const VERSION = '${BUILD}';/" _site/sw.js
           sed -i "s/id=\"app-version\">dev</id=\"app-version\">${APP_VERSION}</" _site/index.html
           printf '{"version":"%s","build":"%s","commit":"%s"}\n' "$APP_VERSION" "$BUILD" "$GITHUB_SHA" > _site/version.json
