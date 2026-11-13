@@ -55,7 +55,7 @@
   const laserCap = () => BASE_LASER_CAPACITY + profile.upgrades.laser * 2;
   const laserRecharge = () => BASE_LASER_RECHARGE * (1 - profile.upgrades.laser * .15);
   const boostDrain = () => 1 - profile.upgrades.boost * .2;
-  const topSpeed = () => 1 + profile.upgrades.boost * .03;
+  const topSpeed = () => (1 + profile.upgrades.boost * .03) * (survival ? 1 + (survival.level - 1) * .04 : 1);
   let raceEarned = 0, creditPopAt = -9;
   function stat(key, add = 1) { profile.stats[key] = (profile.stats[key] || 0) + add; saveProfile(); return profile.stats[key]; }
   function addCredits(amount, why) {

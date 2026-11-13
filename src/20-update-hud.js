@@ -244,7 +244,7 @@
         }
       }
     }
-    updateAttacks(dt, track); updateSlipstream(dt, track); updateRivalMissiles(dt, track);
+    updateAttacks(dt, track); updateSlipstream(dt, track); updateRivalMissiles(dt, track); updateSurvival(track);
     for (const shot of enemyShots) {
       if (shot.resolved || time < shot.impactAt) continue;
       shot.resolved = true;
@@ -268,7 +268,7 @@
     rank = 1 + rivals.filter(r => r.alive && r.distance > distance + 1050).length;
     if (Math.floor(distance / LENGTH) > Math.floor(prevDistance / LENGTH)) {
       laps.push(elapsed - lapStart); lapStart = elapsed;
-      if (laps.length === LAP_COUNT) { finishRace(); } else { lap = laps.length + 1; showMessage(lap === LAP_COUNT ? 'FINAL LAP — MAKE IT COUNT' : `LAP ${String(lap).padStart(2, '0')} / ${String(LAP_COUNT).padStart(2, '0')} — KEEP PUSHING`, 2.2); soundEffect(660, .4); }
+      if (laps.length === LAP_COUNT && !survival) { finishRace(); } else { lap = laps.length + 1; if (!survival) showMessage(lap === LAP_COUNT ? 'FINAL LAP — MAKE IT COUNT' : `LAP ${String(lap).padStart(2, '0')} / ${String(LAP_COUNT).padStart(2, '0')} — KEEP PUSHING`, 2.2); soundEffect(660, .4); }
     }
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 450 * dt; p.life -= dt; }
     particles = particles.filter(p => p.life > 0).slice(lowFx() ? -30 : -100);
@@ -296,7 +296,7 @@
     $('laser-fill').style.width = Math.min(100, (laserAmmo + laserCharge) / laserCap() * 100) + '%';
     document.body.classList.toggle('lasers-empty', laserAmmo === 0);
     $('lap').textContent = String(lap).padStart(2, '0'); $('timer').textContent = formatTime(elapsed);
-    $('progress').style.width = Math.min(100, distance / (LENGTH * LAP_COUNT) * 100) + '%';
+    $('progress').style.width = (survival ? mod(elapsed, SURVIVAL_LEVEL_TIME) / SURVIVAL_LEVEL_TIME * 100 : Math.min(100, distance / (LENGTH * LAP_COUNT) * 100)) + '%';
     const laserIncoming = enemyShots.some(shot => !shot.resolved && shot.impactAt - time < .55);
     const missileIncoming = rivalMissiles.length > 0;
     const bombIncoming = bombs.some(bomb => !bomb.exploded && bomb.distance - (distance + 1050) < 4200);

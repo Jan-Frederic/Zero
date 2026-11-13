@@ -96,7 +96,7 @@
   const laserCap = () => BASE_LASER_CAPACITY + profile.upgrades.laser * 2;
   const laserRecharge = () => BASE_LASER_RECHARGE * (1 - profile.upgrades.laser * .15);
   const boostDrain = () => 1 - profile.upgrades.boost * .2;
-  const topSpeed = () => 1 + profile.upgrades.boost * .03;
+  const topSpeed = () => (1 + profile.upgrades.boost * .03) * (survival ? 1 + (survival.level - 1) * .04 : 1);
   let raceEarned = 0, creditPopAt = -9;
   function stat(key, add = 1) { profile.stats[key] = (profile.stats[key] || 0) + add; saveProfile(); return profile.stats[key]; }
   function addCredits(amount, why) {
@@ -437,6 +437,7 @@
     '📷 PHOTO MODE': '📷 FOTOMODUS', '📸 SAVE / SHARE': '📸 SPEICHERN / TEILEN', '✕ EXIT': '✕ BEENDEN', 'SHIP: HIDDEN': 'SCHIFF: AUS', 'SHIP: SHOWN': 'SCHIFF: AN',
     '🎬 SHARE CLIP': '🎬 CLIP TEILEN',
     'INCOMING MISSILE': 'RAKETE IM ANFLUG', 'DODGE OR JUMP!': 'AUSWEICHEN ODER SPRINGEN!', 'MISSILE DODGED!': 'RAKETE AUSGEWICHEN!', 'MISSILE ON YOUR TAIL': 'RAKETE IM NACKEN', 'RIVAL SHIELD POPPED': 'RIVALEN-SCHILD GEPLATZT',
+    '♾ SURVIVAL': '♾ ÜBERLEBEN', 'SURVIVAL': 'ÜBERLEBEN', 'NEW RECORD!': 'NEUER REKORD!', 'GAME OVER.': 'GAME OVER.', 'FASTER RIVALS  ·  MORE UFOS': 'SCHNELLERE RIVALEN  ·  MEHR UFOS',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -473,6 +474,8 @@
     [/^CHAPTER (\d+) \/ (\d+)  ·  (.+)$/, 'KAPITEL $1 / $2  ·  $3'], [/^🔒 (\d+) MORE CHAPTERS — UNLOCK CIRCUITS TO READ ON$/, '🔒 NOCH $1 KAPITEL — SCHALTE STRECKEN FREI, UM WEITERZULESEN'],
     [/^FILTER: (\w+)$/, (m, f) => `FILTER: ${({ NONE: 'KEINER' })[f] || f}`],
     [/^DRIFT ([\d.]+) S  \/  \+(\d+) BOOST$/, 'DRIFT $1 S  /  +$2 BOOST'], [/^DRIFT  ([\d.]+) S$/, 'DRIFT  $1 S'],
+    [/^ENDLESS TRACK, FASTER EVERY 30 S · RECORD ([\d.]+) KM$/, 'ENDLOSE STRECKE, ALLE 30 S SCHNELLER · REKORD $1 KM'], [/^LEVEL (\d+)$/, 'LEVEL $1'], [/^SURVIVAL \/ (.+)$/, 'ÜBERLEBEN / $1'],
+    [/^✦ ([\d.]+) KM · LEVEL (\d+) — NEW RECORD$/, '✦ $1 KM · LEVEL $2 — NEUER REKORD'], [/^([\d.]+) KM · LEVEL (\d+)  ·  RECORD ([\d.]+) KM$/, '$1 KM · LEVEL $2  ·  REKORD $3 KM'],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
@@ -1506,12 +1509,12 @@
     if (finished && !trialRun) { if (rank === 1) st.wins = (st.wins || 0) + 1; if (rank <= 3) st.podiums = (st.podiums || 0) + 1; }
     saveProfile();
   }
-  const GAME_MODES = { race: 'GRAND PRIX', cup: 'CHAMPIONSHIP', trial: 'TIME TRIAL', endless: 'ENDLESS BOSSES' };
+  const GAME_MODES = { race: 'GRAND PRIX', cup: 'CHAMPIONSHIP', trial: 'TIME TRIAL', survival: 'SURVIVAL', endless: 'ENDLESS BOSSES' };
   const gameMode = () => GAME_MODES[settings.gameMode] ? settings.gameMode : 'race';
   function renderGameMode() {
     document.body.classList.toggle('mode-cup', gameMode() === 'cup'); document.body.classList.toggle('mode-trial', gameMode() === 'trial'); document.body.classList.toggle('mode-endless', gameMode() === 'endless');
     const best = profile.stats.trial && profile.stats.trial[trackIndex];
-    if ($('mode-info')) $('mode-info').textContent = gameMode() === 'trial' ? `NO RIVALS, NO UFOS · BEST ${best ? formatTime(best) : '— —:—'}` : gameMode() === 'endless' ? `BOSS AFTER BOSS UNTIL YOU FALL · RECORD ${profile.stats.endlessBest || 0} WAVES` : gameMode() === 'cup' ? `4 RACES · F1 POINTS · ${cupTracks().map(i => tracks[i].name).join(' → ')}` : `${PILOT_COUNT} PILOTS · ${LAP_COUNT} LAPS · WIN TO FACE THE INVASION`;
+    if ($('mode-info')) $('mode-info').textContent = gameMode() === 'trial' ? `NO RIVALS, NO UFOS · BEST ${best ? formatTime(best) : '— —:—'}` : gameMode() === 'endless' ? `BOSS AFTER BOSS UNTIL YOU FALL · RECORD ${profile.stats.endlessBest || 0} WAVES` : gameMode() === 'survival' ? `ENDLESS TRACK, FASTER EVERY 30 S · RECORD ${(profile.stats.survivalBest || 0).toFixed(1)} KM` : gameMode() === 'cup' ? `4 RACES · F1 POINTS · ${cupTracks().map(i => tracks[i].name).join(' → ')}` : `${PILOT_COUNT} PILOTS · ${LAP_COUNT} LAPS · WIN TO FACE THE INVASION`;
     renderLock();
   }
   // ---- Championship: four circuits in a row, F1 points for every pilot, standings after each race, a ceremony at the end.
@@ -1560,6 +1563,33 @@
       if (place === 1) { unlockAchievement('cup'); showCallout('🏆 CHAMPION!', '#ffd35a'); launchConfetti(); playFanfare(); robotSay('Congratulations', 'congratulations'); }
       profile.stats.cups = (profile.stats.cups || 0) + (place === 1 ? 1 : 0); saveProfile();
     }
+  }
+  // ---- Survival: no finish line, a new level every 30 s (faster rivals, more UFOs, higher top speed) until the ship is gone.
+  let survival = null;
+  const SURVIVAL_LEVEL_TIME = 30, KM_PER_LAP = 7.2;
+  function updateSurvival(track) {
+    if (!survival || mode !== 'racing') return;
+    if (elapsed >= survival.level * SURVIVAL_LEVEL_TIME) {
+      survival.level++;
+      for (const r of rivals) r.speed *= 1.05;
+      if (ufos.length < 6) ufos.push(makeUfo(ufos.length, ufos.length, time));
+      showCallout(`LEVEL ${survival.level}`, '#ff9b2e'); showMessage('FASTER RIVALS  ·  MORE UFOS', 1.6); playToneSweep(300, 1500, .5, 'sawtooth', .05);
+    }
+    // Rivals left far behind come back ahead, so the track never empties.
+    for (const r of rivals) if (r.alive && r.distance < distance - 9000) { r.distance = distance + 14000 + random(r.seed + Math.floor(time)) * 12000; r.hull = r.nemesis ? 6 : 3; }
+    for (const r of rivals) if (!r.alive && !r.dying && random(Math.floor(time * 2) + r.seed) < .002) { Object.assign(r, { alive: true, distance: distance + 20000, hull: 3 }); }
+  }
+  function finishSurvival() {
+    const km = distance / LENGTH * KM_PER_LAP, best = profile.stats.survivalBest || 0, record = km > best;
+    if (record) profile.stats.survivalBest = km;
+    saveProfile(); addCredits(survival.level * 25, `SURVIVAL LEVEL ${survival.level}`);
+    mode = 'finished'; invasionArmed = false;
+    $('result-eyebrow').textContent = `SURVIVAL / ${tracks[trackIndex].name}`; $('result-title').textContent = record ? 'NEW RECORD!' : 'GAME OVER.';
+    $('result-position').textContent = String(survival.level).padStart(2, '0'); $('result-time').textContent = formatTime(elapsed);
+    $('result-lap').textContent = `${km.toFixed(1)} KM`;
+    $('result-record').textContent = record ? `✦ ${km.toFixed(1)} KM · LEVEL ${survival.level} — NEW RECORD` : `${km.toFixed(1)} KM · LEVEL ${survival.level}  ·  RECORD ${best.toFixed(1)} KM`;
+    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
+    $('results').classList.remove('hidden');
   }
   // ==== Daily challenge and streak.
   // ---- Daily challenge: one goal per calendar day (same for everyone), bonus credits and a day streak.
@@ -1615,7 +1645,8 @@
     const nemesisPick = [0, 1, 2, 3].filter(i => i !== trackIndex % 4).slice(0, 3);
     nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
     if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
-    endlessRun = false; trialRun = gameMode() === 'trial';
+    endlessRun = false; trialRun = gameMode() === 'trial'; survival = gameMode() === 'survival' ? { level: 1 } : null;
+    $('lap-total').textContent = survival ? '∞' : String(LAP_COUNT).padStart(2, '0');
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); hitShortcuts = new Set(); blinkReadyAt = 0; rivalMissiles = []; missiles = []; mines = []; slip = 0; slipShown = false; drift = 0; driftTime = 0; ufoKills = 0; boss = null; bossAttacks = [];
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
@@ -1798,6 +1829,7 @@
   }
   function showWreckResults() {
     recordRaceStats(false);
+    if (survival) { finishSurvival(); return; }
     $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
     mode = 'finished';
     $('result-eyebrow').textContent = 'CATASTROPHIC FAILURE / SHIELDS OFFLINE';
@@ -2246,7 +2278,7 @@
         }
       }
     }
-    updateAttacks(dt, track); updateSlipstream(dt, track); updateRivalMissiles(dt, track);
+    updateAttacks(dt, track); updateSlipstream(dt, track); updateRivalMissiles(dt, track); updateSurvival(track);
     for (const shot of enemyShots) {
       if (shot.resolved || time < shot.impactAt) continue;
       shot.resolved = true;
@@ -2270,7 +2302,7 @@
     rank = 1 + rivals.filter(r => r.alive && r.distance > distance + 1050).length;
     if (Math.floor(distance / LENGTH) > Math.floor(prevDistance / LENGTH)) {
       laps.push(elapsed - lapStart); lapStart = elapsed;
-      if (laps.length === LAP_COUNT) { finishRace(); } else { lap = laps.length + 1; showMessage(lap === LAP_COUNT ? 'FINAL LAP — MAKE IT COUNT' : `LAP ${String(lap).padStart(2, '0')} / ${String(LAP_COUNT).padStart(2, '0')} — KEEP PUSHING`, 2.2); soundEffect(660, .4); }
+      if (laps.length === LAP_COUNT && !survival) { finishRace(); } else { lap = laps.length + 1; if (!survival) showMessage(lap === LAP_COUNT ? 'FINAL LAP — MAKE IT COUNT' : `LAP ${String(lap).padStart(2, '0')} / ${String(LAP_COUNT).padStart(2, '0')} — KEEP PUSHING`, 2.2); soundEffect(660, .4); }
     }
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 450 * dt; p.life -= dt; }
     particles = particles.filter(p => p.life > 0).slice(lowFx() ? -30 : -100);
@@ -2298,7 +2330,7 @@
     $('laser-fill').style.width = Math.min(100, (laserAmmo + laserCharge) / laserCap() * 100) + '%';
     document.body.classList.toggle('lasers-empty', laserAmmo === 0);
     $('lap').textContent = String(lap).padStart(2, '0'); $('timer').textContent = formatTime(elapsed);
-    $('progress').style.width = Math.min(100, distance / (LENGTH * LAP_COUNT) * 100) + '%';
+    $('progress').style.width = (survival ? mod(elapsed, SURVIVAL_LEVEL_TIME) / SURVIVAL_LEVEL_TIME * 100 : Math.min(100, distance / (LENGTH * LAP_COUNT) * 100)) + '%';
     const laserIncoming = enemyShots.some(shot => !shot.resolved && shot.impactAt - time < .55);
     const missileIncoming = rivalMissiles.length > 0;
     const bombIncoming = bombs.some(bomb => !bomb.exploded && bomb.distance - (distance + 1050) < 4200);

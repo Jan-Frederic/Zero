@@ -504,3 +504,8 @@ body.photo .photo-bar{display:flex;position:fixed;left:50%;bottom:calc(14px + en
   body.racing .ufo-label{justify-content:flex-start;gap:6px}body.racing .ufo-label span{display:none}body.racing .ufo-label b::before{content:'🛸 '}
   body.final .topbar,body.final .bottom-bar,body.disco .topbar,body.disco .bottom-bar{display:none!important}
 }
+
+/* Five game modes: wrap into rows of three on narrow screens. */
+.mode-options .setup-option{min-width:calc(20% - 6px)}
+@media (max-width:1100px){.mode-options .setup-option{min-width:calc(33% - 6px)}}
+@media (max-width:600px) and (orientation:portrait){.mode-options{grid-template-columns:repeat(3,1fr)}}
