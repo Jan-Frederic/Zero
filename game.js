@@ -188,7 +188,7 @@
   // Defaults: gyro steering in landscape. (v2 key: earlier builds saved touch/portrait implicitly.)
   const SETTINGS_KEY = 'morbid-settings-v2';
   const reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const settings = { lang: /^de\b/i.test((typeof navigator !== 'undefined' && navigator.language) || '') ? 'de' : 'en', perf: 'auto', perfAuto: false, calm: reducedMotion, cb: false, subtitles: false, difficulty: 'normal', haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
+  const settings = { hud: 'normal', lang: /^de\b/i.test((typeof navigator !== 'undefined' && navigator.language) || '') ? 'de' : 'en', perf: 'auto', perfAuto: false, calm: reducedMotion, cb: false, subtitles: false, difficulty: 'normal', haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch { /* defaults */ }
   // Difficulty: rival pace, damage taken, extra lives and credit payout.
   const DIFFICULTY = {
@@ -259,7 +259,7 @@
     document.querySelectorAll('[data-screen]').forEach(b => b.classList.toggle('selected', b.dataset.screen === settings.screen));
     document.querySelectorAll('[data-haptics]').forEach(b => b.classList.toggle('selected', (b.dataset.haptics === 'on') === settings.haptics));
     document.querySelectorAll('[data-setting]').forEach(b => { const v = b.dataset.value, cur = settings[b.dataset.setting]; b.classList.toggle('selected', String(cur) === (v === 'on' ? 'true' : v === 'off' ? 'false' : v)); });
-    document.body.classList.toggle('calm', !!settings.calm); if ($('perf-note')) $('perf-note').textContent = settings.perf === 'auto' ? (settings.perfAuto ? 'AUTO · LOW FPS DETECTED' : 'AUTO · WATCHING FPS') : settings.perf === 'low' ? 'FEWER EFFECTS' : 'ALL EFFECTS'; document.body.classList.toggle('cb', !!settings.cb);
+    document.body.classList.toggle('calm', !!settings.calm); document.body.classList.toggle('hud-small', settings.hud === 'small'); document.body.classList.toggle('hud-large', settings.hud === 'large'); if ($('perf-note')) $('perf-note').textContent = settings.perf === 'auto' ? (settings.perfAuto ? 'AUTO · LOW FPS DETECTED' : 'AUTO · WATCHING FPS') : settings.perf === 'low' ? 'FEWER EFFECTS' : 'ALL EFFECTS'; document.body.classList.toggle('cb', !!settings.cb);
     if ($('difficulty-badge')) $('difficulty-badge').textContent = diff().name;
     $('steer-hint').textContent = settings.steering === 'gyro' ? 'TILT ◀ ▶' : 'DRAG ◀ ▶';
     document.body.classList.toggle('gyro', settings.steering === 'gyro');
@@ -469,6 +469,7 @@
     '♾ SURVIVAL': '♾ ÜBERLEBEN', 'SURVIVAL': 'ÜBERLEBEN', 'NEW RECORD!': 'NEUER REKORD!', 'GAME OVER.': 'GAME OVER.', 'FASTER RIVALS  ·  MORE UFOS': 'SCHNELLERE RIVALEN  ·  MEHR UFOS',
     'MISSIONS': 'MISSIONEN', '🎯 MISSION COMPLETE': '🎯 MISSION ERFÜLLT', 'WIN A CHAMPIONSHIP': 'GEWINNE EINE MEISTERSCHAFT',
     'PILOT LEVEL': 'PILOTENLEVEL', 'CREDIT BONUS': 'CREDIT-BONUS', 'ROOKIE': 'ROOKIE', 'STREET RACER': 'STRASSENRENNER', 'PRO PILOT': 'PROFI-PILOT', 'ACE': 'ASS', 'STAR PILOT': 'STAR-PILOT', 'HYPERDRIVER': 'HYPERFAHRER', 'GALAXY HERO': 'GALAXIE-HELD', 'SINGULARITY LEGEND': 'SINGULARITÄTS-LEGENDE',
+    'HUD SIZE': 'HUD-GRÖSSE', 'RACE INSTRUMENTS': 'RENN-ANZEIGEN', 'SMALL': 'KLEIN', 'LARGE': 'GROSS',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',

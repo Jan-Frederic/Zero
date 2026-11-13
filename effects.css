@@ -531,3 +531,7 @@ body.photo .photo-bar{display:flex;position:fixed;left:50%;bottom:calc(14px + en
 .pilot-chip:empty{display:none}body.racing .pilot-chip{display:none}
 .result-xp{font:12px var(--mono)!important;letter-spacing:1px;color:#ffd35a!important;margin:6px 0 0!important}
 @media (max-width:600px){.pilot-chip{min-width:0;padding:2px 7px 4px}.pilot-chip span{display:none}}
+
+/* HUD size setting. */
+body.hud-small #hud .race-top,body.hud-small #hud .race-bottom{zoom:.82}
+body.hud-large #hud .race-top,body.hud-large #hud .race-bottom{zoom:1.18}

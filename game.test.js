@@ -999,3 +999,13 @@ test('pilot level: credits earned are XP, levels raise the credit bonus, ranks p
   assert.match(el('result-xp').textContent, /XP  ·  LEVEL 5 STREET RACER/);
   void sandbox;
 });
+
+test('HUD size: small, normal and large are remembered and applied', () => {
+  const { element: el, sandbox, storage } = harness();
+  assert.equal(el('body').classList.contains('hud-large'), false);
+  sandbox.morbidSettings.set('hud', 'large');
+  assert.equal(el('body').classList.contains('hud-large'), true);
+  assert.equal(JSON.parse(storage.get('morbid-settings-v2')).hud, 'large');
+  sandbox.morbidSettings.set('hud', 'small');
+  assert.equal(el('body').classList.contains('hud-small'), true); assert.equal(el('body').classList.contains('hud-large'), false);
+});
