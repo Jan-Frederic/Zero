@@ -872,3 +872,20 @@ test('seasonal events: dates pick the season, season paints are kept, snow makes
   for (let i = 0; i < 30 && !seen.has('snow'); i++) { weatherNow(); step(.05); seen.add(inspect().weather); step(9.5); }
   assert.ok(seen.has('snow'), 'snowfall shows up in winter');
 });
+
+test('photo mode: freezes the race, moves the camera, cycles filters and makes a picture', () => {
+  const { element: el, step, key, inspect, sandbox } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(4);
+  key('Escape'); step(.1); assert.equal(inspect().mode, 'paused');
+  el('photo-mode').fire('click');
+  assert.ok(el('body').classList.contains('photo'));
+  const t = inspect().time; step(1); assert.equal(inspect().time, t, 'the scene is frozen');
+  sandbox.morbidPhoto.adjust('x', .5); sandbox.morbidPhoto.adjust('h', .3); sandbox.morbidPhoto.adjust('zoom', .4); sandbox.morbidPhoto.adjust('filter', 1); sandbox.morbidPhoto.adjust('ship');
+  const st = sandbox.morbidPhoto.state();
+  assert.equal(st.x, .5); assert.equal(st.zoom, 1.4); assert.equal(st.hideShip, true);
+  assert.equal(el('photo-filter').textContent, 'FILTER: NOIR');
+  step(.2);
+  el('photo-exit').fire('click');
+  assert.equal(el('body').classList.contains('photo'), false);
+  assert.equal(el('pause-screen').classList.contains('hidden'), false);
+});

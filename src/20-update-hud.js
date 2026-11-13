@@ -1,6 +1,7 @@
   // ==== Per-frame update loop and HUD.
   let playClock = 0;
   function update(dt) {
+    if (photo) return;
     time += dt; screenFlash = Math.max(0, screenFlash - dt * 2.4);
     updateBoot(); tickAchievement();
     if (frameClock - subtitleAt > 2.8 && $('subtitle')) $('subtitle').classList.remove('visible');

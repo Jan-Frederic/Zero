@@ -178,14 +178,14 @@
   function drawRoad() {
     const t = tracks[trackIndex], base = Math.floor(position / SEG), percent = position % SEG / SEG;
     const playerSeg = mod(base + 5, COUNT), elevation = lerp(segments[playerSeg].y, segments[mod(playerSeg + 1, COUNT)].y, percent);
-    const cameraY = elevation + 1030;
+    const cameraY = elevation + 1030 + (photo ? photo.h * 900 : 0), camX = playerX + (photo ? photo.x : 0);
     let x = 0, dx = -segments[base].curve * percent, clipY = H + 500;
     const visible = [];
     for (let n = 0; n < 185; n++) {
       const index = mod(base + n, COUNT), s = segments[index], next = segments[mod(index + 1, COUNT)];
       const z = (n - percent) * SEG;
-      project(s.p1, x - playerX * ROAD, s.y, z, cameraY);
-      project(s.p2, x + dx - playerX * ROAD, next.y, z + SEG, cameraY);
+      project(s.p1, x - camX * ROAD, s.y, z, cameraY);
+      project(s.p2, x + dx - camX * ROAD, next.y, z + SEG, cameraY);
       x += dx; dx += s.curve;
       s.clip = clipY; s.depth = n;
       if (z <= DEPTH || s.p2.y >= s.p1.y || s.p2.y >= clipY) continue;
@@ -397,16 +397,17 @@
   function render() {
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
     ctx.save();
+    if (photo && photo.zoom !== 1) { ctx.translate(W / 2, H * .55); ctx.scale(photo.zoom, photo.zoom); ctx.translate(-W / 2, -H * .55); }
     if (shakeAmount() > .03 && (mode === 'racing' || mode === 'wrecked' || mode === 'invasion' || mode === 'respawning')) ctx.translate(Math.sin(time * 121) * shakeAmount() * 8, Math.cos(time * 93) * shakeAmount() * 5);
     background(); drawRoad(); drawLaserBeams();
     const isMenu = mode === 'menu';
     const m = machines[shipIndex];
-    const shipX = isMenu ? W * .56 : W * .5 + steerVisual * 12;
-    const groundShipY = isMenu ? H * .73 : H * .79, shipY = groundShipY - jumpHeight;
+    const shipX = isMenu ? W * .56 : W * .5 + steerVisual * 12 - (photo ? photo.x * W * .42 : 0);
+    const groundShipY = isMenu ? H * .73 : H * .79 + (photo ? photo.h * H * .12 : 0), shipY = groundShipY - jumpHeight;
     const shipSize = Math.min(W * (isMenu ? .085 : .074), isMenu ? 130 : 110);
     if (mutator('night') && !isMenu) drawNight(shipX, shipY);
     if (mode === 'wrecked' && wreckBurst) drawExplosion(shipX, shipY, shipSize * .9, wreckBurst);
-    else if (mode === 'respawning' || (time < raceInvulnUntil && Math.sin(time * 40) < 0)) { /* exploded / blinking */ }
+    else if (mode === 'respawning' || (photo && photo.hideShip) || (time < raceInvulnUntil && Math.sin(time * 40) < 0)) { /* exploded / blinking / hidden for a photo */ }
     else {
       if (jumpHeight > 30 && mode === 'racing') {
         ctx.save(); ctx.globalAlpha = clamp(1 - jumpHeight / 420, .18, .7); ctx.fillStyle = m.color; ctx.shadowColor = m.color; ctx.shadowBlur = 18;

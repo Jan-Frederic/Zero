@@ -448,3 +448,13 @@ body.lowfx .home-bg,body.lowfx .scanlines{animation:none!important}
 .season-badge b{font-weight:400;color:#ff9b2e;font-size:12px}
 body.season-xmas .season-badge{border-color:#9fe8ff;background:#9fe8ff14;color:#dff4ff}body.season-xmas .season-badge b{color:#9fe8ff}
 @media (max-height:720px){.season-badge span{display:none}}
+
+/* Photo mode. */
+.photo-button{color:#80faff}
+.photo-bar{display:none}
+body.photo #hud,body.photo .topbar,body.photo .bottom-bar,body.photo #touch-controls,body.photo .touch-hint,body.photo #race-message,body.photo #tutorial{visibility:hidden!important}
+body.photo .photo-bar{display:flex;position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:70;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;padding:10px 12px;background:#0c0a1ee8;border:1px solid #80faff66;max-width:calc(100% - 24px)}
+.photo-title{font:12px var(--mono);letter-spacing:2px;color:#80faff}
+.photo-tools,.photo-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.photo-bar button{min-width:40px;min-height:40px;padding:0 10px;background:#171329;border:1px solid #ffffff33;color:#fff;font:12px var(--mono);letter-spacing:1px}
+.photo-bar .photo-save{background:var(--acid);color:#111;border-color:var(--acid)}

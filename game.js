@@ -430,6 +430,7 @@
     '🎃 HALLOWEEN EVENT': '🎃 HALLOWEEN-EVENT', '🎄 WINTER EVENT': '🎄 WINTER-EVENT', 'PUMPKIN UFOS · GHOST FOG · FREE PAINT: PUMPKIN PATCH': 'KÜRBIS-UFOS · GEISTERNEBEL · GRATIS-LACK: KÜRBISFELD',
     'SNOWFALL · SLIPPERY TRACKS · FREE PAINT: FROSTBITE': 'SCHNEEFALL · RUTSCHIGE STRECKEN · GRATIS-LACK: FROSTBISS', 'PUMPKIN PATCH': 'KÜRBISFELD', 'FROSTBITE': 'FROSTBISS',
     '❄ SNOWFALL': '❄ SCHNEEFALL', 'SLIPPERY TRACK — STEER GENTLY': 'RUTSCHIGE STRECKE — SANFT LENKEN', '👻 GHOST FOG': '👻 GEISTERNEBEL', 'SOMETHING IS WATCHING…': 'ETWAS BEOBACHTET DICH …',
+    '📷 PHOTO MODE': '📷 FOTOMODUS', '📸 SAVE / SHARE': '📸 SPEICHERN / TEILEN', '✕ EXIT': '✕ BEENDEN', 'SHIP: HIDDEN': 'SCHIFF: AUS', 'SHIP: SHOWN': 'SCHIFF: AN',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -464,6 +465,7 @@
     [/^\+(\d+)% CREDITS$/, '+$1 % CREDITS'],
     [/^🔒 UNLOCK WITH THE TROPHY (.+)$/, '🔒 FREISCHALTEN MIT DER TROPHÄE $1'], [/^BLINK RECHARGING  \/  ([\d.]+) S$/, 'BLINK LÄDT  /  $1 S'],
     [/^CHAPTER (\d+) \/ (\d+)  ·  (.+)$/, 'KAPITEL $1 / $2  ·  $3'], [/^🔒 (\d+) MORE CHAPTERS — UNLOCK CIRCUITS TO READ ON$/, '🔒 NOCH $1 KAPITEL — SCHALTE STRECKEN FREI, UM WEITERZULESEN'],
+    [/^FILTER: (\w+)$/, (m, f) => `FILTER: ${({ NONE: 'KEINER' })[f] || f}`],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
@@ -1923,6 +1925,7 @@
   // ==== Per-frame update loop and HUD.
   let playClock = 0;
   function update(dt) {
+    if (photo) return;
     time += dt; screenFlash = Math.max(0, screenFlash - dt * 2.4);
     updateBoot(); tickAchievement();
     if (frameClock - subtitleAt > 2.8 && $('subtitle')) $('subtitle').classList.remove('visible');
@@ -3194,14 +3197,14 @@
   function drawRoad() {
     const t = tracks[trackIndex], base = Math.floor(position / SEG), percent = position % SEG / SEG;
     const playerSeg = mod(base + 5, COUNT), elevation = lerp(segments[playerSeg].y, segments[mod(playerSeg + 1, COUNT)].y, percent);
-    const cameraY = elevation + 1030;
+    const cameraY = elevation + 1030 + (photo ? photo.h * 900 : 0), camX = playerX + (photo ? photo.x : 0);
     let x = 0, dx = -segments[base].curve * percent, clipY = H + 500;
     const visible = [];
     for (let n = 0; n < 185; n++) {
       const index = mod(base + n, COUNT), s = segments[index], next = segments[mod(index + 1, COUNT)];
       const z = (n - percent) * SEG;
-      project(s.p1, x - playerX * ROAD, s.y, z, cameraY);
-      project(s.p2, x + dx - playerX * ROAD, next.y, z + SEG, cameraY);
+      project(s.p1, x - camX * ROAD, s.y, z, cameraY);
+      project(s.p2, x + dx - camX * ROAD, next.y, z + SEG, cameraY);
       x += dx; dx += s.curve;
       s.clip = clipY; s.depth = n;
       if (z <= DEPTH || s.p2.y >= s.p1.y || s.p2.y >= clipY) continue;
@@ -3413,16 +3416,17 @@
   function render() {
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
     ctx.save();
+    if (photo && photo.zoom !== 1) { ctx.translate(W / 2, H * .55); ctx.scale(photo.zoom, photo.zoom); ctx.translate(-W / 2, -H * .55); }
     if (shakeAmount() > .03 && (mode === 'racing' || mode === 'wrecked' || mode === 'invasion' || mode === 'respawning')) ctx.translate(Math.sin(time * 121) * shakeAmount() * 8, Math.cos(time * 93) * shakeAmount() * 5);
     background(); drawRoad(); drawLaserBeams();
     const isMenu = mode === 'menu';
     const m = machines[shipIndex];
-    const shipX = isMenu ? W * .56 : W * .5 + steerVisual * 12;
-    const groundShipY = isMenu ? H * .73 : H * .79, shipY = groundShipY - jumpHeight;
+    const shipX = isMenu ? W * .56 : W * .5 + steerVisual * 12 - (photo ? photo.x * W * .42 : 0);
+    const groundShipY = isMenu ? H * .73 : H * .79 + (photo ? photo.h * H * .12 : 0), shipY = groundShipY - jumpHeight;
     const shipSize = Math.min(W * (isMenu ? .085 : .074), isMenu ? 130 : 110);
     if (mutator('night') && !isMenu) drawNight(shipX, shipY);
     if (mode === 'wrecked' && wreckBurst) drawExplosion(shipX, shipY, shipSize * .9, wreckBurst);
-    else if (mode === 'respawning' || (time < raceInvulnUntil && Math.sin(time * 40) < 0)) { /* exploded / blinking */ }
+    else if (mode === 'respawning' || (photo && photo.hideShip) || (time < raceInvulnUntil && Math.sin(time * 40) < 0)) { /* exploded / blinking / hidden for a photo */ }
     else {
       if (jumpHeight > 30 && mode === 'racing') {
         ctx.save(); ctx.globalAlpha = clamp(1 - jumpHeight / 420, .18, .7); ctx.fillStyle = m.color; ctx.shadowColor = m.color; ctx.shadowBlur = 18;
@@ -3808,14 +3812,64 @@
   $('share').addEventListener('click', async () => {
     const c = shareCard(), text = `I just finished P${$('result-position').textContent} in Morbid Racers! Can you beat me? 🏁`, url = 'https://jan-frederic.github.io/Zero/';
     const blob = await new Promise(done => c.toBlob(done, 'image/png'));
-    const file = blob && typeof File === 'function' ? new File([blob], 'morbid-racers.png', { type: 'image/png' }) : null;
+    if (await shareFile(blob, 'morbid-racers.png', text, url)) unlockAchievement('share');
+  });
+  // Shares a file through the system share sheet, or downloads it where sharing files is not possible.
+  async function shareFile(blob, name, text, url) {
+    if (!blob) return false;
+    const file = typeof File === 'function' ? new File([blob], name, { type: blob.type }) : null;
     try {
       if (file && navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], text, url, title: 'Morbid Racers' });
-      else if (navigator.share) await navigator.share({ text, url, title: 'Morbid Racers' });
-      else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'morbid-racers.png'; a.click(); }
-      unlockAchievement('share');
-    } catch { /* share sheet dismissed */ }
-  });
+      else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); }
+      return true;
+    } catch { return false; /* share sheet dismissed */ }
+  }
+  // ---- Photo mode: freeze the race, move the camera, pick a filter and save the shot.
+  const PHOTO_FILTERS = [['NONE', 'none'], ['NOIR', 'grayscale(1) contrast(1.35)'], ['VHS', 'saturate(1.7) hue-rotate(-14deg) contrast(1.15) blur(.4px)'], ['NEON', 'saturate(2.1) brightness(1.12)'], ['SEPIA', 'sepia(.85) contrast(1.1)']];
+  let photo = null;
+  function enterPhoto() {
+    if (mode !== 'paused') return;
+    photo = { x: 0, h: 0, zoom: 1, filter: 0, hideShip: false };
+    document.body.classList.add('photo'); $('pause-screen').classList.add('hidden'); renderPhoto();
+  }
+  function exitPhoto() {
+    if (!photo) return;
+    photo = null; canvas.style.filter = ''; document.body.classList.remove('photo'); $('pause-screen').classList.remove('hidden');
+  }
+  function photoAdjust(what, delta) {
+    if (!photo) return;
+    if (what === 'x') photo.x = clamp(photo.x + delta, -1.2, 1.2);
+    if (what === 'h') photo.h = clamp(photo.h + delta, -.6, 2.5);
+    if (what === 'zoom') photo.zoom = clamp(photo.zoom + delta, 1, 2.2);
+    if (what === 'filter') photo.filter = mod(photo.filter + delta, PHOTO_FILTERS.length);
+    if (what === 'ship') photo.hideShip = !photo.hideShip;
+    renderPhoto();
+  }
+  function renderPhoto() {
+    canvas.style.filter = PHOTO_FILTERS[photo.filter][1] === 'none' ? '' : PHOTO_FILTERS[photo.filter][1];
+    $('photo-filter').textContent = `FILTER: ${PHOTO_FILTERS[photo.filter][0]}`; $('photo-ship').textContent = photo.hideShip ? 'SHIP: HIDDEN' : 'SHIP: SHOWN';
+  }
+  function photoShot() {
+    const c = document.createElement('canvas'); c.width = canvas.width; c.height = canvas.height; const g = c.getContext('2d');
+    const f = PHOTO_FILTERS[photo ? photo.filter : 0][1]; if (f !== 'none' && 'filter' in g) g.filter = f;
+    g.drawImage(canvas, 0, 0); g.filter = 'none';
+    const s = c.width / 1200; g.font = `italic 900 ${Math.round(42 * s)}px "Barlow Condensed", Impact, sans-serif`; g.textAlign = 'right';
+    g.fillStyle = '#ffffffcc'; g.fillText('MORBID', c.width - 150 * s, c.height - 34 * s); g.fillStyle = '#ddff46'; g.fillText('RACERS', c.width - 28 * s, c.height - 34 * s);
+    return c;
+  }
+  async function savePhoto() {
+    const c = photoShot(); const blob = await new Promise(done => c.toBlob(done, 'image/png'));
+    if (await shareFile(blob, 'morbid-racers-photo.png', `${tracks[trackIndex].name} in Morbid Racers 📸`, 'https://jan-frederic.github.io/Zero/')) unlockAchievement('share');
+  }
+  $('photo-mode').addEventListener('click', enterPhoto);
+  document.querySelectorAll('[data-photo]').forEach(b => b.addEventListener('click', () => { const [what, d] = b.dataset.photo.split(':'); photoAdjust(what, Number(d) || 0); }));
+  $('photo-save').addEventListener('click', savePhoto); $('photo-exit').addEventListener('click', exitPhoto);
+  window.addEventListener('keydown', event => {
+    if (!photo) return;
+    const map = { ArrowLeft: ['x', -.1], ArrowRight: ['x', .1], ArrowUp: ['h', .15], ArrowDown: ['h', -.15], Equal: ['zoom', .1], Minus: ['zoom', -.1], KeyF: ['filter', 1] };
+    if (event.code === 'Escape') { event.stopImmediatePropagation(); exitPhoto(); } else if (map[event.code]) { event.preventDefault(); photoAdjust(...map[event.code]); }
+  }, true);
+  window.morbidPhoto = { enter: enterPhoto, exit: exitPhoto, adjust: photoAdjust, shot: photoShot, state: () => photo && { ...photo } };
   // ==== Start-up.
   // Lets the update job wait until no race is in progress.
   window.morbidBusy = () => ['countdown', 'racing', 'respawning', 'paused', 'wrecked', 'invasion', 'final'].includes(mode) || (mode === 'disco' && !(finale && finale.resultsShown));
