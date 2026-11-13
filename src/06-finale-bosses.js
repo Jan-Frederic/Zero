@@ -2,6 +2,7 @@
   // RACE AGAIN after winning triggers an alarm and a 10 s countdown; the screen shatters into space,
   // the player blasts a hole through a wall of aliens and kills the overlord (10 hits); then: disco.
   let invasionArmed = false, finale = null, alarmNodes = null;
+  let endlessRun = false;
   const FINALE_COLS = 11, FINALE_ROWS = 4, FINAL_BOSS_HP = 10, COUNTDOWN_START = 1.2, COUNTDOWN_LEN = 10;
   const CRITTER_COLORS = ['#7dff3a', '#ff4eb8', '#4df8ff', '#ffb347'];
   function raceAgain() { if (invasionArmed) startInvasion(); else startRace(); }
@@ -71,7 +72,7 @@
   const startLives = () => Math.max(0, finaleWaveCount() + diff().lives);
   function waveConfig(n) {
     const type = BOSS_TYPES[n % BOSS_TYPES.length];
-    return { type, name: type.name + (n >= BOSS_TYPES.length ? ' MK II' : ''), hp: FINAL_BOSS_HP + n * 4, rows: Math.min(6, FINALE_ROWS + Math.floor(n / 2)),
+    return { type, name: type.name + (n >= BOSS_TYPES.length ? ` MK ${['II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][Math.min(8, Math.floor(n / BOSS_TYPES.length) - 1)]}` : ''), hp: FINAL_BOSS_HP + n * 4, rows: Math.min(6, FINALE_ROWS + Math.floor(n / 2)),
       formVx: .09 + n * .035, rowSwing: n >= 2 ? .55 + n * .15 : 0, bossV: .38 + n * .07,
       invaderEvery: Math.max(.32, .75 - n * .08), bossEvery: Math.max(1.05, 1.8 - n * .13) };
   }
@@ -82,11 +83,11 @@
       boss: { off: 0, v: cfg.bossV, hp: cfg.hp, maxHp: cfg.hp, flash: 0, arrive: time }, bolts: [], waveStarted: time,
       nextInvaderShot: time + 2.6, nextBossShot: time + 3.6 });
     if (n > 0) {
-      showCallout(`BOSS ${n + 1}/${f.waves}: ${cfg.name}!`, cfg.type.color);
+      showCallout(f.endless ? `WAVE ${n + 1}: ${cfg.name}!` : `BOSS ${n + 1}/${f.waves}: ${cfg.name}!`, cfg.type.color);
       shield = Math.min(100, shield + 35);
       robotSay('Warning. Next boss approaching', 'next-boss');
       playToneSweep(300, 900, .5, 'square', .05); playToneSweep(40, 30, 1.6, 'sawtooth', .12);
-    } else showCallout(f.waves > 1 ? `FINAL BOSS 1/${f.waves}!` : 'FINAL BOSS!', cfg.type.color);
+    } else showCallout(f.endless ? 'ENDLESS BOSS RUSH — WAVE 1!' : f.waves > 1 ? `FINAL BOSS 1/${f.waves}!` : 'FINAL BOSS!', cfg.type.color);
   }
   function playDeathScream(kind) {
     robotSay('', `scream-${{ spider: 'cyclops', shark: 'overlord' }[kind] || kind}`);
@@ -309,7 +310,7 @@
   function startFinalFight(shatter) {
     mode = 'final'; shield = 100; keys.clear(); resetGesture(); calibrateTilt();
     ufos = []; ufoRespawns = []; bombs = []; crashingUfos = []; smoke = []; boss = null; bossAttacks = []; enemyShots = []; laserShots = []; callout = null;
-    finale = { phase: 'fight', started: time, shatter, shipX: .5, cool: 0, wave: 0, waves: finaleWaveCount(), lives, invulnUntil: 0, beams: [], bolts: [], gore: [], splats: [], bursts: [], msg: null };
+    finale = { phase: 'fight', started: time, shatter, shipX: .5, cool: 0, wave: 0, waves: endlessRun ? Infinity : finaleWaveCount(), endless: endlessRun, cleared: 0, lives, invulnUntil: 0, beams: [], bolts: [], gore: [], splats: [], bursts: [], msg: null };
     startWave(0);
     $('results').classList.add('hidden'); $('hud').classList.add('hidden');
     document.body.classList.remove('paused', 'alarm', 'critical', 'boosting', 'hyper', 'boss', 'hinting');
@@ -387,7 +388,8 @@
     shake = 3.2; screenFlash = 1;
     playExplosionSound(3); playToneSweep(70, 14, 2.2, 'sawtooth', .22); playNoiseBurst(2.4, .32, 700, 40); playToneSweep(260, 40, .9, 'sine', .16);
     showCallout(f.cfg.type.down, f.cfg.type.color); playDeathScream(f.cfg.type.kind);
-    if (f.wave + 1 < f.waves) finaleMsg(`BOSS ${f.wave + 1}/${f.waves} DOWN  /  NEXT ONE INCOMING`);
+    if (f.endless) { f.cleared = f.wave + 1; finaleMsg(`WAVE ${f.wave + 1} CLEARED  /  NEXT ONE INCOMING`); }
+    else if (f.wave + 1 < f.waves) finaleMsg(`BOSS ${f.wave + 1}/${f.waves} DOWN  /  NEXT ONE INCOMING`);
   }
   function enterDisco() {
     unlockAchievement('galaxy'); if (finale.waves >= 6) unlockAchievement('galaxy6');
@@ -404,6 +406,13 @@
     $('result-title').textContent = won ? 'GALAXY SAVED.' : 'ABDUCTED.';
     $('result-position').textContent = '01';
     $('result-record').textContent = won ? 'The alien overlord is disco dust now. Dance on, pilot.' : 'The overlord survived. Win another race to face it again.';
+    if (f.endless) {
+      const best = profile.stats.endlessBest || 0, record = f.cleared > best;
+      if (record) { profile.stats.endlessBest = f.cleared; saveProfile(); }
+      $('result-eyebrow').textContent = 'ENDLESS BOSS RUSH / GAME OVER'; $('result-title').textContent = `${f.cleared} WAVE${f.cleared === 1 ? '' : 'S'}.`;
+      $('result-position').textContent = String(f.cleared).padStart(2, '0');
+      $('result-record').textContent = record ? `✦ NEW ENDLESS RECORD! (previous best: ${best})` : `Best so far: ${best} waves. One more try?`;
+    }
     $('results').classList.remove('hidden'); document.body.classList.add('paused');
   }
   function updateFinale(dt) {
@@ -428,7 +437,7 @@
     }
     f.gore = f.gore.filter(g => g.life > 0);
     if (f.phase === 'disco') { if (!f.resultsShown && time - f.discoAt > 3.4) showFinaleResults(true); return; }
-    if (f.phase === 'won') { if (time - f.wonAt > 3.4) { if (f.wave + 1 < f.waves) startWave(f.wave + 1); else enterDisco(); } return; }
+    if (f.phase === 'won') { if (time - f.wonAt > 3.4) { if (f.endless || f.wave + 1 < f.waves) startWave(f.wave + 1); else enterDisco(); } return; }
     if (f.phase === 'lost') { if (!f.resultsShown && time - f.lostAt > 2.6) showFinaleResults(false); return; }
     if (f.phase === 'respawn') {
       // Continue exactly where the ship blew up: same wave, same wall, same boss health.
@@ -611,7 +620,7 @@
     const bw = Math.min(W * .5, 420), bx = W / 2 - bw / 2, by = small ? 60 : 96;
     ctx.font = `${small ? 11 : 12}px ${mono}`; ctx.textAlign = 'center'; ctx.fillStyle = '#b9ff7a';
     ctx.fillStyle = f.cfg.type.color;
-    ctx.fillText(`☣ ${f.cfg.name}  ${Math.max(0, f.boss.hp)}/${f.boss.maxHp}${f.waves > 1 ? `   ·   BOSS ${f.wave + 1}/${f.waves}` : ''}`, W / 2, by - 9, W * .94);
+    ctx.fillText(`☣ ${f.cfg.name}  ${Math.max(0, f.boss.hp)}/${f.boss.maxHp}${f.endless ? `   ·   WAVE ${f.wave + 1}  ·  BEST ${profile.stats.endlessBest || 0}` : f.waves > 1 ? `   ·   BOSS ${f.wave + 1}/${f.waves}` : ''}`, W / 2, by - 9, W * .94);
     for (let i = 0; i < f.boss.maxHp; i++) { const sw = bw / f.boss.maxHp; ctx.fillStyle = i < f.boss.hp ? f.cfg.type.color : 'rgba(255,255,255,.14)'; ctx.fillRect(bx + i * sw + (sw > 6 ? 1 : 0), by, sw - (sw > 6 ? 2 : 0), 7); }
     const sw = Math.min(W * .32, 220), sx = Math.max(16, W * .03), sy = H - (small ? 58 : 92), alive = f.invaders.filter(v => v.alive).length;
     ctx.textAlign = 'left'; ctx.fillStyle = '#c3b6d3'; ctx.fillText('HULL SHIELD', sx, sy - 9);

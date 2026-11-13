@@ -584,3 +584,31 @@ test('difficulty: easy gives an extra life and softer hits, hard the opposite', 
   assert.deepEqual([easy.lives, normal.lives, hard.lives], [2, 1, 0]);
   assert.ok(easy.shield > normal.shield && normal.shield > hard.shield, `${easy.shield} > ${normal.shield} > ${hard.shield}`);
 });
+
+test('time trial: alone on the track, best time saved, no invasion afterwards', () => {
+  const { element: el, step, key, inspect, setRacePosition, sandbox, storage } = harness();
+  sandbox.morbidSettings.set('gameMode', 'trial');
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  assert.equal(inspect().ufos, 0, 'no UFOs in a time trial');
+  for (let lap = 0; lap < 6 && inspect().mode === 'racing'; lap++) { setRacePosition((lap + 1) * 240000 - 60, 0); step(.5); }
+  assert.equal(inspect().mode, 'finished');
+  assert.match(el('result-title').textContent, /NEW BEST TIME/);
+  assert.ok(JSON.parse(storage.get('morbid-profile-v1')).stats.trial[0] > 0);
+  el('again').fire('click');
+  assert.equal(inspect().mode, 'countdown', 'RACE AGAIN starts another trial, not the invasion');
+});
+
+test('endless boss rush keeps sending bosses and records the waves cleared', () => {
+  const { element: el, step, key, inspect, finaleState, finaleOpen, finaleAim, finaleKillShip, sandbox, storage } = harness();
+  el('health-accept').fire('click');
+  sandbox.morbidSettings.set('gameMode', 'endless');
+  el('start').fire('click'); step(11.4);
+  assert.equal(inspect().mode, 'final');
+  for (let w = 0; w < 7; w++) { finaleOpen(5); finaleAim(5); key('KeyX'); step(.05); key('KeyX', 'keyup'); step(3.6); }
+  assert.equal(finaleState().wave, 7, 'past the six regular bosses');
+  assert.match(finaleState().kind, /overlord|cyclops/);
+  for (let i = 0; i < 4 && finaleState().phase !== 'lost'; i++) { finaleKillShip(); step(.05); step(2.8); }
+  step(3);
+  assert.match(el('result-title').textContent, /7 WAVES/);
+  assert.equal(JSON.parse(storage.get('morbid-profile-v1')).stats.endlessBest, 7);
+});

@@ -338,3 +338,25 @@ body.track-locked #start{background:#3a3550!important;color:#c9c2dc!important;bo
 .share-button:hover{background:#4df8ff14}
 
 @media (max-width:600px) and (orientation:portrait){.setup-options.setup-3{grid-template-columns:1fr 1fr 1fr}}
+
+/* Game mode picker. */
+.mode-picker{margin-top:18px}.mode-options{display:flex;gap:6px;margin-top:8px}.mode-options .setup-option{flex:1;min-height:40px}
+.mode-info{font:11px var(--mono);letter-spacing:.6px;color:#9fe8ff;margin-top:7px}
+body.mode-trial .position-box>div,body.mode-trial .position-box>.small-label{opacity:.25}
+body.mode-endless .track-lock{display:none}
+@media (max-width:600px) and (orientation:portrait){.mode-options{display:grid;grid-template-columns:repeat(3,1fr)}.mode-options .setup-option{min-height:50px;font-size:12px!important}}
+@media (max-height:520px) and (orientation:landscape){.mode-picker{margin-top:8px}.mode-options .setup-option{min-height:32px}.mode-info{display:none}}
+/* Start screen fits on shorter windows: fewer decorative lines, compact pickers; scrolls as a last resort. */
+.menu{overflow-y:auto;overflow-x:hidden}
+@media (min-width:601px) and (max-height:900px){
+  .hero{top:5%}.hero p,.hero-rule{display:none}
+  h1{font-size:clamp(56px,min(6.4vw,10vh),104px);margin:18px 0 16px}
+  .mode-picker,.ship-picker{margin-top:14px}#ship-info{display:none}
+}
+@media (min-width:601px) and (max-height:720px){.scene-label{display:none}.circuit-panel{bottom:18px}.circuit-preview{height:96px}.circuit-preview svg{height:90px}}
+@media (max-height:520px) and (orientation:landscape){
+  .hero{top:3%}h1{font-size:min(10vh,8vw)!important;margin:0 0 8px!important}
+  .start-note{display:none!important}.mode-picker{margin-top:6px!important}.mode-picker .small-label,.ship-picker .small-label{display:none}
+  .mode-options .setup-option{min-height:30px!important;font-size:11px!important;padding:0 6px!important}
+  .ship-picker{margin-top:6px!important}.ship-option{min-height:30px;padding:4px 8px!important}
+}

@@ -73,6 +73,8 @@
     settings.steering = button.dataset.steer; saveSettings(); renderSettings();
   }));
   document.querySelectorAll('[data-setting]').forEach(button => button.addEventListener('click', () => setSetting(button.dataset.setting, button.dataset.value)));
+  settingHooks.gameMode = () => renderGameMode();
+  renderGameMode();
   settingHooks.difficulty = () => setupNote(`DIFFICULTY: ${diff().name} · ${diff().lives > 0 ? '+1 LIFE, ' : diff().lives < 0 ? '-1 LIFE, ' : ''}${Math.round(diff().credits * 100)}% CREDITS`);
   window.morbidSettings = { set: setSetting, get: () => settings };
   document.querySelectorAll('[data-haptics]').forEach(button => button.addEventListener('click', () => {
@@ -135,8 +137,9 @@
   // Easter egg: tap the big MORBID RACERS title 5 times quickly (or type B-O-S-S on the start screen)
   // to skip the race and go straight to the invasion; the number of bosses follows the selected circuit.
   let eggTaps = [], eggTyped = '';
-  function bossRush() {
-    unlockAchievement('egg');
+  function startEndless() { endlessRun = true; trialRun = false; bossRush(true); }
+  function bossRush(endless = false) {
+    if (!endless) { unlockAchievement('egg'); endlessRun = false; }
     eggTaps = []; eggTyped = '';
     setupAudio(); primeSpeech();
     $('menu').classList.add('hidden'); $('hud').classList.add('hidden');

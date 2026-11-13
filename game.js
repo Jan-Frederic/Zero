@@ -218,7 +218,7 @@
     $('track-class').textContent = t.class; $('feed-label').textContent = t.feed;
     document.querySelector('.map-caption').textContent = t.sector;
     document.querySelector('.pill').textContent = `${String(trackIndex + 1).padStart(2, '0')} — ${String(tracks.length).padStart(2, '0')}`;
-    renderLock();
+    renderGameMode();
     $('difficulty').innerHTML = '▰'.repeat(t.difficulty) + '<em>' + '▰'.repeat(8 - t.difficulty) + '</em>';
     const points = Array.from({ length: 96 }, (_, i) => {
       const angle = i / 96 * TAU, wobble = Math.sin(angle * (trackIndex + 2)) * (3 + t.curve * 1.4);
@@ -852,6 +852,7 @@
   // RACE AGAIN after winning triggers an alarm and a 10 s countdown; the screen shatters into space,
   // the player blasts a hole through a wall of aliens and kills the overlord (10 hits); then: disco.
   let invasionArmed = false, finale = null, alarmNodes = null;
+  let endlessRun = false;
   const FINALE_COLS = 11, FINALE_ROWS = 4, FINAL_BOSS_HP = 10, COUNTDOWN_START = 1.2, COUNTDOWN_LEN = 10;
   const CRITTER_COLORS = ['#7dff3a', '#ff4eb8', '#4df8ff', '#ffb347'];
   function raceAgain() { if (invasionArmed) startInvasion(); else startRace(); }
@@ -921,7 +922,7 @@
   const startLives = () => Math.max(0, finaleWaveCount() + diff().lives);
   function waveConfig(n) {
     const type = BOSS_TYPES[n % BOSS_TYPES.length];
-    return { type, name: type.name + (n >= BOSS_TYPES.length ? ' MK II' : ''), hp: FINAL_BOSS_HP + n * 4, rows: Math.min(6, FINALE_ROWS + Math.floor(n / 2)),
+    return { type, name: type.name + (n >= BOSS_TYPES.length ? ` MK ${['II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][Math.min(8, Math.floor(n / BOSS_TYPES.length) - 1)]}` : ''), hp: FINAL_BOSS_HP + n * 4, rows: Math.min(6, FINALE_ROWS + Math.floor(n / 2)),
       formVx: .09 + n * .035, rowSwing: n >= 2 ? .55 + n * .15 : 0, bossV: .38 + n * .07,
       invaderEvery: Math.max(.32, .75 - n * .08), bossEvery: Math.max(1.05, 1.8 - n * .13) };
   }
@@ -932,11 +933,11 @@
       boss: { off: 0, v: cfg.bossV, hp: cfg.hp, maxHp: cfg.hp, flash: 0, arrive: time }, bolts: [], waveStarted: time,
       nextInvaderShot: time + 2.6, nextBossShot: time + 3.6 });
     if (n > 0) {
-      showCallout(`BOSS ${n + 1}/${f.waves}: ${cfg.name}!`, cfg.type.color);
+      showCallout(f.endless ? `WAVE ${n + 1}: ${cfg.name}!` : `BOSS ${n + 1}/${f.waves}: ${cfg.name}!`, cfg.type.color);
       shield = Math.min(100, shield + 35);
       robotSay('Warning. Next boss approaching', 'next-boss');
       playToneSweep(300, 900, .5, 'square', .05); playToneSweep(40, 30, 1.6, 'sawtooth', .12);
-    } else showCallout(f.waves > 1 ? `FINAL BOSS 1/${f.waves}!` : 'FINAL BOSS!', cfg.type.color);
+    } else showCallout(f.endless ? 'ENDLESS BOSS RUSH — WAVE 1!' : f.waves > 1 ? `FINAL BOSS 1/${f.waves}!` : 'FINAL BOSS!', cfg.type.color);
   }
   function playDeathScream(kind) {
     robotSay('', `scream-${{ spider: 'cyclops', shark: 'overlord' }[kind] || kind}`);
@@ -1159,7 +1160,7 @@
   function startFinalFight(shatter) {
     mode = 'final'; shield = 100; keys.clear(); resetGesture(); calibrateTilt();
     ufos = []; ufoRespawns = []; bombs = []; crashingUfos = []; smoke = []; boss = null; bossAttacks = []; enemyShots = []; laserShots = []; callout = null;
-    finale = { phase: 'fight', started: time, shatter, shipX: .5, cool: 0, wave: 0, waves: finaleWaveCount(), lives, invulnUntil: 0, beams: [], bolts: [], gore: [], splats: [], bursts: [], msg: null };
+    finale = { phase: 'fight', started: time, shatter, shipX: .5, cool: 0, wave: 0, waves: endlessRun ? Infinity : finaleWaveCount(), endless: endlessRun, cleared: 0, lives, invulnUntil: 0, beams: [], bolts: [], gore: [], splats: [], bursts: [], msg: null };
     startWave(0);
     $('results').classList.add('hidden'); $('hud').classList.add('hidden');
     document.body.classList.remove('paused', 'alarm', 'critical', 'boosting', 'hyper', 'boss', 'hinting');
@@ -1237,7 +1238,8 @@
     shake = 3.2; screenFlash = 1;
     playExplosionSound(3); playToneSweep(70, 14, 2.2, 'sawtooth', .22); playNoiseBurst(2.4, .32, 700, 40); playToneSweep(260, 40, .9, 'sine', .16);
     showCallout(f.cfg.type.down, f.cfg.type.color); playDeathScream(f.cfg.type.kind);
-    if (f.wave + 1 < f.waves) finaleMsg(`BOSS ${f.wave + 1}/${f.waves} DOWN  /  NEXT ONE INCOMING`);
+    if (f.endless) { f.cleared = f.wave + 1; finaleMsg(`WAVE ${f.wave + 1} CLEARED  /  NEXT ONE INCOMING`); }
+    else if (f.wave + 1 < f.waves) finaleMsg(`BOSS ${f.wave + 1}/${f.waves} DOWN  /  NEXT ONE INCOMING`);
   }
   function enterDisco() {
     unlockAchievement('galaxy'); if (finale.waves >= 6) unlockAchievement('galaxy6');
@@ -1254,6 +1256,13 @@
     $('result-title').textContent = won ? 'GALAXY SAVED.' : 'ABDUCTED.';
     $('result-position').textContent = '01';
     $('result-record').textContent = won ? 'The alien overlord is disco dust now. Dance on, pilot.' : 'The overlord survived. Win another race to face it again.';
+    if (f.endless) {
+      const best = profile.stats.endlessBest || 0, record = f.cleared > best;
+      if (record) { profile.stats.endlessBest = f.cleared; saveProfile(); }
+      $('result-eyebrow').textContent = 'ENDLESS BOSS RUSH / GAME OVER'; $('result-title').textContent = `${f.cleared} WAVE${f.cleared === 1 ? '' : 'S'}.`;
+      $('result-position').textContent = String(f.cleared).padStart(2, '0');
+      $('result-record').textContent = record ? `✦ NEW ENDLESS RECORD! (previous best: ${best})` : `Best so far: ${best} waves. One more try?`;
+    }
     $('results').classList.remove('hidden'); document.body.classList.add('paused');
   }
   function updateFinale(dt) {
@@ -1278,7 +1287,7 @@
     }
     f.gore = f.gore.filter(g => g.life > 0);
     if (f.phase === 'disco') { if (!f.resultsShown && time - f.discoAt > 3.4) showFinaleResults(true); return; }
-    if (f.phase === 'won') { if (time - f.wonAt > 3.4) { if (f.wave + 1 < f.waves) startWave(f.wave + 1); else enterDisco(); } return; }
+    if (f.phase === 'won') { if (time - f.wonAt > 3.4) { if (f.endless || f.wave + 1 < f.waves) startWave(f.wave + 1); else enterDisco(); } return; }
     if (f.phase === 'lost') { if (!f.resultsShown && time - f.lostAt > 2.6) showFinaleResults(false); return; }
     if (f.phase === 'respawn') {
       // Continue exactly where the ship blew up: same wave, same wall, same boss health.
@@ -1461,7 +1470,7 @@
     const bw = Math.min(W * .5, 420), bx = W / 2 - bw / 2, by = small ? 60 : 96;
     ctx.font = `${small ? 11 : 12}px ${mono}`; ctx.textAlign = 'center'; ctx.fillStyle = '#b9ff7a';
     ctx.fillStyle = f.cfg.type.color;
-    ctx.fillText(`☣ ${f.cfg.name}  ${Math.max(0, f.boss.hp)}/${f.boss.maxHp}${f.waves > 1 ? `   ·   BOSS ${f.wave + 1}/${f.waves}` : ''}`, W / 2, by - 9, W * .94);
+    ctx.fillText(`☣ ${f.cfg.name}  ${Math.max(0, f.boss.hp)}/${f.boss.maxHp}${f.endless ? `   ·   WAVE ${f.wave + 1}  ·  BEST ${profile.stats.endlessBest || 0}` : f.waves > 1 ? `   ·   BOSS ${f.wave + 1}/${f.waves}` : ''}`, W / 2, by - 9, W * .94);
     for (let i = 0; i < f.boss.maxHp; i++) { const sw = bw / f.boss.maxHp; ctx.fillStyle = i < f.boss.hp ? f.cfg.type.color : 'rgba(255,255,255,.14)'; ctx.fillRect(bx + i * sw + (sw > 6 ? 1 : 0), by, sw - (sw > 6 ? 2 : 0), 7); }
     const sw = Math.min(W * .32, 220), sx = Math.max(16, W * .03), sy = H - (small ? 58 : 92), alive = f.invaders.filter(v => v.alive).length;
     ctx.textAlign = 'left'; ctx.fillStyle = '#c3b6d3'; ctx.fillText('HULL SHIELD', sx, sy - 9);
@@ -1672,7 +1681,18 @@
     const start = $('start'); if (start.firstElementChild) start.firstElementChild.textContent = locked ? 'LOCKED CIRCUIT' : 'ENTER THE RACE';
   }
   function showLockedHint() { const el = $('track-lock'); if (el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); } }
+  // ---- Game modes: RACE (grand prix), TIME TRIAL (alone against the clock) and ENDLESS (boss after boss).
+  let trialRun = false;
+  const GAME_MODES = { race: 'GRAND PRIX', trial: 'TIME TRIAL', endless: 'ENDLESS BOSSES' };
+  const gameMode = () => GAME_MODES[settings.gameMode] ? settings.gameMode : 'race';
+  function renderGameMode() {
+    document.body.classList.toggle('mode-trial', gameMode() === 'trial'); document.body.classList.toggle('mode-endless', gameMode() === 'endless');
+    const best = profile.stats.trial && profile.stats.trial[trackIndex];
+    if ($('mode-info')) $('mode-info').textContent = gameMode() === 'trial' ? `NO RIVALS, NO UFOS · BEST ${best ? formatTime(best) : '— —:—'}` : gameMode() === 'endless' ? `BOSS AFTER BOSS UNTIL YOU FALL · RECORD ${profile.stats.endlessBest || 0} WAVES` : `${PILOT_COUNT} PILOTS · ${LAP_COUNT} LAPS · WIN TO FACE THE INVASION`;
+    renderLock();
+  }
   function startRace() {
+    if (gameMode() === 'endless') { startEndless(); return; }
     if (trackLocked(trackIndex)) { renderLock(); playToneSweep(220, 120, .25, 'square', .05); showLockedHint(); return; }
     mode = 'countdown'; position = 0; distance = 0; playerX = 0; speed = 0; energy = 100; elapsed = 0; lap = 1; lapStart = 0;
     laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = laserCap(); laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
@@ -1680,6 +1700,8 @@
     const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
     rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace * diff().pace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
+    if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
+    endlessRun = false; trialRun = gameMode() === 'trial';
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
@@ -1863,7 +1885,21 @@
     $('result-record').textContent = 'HULL LOST / THE WHOLE PACK WENT NOVA';
     $('results').classList.remove('hidden');
   }
+  function finishTrial() {
+    mode = 'finished'; boosting = false; document.body.classList.remove('boosting'); document.body.classList.add('paused');
+    profile.stats.trial = profile.stats.trial || {};
+    const best = profile.stats.trial[trackIndex], record = !best || elapsed < best;
+    if (record) profile.stats.trial[trackIndex] = elapsed;
+    saveProfile(); addCredits(80, 'TIME TRIAL');
+    const fastest = Math.min(...laps); if (!bestLap || fastest < bestLap) { bestLap = fastest; try { localStorage.setItem(`chroma-best-${trackIndex}`, String(bestLap)); } catch {} }
+    $('result-eyebrow').textContent = `TIME TRIAL / ${tracks[trackIndex].name}`; $('result-title').textContent = record ? 'NEW BEST TIME!' : 'TIME TRIAL DONE.';
+    $('result-position').textContent = '⏱'; $('result-time').textContent = formatTime(elapsed); $('result-lap').textContent = formatTime(fastest);
+    $('result-record').textContent = record ? (best ? `✦ ${formatTime(best - elapsed)} faster than your old best` : '✦ First time set — now beat it!') : `Best: ${formatTime(best)}  ·  +${formatTime(elapsed - best)} behind`;
+    $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
+    $('results').classList.remove('hidden'); invasionArmed = false; soundEffect(880, .6); if (record) playFanfare();
+  }
   function finishRace() {
+    if (trialRun) { finishTrial(); return; }
     addCredits(Math.max(0, (PILOT_COUNT + 1 - rank) * 10) + (rank <= 3 ? 100 : 0) + (rank === 1 ? 150 : 0), `P${rank} FINISH`);
     unlockAchievement('first-race'); if (rank <= 3) unlockAchievement('podium'); if (rank === 1) { unlockAchievement('win'); if (!lostLifeThisRace) unlockAchievement('flawless'); }
     let unlockedNow = '';
@@ -2754,6 +2790,8 @@
     settings.steering = button.dataset.steer; saveSettings(); renderSettings();
   }));
   document.querySelectorAll('[data-setting]').forEach(button => button.addEventListener('click', () => setSetting(button.dataset.setting, button.dataset.value)));
+  settingHooks.gameMode = () => renderGameMode();
+  renderGameMode();
   settingHooks.difficulty = () => setupNote(`DIFFICULTY: ${diff().name} · ${diff().lives > 0 ? '+1 LIFE, ' : diff().lives < 0 ? '-1 LIFE, ' : ''}${Math.round(diff().credits * 100)}% CREDITS`);
   window.morbidSettings = { set: setSetting, get: () => settings };
   document.querySelectorAll('[data-haptics]').forEach(button => button.addEventListener('click', () => {
@@ -2816,8 +2854,9 @@
   // Easter egg: tap the big MORBID RACERS title 5 times quickly (or type B-O-S-S on the start screen)
   // to skip the race and go straight to the invasion; the number of bosses follows the selected circuit.
   let eggTaps = [], eggTyped = '';
-  function bossRush() {
-    unlockAchievement('egg');
+  function startEndless() { endlessRun = true; trialRun = false; bossRush(true); }
+  function bossRush(endless = false) {
+    if (!endless) { unlockAchievement('egg'); endlessRun = false; }
     eggTaps = []; eggTyped = '';
     setupAudio(); primeSpeech();
     $('menu').classList.add('hidden'); $('hud').classList.add('hidden');
