@@ -409,3 +409,53 @@ body.cb .hull-critical,body.cb.critical #shield-fill{background:repeating-linear
 /* Performance mode: drop expensive compositor effects. */
 body.lowfx *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 body.lowfx .home-bg,body.lowfx .scanlines{animation:none!important}
+
+/* Championship standings on the results card. */
+.mode-options{flex-wrap:wrap}.mode-options .setup-option{min-width:calc(25% - 6px)}
+@media (max-width:600px) and (orientation:portrait){.mode-options{grid-template-columns:repeat(2,1fr)}}
+.cup-standings{margin:10px 0 4px;padding:8px 10px;border:1px solid #ffd35a55;background:#ffd35a0d;font:12px var(--mono);letter-spacing:1px}
+.cup-standings b{display:block;color:#ffd35a;font-weight:400;margin-bottom:4px}
+.cup-standings div{display:flex;justify-content:space-between;padding:2px 0;color:#d8d2e8}.cup-standings div.you{color:var(--acid)}
+.cup-standings em{font-style:normal}
+
+/* Mutators on the start screen. */
+.mutator-picker{margin-top:12px}.mutator-options{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.mutator-options .setup-option{flex:1;min-height:34px;font-size:11px;min-width:calc(25% - 6px)}
+.mutator-options .setup-option.selected{border-color:#ff9b2e;color:#ffb366;background:#ff9b2e18}
+@media (max-width:600px) and (orientation:portrait){.mutator-options .setup-option{min-width:calc(50% - 6px);min-height:40px}}
+@media (max-height:520px) and (orientation:landscape){.mutator-picker{margin-top:6px}.mutator-options .setup-option{min-height:28px}}
+@media (max-height:720px){.mutator-picker .mode-info{display:none}}
+
+/* Special machines. */
+.ship-options{flex-wrap:wrap}.ship-option.locked{opacity:.45}.ship-option.locked::after{content:' 🔒';font-size:10px}
+.touch-controls .blink-button{display:none;border-color:#c77dff;color:#d9a8ff}body.ship-blink .touch-controls .blink-button{display:flex}
+
+/* Story comic. */
+.home-action-story{color:#80faff;border-color:#80faff66;position:relative}.home-action-story.new::after{content:'NEW';position:absolute;top:-7px;right:6px;background:var(--pink);color:#fff;font:9px var(--mono);padding:1px 5px;letter-spacing:1px}
+.story-card{max-width:860px}.story-panels{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:14px 0 8px}
+.comic-panel{margin:0;background:radial-gradient(circle,#ffffff14 1px,transparent 1.5px) 0 0/8px 8px,linear-gradient(160deg,#2a1d55,#140f2c);border:3px solid #fff;box-shadow:5px 5px 0 #ff4eb8;transform:rotate(var(--tilt));padding:12px;display:flex;flex-direction:column;gap:10px;min-height:190px}
+.comic-art{font-size:54px;text-align:center;line-height:1.2;filter:drop-shadow(0 0 12px #ffffff40)}
+.comic-panel figcaption{background:#fff;color:#14102a;font:600 14px/1.35 var(--body);padding:8px 10px;border-radius:12px;position:relative}
+.comic-panel figcaption::before{content:'';position:absolute;top:-8px;left:22px;border:8px solid transparent;border-top:0;border-bottom-color:#fff}
+.story-locked{font:11px var(--mono);letter-spacing:1px;color:#b9b2cc;min-height:14px;margin:4px 0}
+.story-nav{display:flex;gap:8px;margin-bottom:10px}.story-nav .setup-option{flex:1;min-height:38px}.story-nav .setup-option:disabled{opacity:.35}
+.story-new{display:block;margin:6px auto 0;color:#80faff}
+@media (max-width:700px){.story-panels{grid-template-columns:1fr}.comic-panel{min-height:0;flex-direction:row;align-items:center}.comic-art{font-size:38px;min-width:76px}}
+@media (max-height:520px) and (orientation:landscape){.story-panels{gap:8px}.comic-panel{min-height:0;padding:8px}.comic-art{font-size:32px}.comic-panel figcaption{font-size:12px}}
+.modal-card.dialog-card.story-card{max-width:880px;width:min(880px,calc(100vw - 32px))}.comic-art{white-space:nowrap}
+
+/* Seasonal events. */
+.season-badge{display:inline-flex;flex-direction:column;gap:2px;margin:8px 0 2px;padding:6px 12px;border:1px solid #ff9b2e;background:#ff7a1a1c;font:11px var(--mono);letter-spacing:1px;color:#ffd0a0}
+.season-badge b{font-weight:400;color:#ff9b2e;font-size:12px}
+body.season-xmas .season-badge{border-color:#9fe8ff;background:#9fe8ff14;color:#dff4ff}body.season-xmas .season-badge b{color:#9fe8ff}
+@media (max-height:720px){.season-badge span{display:none}}
+
+/* Photo mode. */
+.photo-button{color:#80faff}
+.photo-bar{display:none}
+body.photo #hud,body.photo .topbar,body.photo .bottom-bar,body.photo #touch-controls,body.photo .touch-hint,body.photo #race-message,body.photo #tutorial{visibility:hidden!important}
+body.photo .photo-bar{display:flex;position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:70;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;padding:10px 12px;background:#0c0a1ee8;border:1px solid #80faff66;max-width:calc(100% - 24px)}
+.photo-title{font:12px var(--mono);letter-spacing:2px;color:#80faff}
+.photo-tools,.photo-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.photo-bar button{min-width:40px;min-height:40px;padding:0 10px;background:#171329;border:1px solid #ffffff33;color:#fff;font:12px var(--mono);letter-spacing:1px}
+.photo-bar .photo-save{background:var(--acid);color:#111;border-color:var(--acid)}
+.share-clip{margin-top:6px;border-color:#ff4eb8!important;color:#ff9bd8!important}

@@ -1,8 +1,9 @@
   // ==== Per-frame update loop and HUD.
   let playClock = 0;
   function update(dt) {
+    if (photo) return;
     time += dt; screenFlash = Math.max(0, screenFlash - dt * 2.4);
-    updateBoot(); tickAchievement();
+    updateBoot(); tickAchievement(); updateClip();
     if (frameClock - subtitleAt > 2.8 && $('subtitle')) $('subtitle').classList.remove('visible');
     if (['racing', 'final', 'respawning', 'countdown'].includes(mode)) { playClock += dt; if (playClock > 15) { profile.stats.seconds = (profile.stats.seconds || 0) + playClock; playClock = 0; saveProfile(); } }
     if (analyser && !audio.paused && !muted) { analyser.getByteFrequencyData(frequency); beat = lerp(beat, frequency.slice(0, 12).reduce((a, b) => a + b, 0) / (12 * 255), .2); } else beat *= .95;
@@ -29,7 +30,7 @@
       }
       if (document.body.classList.contains('buffering')) { document.body.classList.remove('buffering'); if (audio.paused && !muted) playMusic(); }
       const old = Math.ceil(countdown); countdown -= dt;
-      $('countdown').textContent = countdown > 0 ? Math.ceil(countdown) : 'GO!';
+      $('countdown').textContent = countdown > 0 ? String(Math.ceil(countdown)) : 'GO!';
       if (Math.ceil(countdown) !== old && countdown > 0) soundEffect(440, .13);
       if (countdown <= 0) { mode = 'racing'; launchGoTime = .8; soundEffect(880, .35); calibrateTilt(); }
       updateHUD(); return;
@@ -79,7 +80,7 @@
     updateWeather(dt, track);
     if (jumpHeight > 0 || jumpVelocity > 0) {
       jumpHeight = Math.max(0, jumpHeight + jumpVelocity * dt);
-      jumpVelocity -= 1450 * dt;
+      jumpVelocity -= (mutator('lowgrav') ? 620 : 1450) * dt;
       if (jumpHeight === 0 && jumpVelocity < 0) jumpVelocity = 0;
     }
     updateCrashingUfos(dt); updateBoss(dt);
@@ -99,7 +100,7 @@
       }
     }
     const seg = segments[Math.floor(mod(position + 1050, LENGTH) / SEG)];
-    playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip;
+    playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip * (weather && weather.type === 'snow' ? .62 : 1);
     if (weather && weather.type === 'gravity') playerX += Math.sin((time - weather.started) * 1.4) * dt * .55 * track.width;
     playerX -= seg.curve * dt * speed / 10700 * .62;
     steerVisual = lerp(steerVisual, steer, Math.min(1, dt * 9));
@@ -158,6 +159,19 @@
           }
         }
       }
+      const cut = roadSegment.shortcut;
+      if (cut && !hitShortcuts.has(id) && jumpHeight < 90) {
+        const miss = Math.abs(playerX - cut.lane * track.width);
+        if (miss < .1 * track.width) {
+          hitShortcuts.add(id); distance += SHORTCUT_SKIP * SEG; position = mod(distance, LENGTH); raceStats.shortcuts = (raceStats.shortcuts || 0) + 1;
+          showCallout('⤳ SHORTCUT!', '#ff9b2e'); showMessage('TUNNEL WARP  /  +' + SHORTCUT_SKIP * SEG / 1000 + ' KM AHEAD', 1.2);
+          screenFlash = Math.max(screenFlash, .3); playJetBlast(1); playToneSweep(200, 1400, .4, 'sawtooth', .05); buzz([15, 25, 15]);
+        } else if (miss < .3 * track.width) {
+          hitShortcuts.add(id); speed = Math.max(2500, speed * .7); shake = .9; screenFlash = Math.max(screenFlash, .25);
+          showMessage('TUNNEL WALL!  ' + shieldText(12), 1); playImpactSound(1); createExplosion(worldSegment * SEG + SEG * .5, cut.lane * track.width, '#ff9b2e', .7);
+          if (damageShield(12)) { updateHUD(); return; }
+        }
+      }
       const gate = roadSegment.stargate;
       if (gate && !hitGates.has(id) && Math.abs(playerX - gate.lane * track.width) < .3 * track.width * magnetReach()) { hitGates.add(id); activateHyper(); }
       const pickup = roadSegment.powerup;
@@ -194,12 +208,12 @@
         if (r.boostRemaining <= 0) { r.boosting = false; r.boostCooldown = 1.2 + random(Math.floor(time * 11) + r.seed) * 2.1; }
       } else {
         r.boostCooldown -= dt;
-        if (r.boostCooldown <= 0) {
+        if (r.boostCooldown <= 0 && empSlow(r) === 1) {
           r.boosting = true; r.boostRemaining = .82 + random(Math.floor(time * 7) + r.seed * 3) * .72;
           if (Math.abs(r.distance - distance) < 5200) playBoostSound(.42);
         }
       }
-      r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt * worldPace();
+      r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt * worldPace() * empSlow(r);
       r.x = r.lane + .13 * Math.sin(time * .8 + r.seed * 2);
       if (r.nemesis) {
         // Hunt the player: drift towards the player's lane when close, and taunt when overtaking.
@@ -208,7 +222,7 @@
         if (gap > 0 && gap < 2200 && time - r.tauntAt > 25) nemesisTaunt(r);
       }
       r.laserCooldown -= dt * worldPace() * (r.nemesis ? 1.6 : 1);
-      if (r.laserCooldown <= 0) {
+      if (r.laserCooldown <= 0 && empSlow(r) === 1) {
         r.laserCooldown = 4.4 + random(Math.floor(time * 5) + r.seed * 31) * 3.2;
         if (r.distance > distance + 1700 && r.distance < distance + 17000 && Math.abs(r.x * track.width - playerX) < track.width * .48) {
           enemyShots.push({ from: r, sourceDistance: r.distance, sourceLane: r.x, targetLane: clamp(playerX / track.width, -.85, .85), color: r.color,
@@ -228,6 +242,7 @@
         }
       }
     }
+    updateAttacks(dt, track); updateSlipstream(dt, track);
     for (const shot of enemyShots) {
       if (shot.resolved || time < shot.impactAt) continue;
       shot.resolved = true;
@@ -244,6 +259,7 @@
       laserCharge += dt / laserRecharge();
       if (laserCharge >= 1) { laserCharge -= 1; laserAmmo++; if (laserAmmo === laserCap()) laserCharge = 0; }
     } else laserCharge = 0;
+    if (keys.has('KeyC')) { keys.delete('KeyC'); blink(); }
     if ((keys.has('KeyX') || keys.has('KeyF') || gesture.fire || gesture.fireQueued) && laserCooldown <= 0) { gesture.fireQueued = false; fireLaser(); }
     laserShots = laserShots.filter(shot => time - shot.started < shot.duration);
     explosions = explosions.filter(explosion => time - explosion.started < explosion.duration);
@@ -281,7 +297,7 @@
     $('progress').style.width = Math.min(100, distance / (LENGTH * LAP_COUNT) * 100) + '%';
     const laserIncoming = enemyShots.some(shot => !shot.resolved && shot.impactAt - time < .55);
     const bombIncoming = bombs.some(bomb => !bomb.exploded && bomb.distance - (distance + 1050) < 4200);
-    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
+    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : slip > .5 ? 'SLIPSTREAM  /  BOOST CHARGING' : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
     document.body.classList.toggle('air-raid', laserIncoming || bombIncoming);
     drawMap();
   }

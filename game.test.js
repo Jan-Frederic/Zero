@@ -24,7 +24,7 @@ function harness(opts = {}) {
   }
   const ships = [0, 1, 2].map(n => { const el = element(`ship${n}`); el.dataset.ship = String(n); return el; });
   const hapticButtons = ['on', 'off'].map(v => { const el = element(`haptics-${v}`); el.dataset.haptics = v; return el; });
-  const windowEvents = {}, storage = new Map([['morbid-settings-v2', JSON.stringify({ perf: opts.perf || 'full' })], ...(opts.fresh ? [] : [['morbid-profile-v1', JSON.stringify({ unlocked: 8 })]])]), vibrations = [];
+  const windowEvents = {}, storage = new Map([['morbid-settings-v2', JSON.stringify({ perf: opts.perf || 'full' })], ...(opts.fresh ? [] : [['morbid-profile-v1', JSON.stringify(opts.profile || { unlocked: 8 })]])]), vibrations = [];
   let frame, now = 0;
   const sandbox = {
     console, Math, Uint8Array, btoa: s => Buffer.from(s, 'binary').toString('base64'), atob: s => Buffer.from(s, 'base64').toString('binary'), escape, unescape, navigator: { vibrate: pattern => { vibrations.push(pattern); return true; } }, innerWidth: 1280, innerHeight: 800, devicePixelRatio: 1,
@@ -35,11 +35,11 @@ function harness(opts = {}) {
   };
   sandbox.window = sandbox;
   const source = fs.readFileSync('game.js', 'utf8').replace('  applyPerf(); applyLanguage(); resize(); buildTrack(); requestAnimationFrame(frame);\n})();',
-    '  applyPerf(); applyLanguage(); resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ tutorialStep: tutorial ? tutorial.step : -1,  weather: weather && weather.type, meteors: bombs.filter(b => b.meteor).length,  nemeses: rivals.filter(r => r.nemesis).map(r => ({ name: r.nemesis.name, hull: r.hull, alive: r.alive })),  power: Object.keys(power).filter(k => power[k] > time), bubbleHits, powerups: segments.filter(s => s.powerup).map(s => ({ index: s.index, lane: s.powerup.lane, type: s.powerup.type })), lives, raceInvulnUntil, speed,  racerCrashes: crashingUfos.filter(c => c.kind === \'racer\').length, blasts2: megaBlasts.length, ufoKills, boss: boss && { hp: boss.hp, lane: boss.lane, dying: !!boss.dying }, bossAttacks: bossAttacks.length, hyperTime, stargates: segments.filter(s => s.stargate).map(s => ({ index: s.index, lane: s.stargate.lane })), energy, ufoList: ufos.map(u => ({ lane: u.lane, slot: u.slot })), crashing: crashingUfos.length, blasts: megaBlasts.length, confetti: confetti.length, callout: callout && callout.text, dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__setUfoKills = n => { ufoKills = n; };\n  window.__setBossHp = n => { if (boss) boss.hp = n; };\n  window.__finaleAim = col => { finale.formVx = 0; finale.boss.v = 0; finale.boss.off = 0; finale.cool = 0; finale.rowSwing = 0; finale.rowPhase = 0; finale.boss.arrive = Math.min(finale.boss.arrive, time - 5); const L = finaleLayout(); finale.shipX = (L.left + (col + .5) * L.cw) / W; };\n  window.__finaleOpen = col => { finale.invaders.forEach(v => { if (v.c === col) v.alive = false; }); finale.boss.hp = 1; };\n  window.__wave = n => { finale.bolts = []; startWave(n); finale.boss.arrive -= 2; finale.nextBossShot = time + .1; };\n  window.__forceDaily = () => { DAILY_GOALS.length = 0; DAILY_GOALS.push({ id: "win", text: t => "WIN " + t, check: () => rank === 1 }); renderDaily(); };\n  window.__weatherNow = () => { nextWeatherAt = time; };\n  window.__say = text => robotSay(text);\n  window.__musicLoading = p => { soundtrackReady = false; soundtrackProgress = p; };\n  window.__musicLoaded = () => { soundtrackReady = true; soundtrackProgress = 1; };\n  window.__finaleKillShip = () => { shield = 0; finale.invulnUntil = 0; finale.bolts = [{ kind: "zap", x: finale.shipX * W, y: finaleLayout().shipY, vx: 0, vy: 0, dmg: 1 }]; };\n  window.__finale = () => finale && { lives: finale.lives, shield, phase: finale.phase, wall: finale.invaders && finale.invaders.filter(v => v.alive).length, hp: finale.boss && finale.boss.hp, wave: finale.wave, waves: finale.waves, kind: finale.cfg && finale.cfg.type.kind, rows: finale.cfg && finale.cfg.rows, attacks: finale.bolts && finale.bolts.filter(b => b.kind !== "zap").map(b => b.kind) };\n  window.__eliminateRivals = () => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
+    '  applyPerf(); applyLanguage(); resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ tutorialStep: tutorial ? tutorial.step : -1,  weather: weather && weather.type, meteors: bombs.filter(b => b.meteor).length,  nemeses: rivals.filter(r => r.nemesis).map(r => ({ name: r.nemesis.name, hull: r.hull, alive: r.alive })),  power: Object.keys(power).filter(k => power[k] > time), slip, missiles: missiles.length, mines: mines.length, rivalsAlive: rivals.filter(r => r.alive).length, empd: rivals.filter(r => r.empUntil > time).length, bubbleHits, powerups: segments.filter(s => s.powerup).map(s => ({ index: s.index, lane: s.powerup.lane, type: s.powerup.type })), lives, raceInvulnUntil, speed,  racerCrashes: crashingUfos.filter(c => c.kind === \'racer\').length, blasts2: megaBlasts.length, ufoKills, boss: boss && { hp: boss.hp, lane: boss.lane, dying: !!boss.dying }, bossAttacks: bossAttacks.length, hyperTime, stargates: segments.filter(s => s.stargate).map(s => ({ index: s.index, lane: s.stargate.lane })), energy, ufoList: ufos.map(u => ({ lane: u.lane, slot: u.slot })), crashing: crashingUfos.length, blasts: megaBlasts.length, confetti: confetti.length, callout: callout && callout.text, dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, cup: cup && { round: cup.round, done: !!cup.done, player: cup.player, tracks: cup.tracks.join() }, trackIndex, curves: [100, 400, 700].map(i => segments[i].curve), credits: profile.credits, jumpHeight, shortcuts: segments.filter(s => s.shortcut).map(s => ({ index: s.index, lane: s.shortcut.lane })), playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__setUfoKills = n => { ufoKills = n; };\n  window.__placeSecond = (gap, lane) => { const r = rivals[1]; r.alive = true; r.distance = distance + 1050 + gap; r.lane = lane; r.x = lane; r.speed = speed; r.boostCooldown = 1e6; r.laserCooldown = 1e6; return r; };\n  window.__placeRival = (gap, lane) => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); const r = rivals[0]; r.alive = true; r.distance = distance + 1050 + gap; r.lane = lane; r.x = lane; r.speed = speed; r.boostCooldown = 1e6; return r; };\n  window.__setBossHp = n => { if (boss) boss.hp = n; };\n  window.__finaleAim = col => { finale.formVx = 0; finale.boss.v = 0; finale.boss.off = 0; finale.cool = 0; finale.rowSwing = 0; finale.rowPhase = 0; finale.boss.arrive = Math.min(finale.boss.arrive, time - 5); const L = finaleLayout(); finale.shipX = (L.left + (col + .5) * L.cw) / W; };\n  window.__finaleOpen = col => { finale.invaders.forEach(v => { if (v.c === col) v.alive = false; }); finale.boss.hp = 1; };\n  window.__wave = n => { finale.bolts = []; startWave(n); finale.boss.arrive -= 2; finale.nextBossShot = time + .1; };\n  window.__forceDaily = () => { DAILY_GOALS.length = 0; DAILY_GOALS.push({ id: "win", text: t => "WIN " + t, check: () => rank === 1 }); renderDaily(); };\n  window.__weatherNow = () => { nextWeatherAt = time; };\n  window.__say = text => robotSay(text);\n  window.__musicLoading = p => { soundtrackReady = false; soundtrackProgress = p; };\n  window.__musicLoaded = () => { soundtrackReady = true; soundtrackProgress = 1; };\n  window.__finaleKillShip = () => { shield = 0; finale.invulnUntil = 0; finale.bolts = [{ kind: "zap", x: finale.shipX * W, y: finaleLayout().shipY, vx: 0, vy: 0, dmg: 1 }]; };\n  window.__finale = () => finale && { lives: finale.lives, shield, phase: finale.phase, wall: finale.invaders && finale.invaders.filter(v => v.alive).length, hp: finale.boss && finale.boss.hp, wave: finale.wave, waves: finale.waves, kind: finale.cfg && finale.cfg.type.kind, rows: finale.cfg && finale.cfg.rows, attacks: finale.bolts && finale.bolts.filter(b => b.kind !== "zap").map(b => b.kind) };\n  window.__eliminateRivals = () => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
   vm.runInNewContext(source, sandbox);
   const step = seconds => { for (let i = 0; i < Math.ceil(seconds * 20); i++) { now += 50; frame(now); } };
   const key = (code, type = 'keydown') => (windowEvents[type] || []).forEach(fn => fn({ code, repeat: false, target: element('body'), preventDefault() {} }));
-  return { sandbox, vibrations, element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b), eliminateRivals: () => sandbox.__eliminateRivals(), weatherNow: () => sandbox.__weatherNow(), finaleAim: c => sandbox.__finaleAim(c), finaleState: () => sandbox.__finale(), finaleOpen: c => sandbox.__finaleOpen(c), finaleKillShip: () => sandbox.__finaleKillShip(), musicLoading: p => sandbox.__musicLoading(p), musicLoaded: () => sandbox.__musicLoaded(), setUfoKills: n => sandbox.__setUfoKills(n), setBossHp: n => sandbox.__setBossHp(n) };
+  return { sandbox, vibrations, element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b), eliminateRivals: () => sandbox.__eliminateRivals(), weatherNow: () => sandbox.__weatherNow(), finaleAim: c => sandbox.__finaleAim(c), finaleState: () => sandbox.__finale(), finaleOpen: c => sandbox.__finaleOpen(c), finaleKillShip: () => sandbox.__finaleKillShip(), musicLoading: p => sandbox.__musicLoading(p), musicLoaded: () => sandbox.__musicLoaded(), setUfoKills: n => sandbox.__setUfoKills(n), setBossHp: n => sandbox.__setBossHp(n), placeRival: (g, l) => sandbox.__placeRival(g, l) };
 }
 
 test('circuit selection, driving, boost, pause, full race, records and restart', () => {
@@ -498,7 +498,7 @@ test('power-ups: pick-ups on the track grant magnet, bubble, time warp and multi
   const { element: el, step, key, inspect, setRacePosition, disableAirRaid, setReserves } = harness();
   el('start').fire('click'); key('ArrowUp'); step(3.05);
   disableAirRaid();
-  const pickups = inspect().powerups;
+  const pickups = inspect().powerups.filter(p => !['missile', 'mine', 'emp'].includes(p.type));
   assert.equal(pickups.length, 6, 'six power-ups per circuit');
   assert.deepEqual([...new Set(pickups.map(p => p.type))].sort(), ['bubble', 'magnet', 'multi', 'warp']);
   const grab = type => { const p = pickups.find(q => q.type === type); setRacePosition(p.index * 200 - 1050, p.lane); step(.1); };
@@ -557,8 +557,8 @@ test('achievements unlock and are listed in the trophy cabinet', () => {
   for (const id of ['first-race', 'podium', 'win', 'flawless']) assert.ok(got.includes(id), id);
   assert.match(el('achievement').innerHTML, /ACHIEVEMENT UNLOCKED/);
   el('garage').fire('click'); el('open-trophies').fire('click');
-  assert.match(el('trophy-count').textContent, /^4 \/ 18$/);
-  assert.match(el('open-trophies').textContent, /4\/18/);
+  assert.match(el('trophy-count').textContent, /^4 \/ 19$/);
+  assert.match(el('open-trophies').textContent, /4\/19/);
 });
 
 test('the boss roster has six different bosses before any MK II repeat', () => {
@@ -740,4 +740,172 @@ test('german translation covers fixed phrases, numbers and composite messages', 
   assert.equal(tr('565'), '565');
   sandbox.morbidSettings.set('lang', 'en');
   assert.equal(tr('SETTINGS'), 'SETTINGS');
+});
+
+test('slipstream: tucking in behind a rival charges boost', () => {
+  const { element: el, step, key, inspect, disableAirRaid, setReserves, placeRival } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid();
+  setReserves(100, 10, 10);
+  for (let i = 0; i < 20; i++) { placeRival(1400, inspect().playerX / 1.2 || 0); step(.05); }
+  assert.ok(inspect().slip > .5, 'slipstream active');
+  assert.ok(Number.parseInt(el('energy-text').textContent) > 25, 'boost charged faster than normal');
+  assert.match(el('boost-label').textContent, /SLIPSTREAM/);
+});
+
+test('attack items: missiles home in, mines catch rivals behind, EMP stalls the field', () => {
+  const { element: el, step, key, inspect, disableAirRaid, setRacePosition, placeRival } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid();
+  const boxes = inspect().powerups.filter(p => ['missile', 'mine', 'emp'].includes(p.type));
+  assert.equal(boxes.map(b => b.type).sort().join(), 'emp,mine,missile');
+  const grab = type => { const p = boxes.find(q => q.type === type); setRacePosition(p.index * 200 - 1050 - 50, p.lane * 1.2); placeRival(6000, 0); step(.05); };
+  const before = inspect().rivalsAlive;
+  grab('missile'); assert.equal(inspect().missiles, 1);
+  step(3.2); assert.equal(inspect().missiles, 0);
+  assert.ok(inspect().rivalsAlive < before, 'the missile destroyed a rival');
+  grab('emp'); assert.ok(inspect().empd > 0, 'rivals ahead are stalled');
+  grab('mine'); assert.equal(inspect().mines, 3);
+});
+
+test('championship: four races with F1 points and a ceremony at the end', () => {
+  const { element: el, step, key, inspect, setRacePosition, disableAirRaid, eliminateRivals, sandbox, storage } = harness();
+  sandbox.morbidSettings.set('gameMode', 'cup');
+  assert.match(el('mode-info').textContent, /4 RACES · F1 POINTS/);
+  const circuits = [];
+  for (let race = 0; race < 4; race++) {
+    el(race ? 'again' : 'start').fire('click'); key('ArrowUp'); step(3.05);
+    circuits.push(inspect().trackIndex);
+    disableAirRaid(); eliminateRivals();
+    for (let lap = 0; lap < 6 && inspect().mode === 'racing'; lap++) { setRacePosition((lap + 1) * 240000 - 60, 0); step(.5); }
+    assert.equal(inspect().mode, 'finished');
+    assert.equal(inspect().cup.round, race + 1);
+    assert.equal(inspect().cup.player, 25 * (race + 1), 'a win scores 25 points');
+    assert.match(el('result-eyebrow').textContent, new RegExp(`RACE ${race + 1}/4`));
+    assert.match(el('cup-standings').innerHTML, /1\. YOU/);
+  }
+  assert.equal(new Set(circuits).size, 4, 'four different circuits');
+  assert.ok(inspect().cup.done);
+  assert.equal(el('result-title').textContent, 'CHAMPION!');
+  assert.ok(JSON.parse(storage.get('morbid-profile-v1')).achievements.cup, 'trophy unlocked');
+});
+
+test('shortcuts: hitting the tunnel portal warps ahead, clipping its wall hurts', () => {
+  const { element: el, step, key, inspect, setRacePosition, disableAirRaid, eliminateRivals } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid(); eliminateRivals();
+  const cuts = inspect().shortcuts;
+  assert.equal(cuts.length, 2, 'two shortcuts per circuit');
+  setRacePosition(cuts[0].index * 200 - 1050 - 60, cuts[0].lane); const before = inspect().distance; step(.05);
+  assert.ok(inspect().distance - before > 7000, 'warped ahead');
+  const shield = inspect().shield;
+  setRacePosition(cuts[1].index * 200 - 1050 - 60, cuts[1].lane - Math.sign(cuts[1].lane) * .2); step(.05);
+  assert.ok(inspect().shield < shield, 'hit the tunnel wall');
+});
+
+test('mutators: mirror and reverse change the track, low gravity floats, credits pay more', () => {
+  const { element: el, step, key, inspect, sandbox, setRacePosition, disableAirRaid } = harness();
+  const base = inspect().curves;
+  sandbox.morbidMutators.toggle('mirror');
+  inspect().curves.forEach((c, i) => assert.ok(Math.abs(c + base[i]) < 1e-9, 'mirrored curve'));
+  sandbox.morbidMutators.toggle('mirror'); sandbox.morbidMutators.toggle('reverse');
+  assert.notEqual(inspect().curves.join(), base.join(), 'reverse runs the circuit the other way');
+  sandbox.morbidMutators.toggle('reverse');
+  assert.equal(inspect().curves.join(), base.join());
+  sandbox.morbidMutators.toggle('lowgrav'); sandbox.morbidMutators.toggle('night');
+  assert.match(el('mutator-info').textContent, /\+30% CREDITS/);
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid();
+  const ramp = inspect().trampolines[0];
+  setRacePosition(ramp.index * 200 - 1050, ramp.lane); step(.05);
+  step(1.6);
+  assert.ok(inspect().jumpHeight > 0, 'still airborne thanks to low gravity');
+});
+
+test('special machines: BLINK teleports, TWIN hits two rivals, both need a trophy', () => {
+  const locked = harness();
+  assert.equal(locked.sandbox.morbidShips.select(3), false, 'BLINK is locked');
+  assert.match(locked.element('ship-info').textContent, /UNLOCK WITH THE TROPHY MOTHERSHIP DOWN/);
+  const { element: el, step, key, inspect, sandbox, disableAirRaid, placeRival } = harness({ profile: { unlocked: 8, tutorialDone: true, achievements: { mothership: 1, ufo25: 1 } } });
+  assert.equal(sandbox.morbidShips.select(3), true);
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid();
+  const d = inspect().distance; key('KeyC'); step(.05);
+  assert.ok(inspect().distance - d > 1700, 'teleported forward');
+  const d2 = inspect().distance; key('KeyC'); step(.05);
+  assert.ok(inspect().distance - d2 < 1000, 'blink needs to recharge');
+  el('quit').fire('click');
+  assert.equal(sandbox.morbidShips.select(4), true);
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid();
+  const a = placeRival(4000, 0), b = sandbox.__placeSecond(6000, .2);
+  key('KeyX'); step(.05); key('KeyX', 'keyup');
+  assert.equal(a.hull, 2, 'main target hit'); assert.equal(b.hull, 2, 'twin beam hit a second rival');
+});
+
+test('story: one comic chapter per unlocked circuit, a new one after unlocking a circuit', () => {
+  const { element: el, step, key, inspect, sandbox, setRacePosition, disableAirRaid, eliminateRivals, storage } = harness({ profile: { unlocked: 2, tutorialDone: true } });
+  el('open-story').fire('click');
+  assert.match(el('story-chapter').textContent, /CHAPTER 2 \/ 8/);
+  assert.equal(el('story-title').textContent, 'FIRST CONTACT');
+  assert.match(el('story-panels').innerHTML, /comic-panel/);
+  assert.equal(el('story-next').disabled, true, 'chapter 3 is still locked');
+  el('story-prev').fire('click'); assert.equal(el('story-title').textContent, 'THE SIGNAL');
+  el('next-track').fire('click');
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid(); eliminateRivals();
+  for (let lap = 0; lap < 6 && inspect().mode === 'racing'; lap++) { setRacePosition((lap + 1) * 240000 - 60, 0); step(.5); }
+  assert.equal(el('story-new').classList.contains('hidden'), false, 'new chapter offered after unlocking');
+  el('story-new').fire('click'); assert.equal(el('story-title').textContent, 'THE MOTHERSHIP');
+  assert.deepEqual(JSON.parse(storage.get('morbid-profile-v1')).storySeen.sort(), [0, 1, 2]);
+  void sandbox;
+});
+
+test('seasonal events: dates pick the season, season paints are kept, snow makes the track slippery', () => {
+  const { element: el, step, key, inspect, sandbox, storage, weatherNow, disableAirRaid } = harness();
+  assert.equal(sandbox.morbidSeason.get('2026-10-31T12:00:00'), 'halloween');
+  assert.equal(sandbox.morbidSeason.get('2026-12-24T12:00:00'), 'xmas');
+  assert.equal(sandbox.morbidSeason.get('2027-01-05T12:00:00'), 'xmas');
+  assert.equal(sandbox.morbidSeason.get('2026-07-01T12:00:00'), null);
+  sandbox.morbidSeason.set('xmas');
+  assert.match(el('season-badge').innerHTML, /WINTER EVENT/);
+  assert.ok(JSON.parse(storage.get('morbid-profile-v1')).paints.includes('frost'), 'season paint granted');
+  assert.equal(sandbox.morbidShop.paint('frost'), true);
+  sandbox.morbidSeason.set('none');
+  assert.equal(sandbox.morbidShop.paint('frost'), true, 'the paint stays after the event');
+  sandbox.morbidSeason.set('xmas');
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid();
+  const seen = new Set();
+  for (let i = 0; i < 30 && !seen.has('snow'); i++) { weatherNow(); step(.05); seen.add(inspect().weather); step(9.5); }
+  assert.ok(seen.has('snow'), 'snowfall shows up in winter');
+});
+
+test('photo mode: freezes the race, moves the camera, cycles filters and makes a picture', () => {
+  const { element: el, step, key, inspect, sandbox } = harness();
+  el('start').fire('click'); key('ArrowUp'); step(4);
+  key('Escape'); step(.1); assert.equal(inspect().mode, 'paused');
+  el('photo-mode').fire('click');
+  assert.ok(el('body').classList.contains('photo'));
+  const t = inspect().time; step(1); assert.equal(inspect().time, t, 'the scene is frozen');
+  sandbox.morbidPhoto.adjust('x', .5); sandbox.morbidPhoto.adjust('h', .3); sandbox.morbidPhoto.adjust('zoom', .4); sandbox.morbidPhoto.adjust('filter', 1); sandbox.morbidPhoto.adjust('ship');
+  const st = sandbox.morbidPhoto.state();
+  assert.equal(st.x, .5); assert.equal(st.zoom, 1.4); assert.equal(st.hideShip, true);
+  assert.equal(el('photo-filter').textContent, 'FILTER: NOIR');
+  step(.2);
+  el('photo-exit').fire('click');
+  assert.equal(el('body').classList.contains('photo'), false);
+  assert.equal(el('pause-screen').classList.contains('hidden'), false);
+});
+
+test('highlight clip: the final seconds are recorded and offered after a win', () => {
+  const { element: el, step, key, inspect, sandbox, setRacePosition, disableAirRaid, eliminateRivals } = harness();
+  const recorders = [];
+  sandbox.MediaRecorder = class { constructor(stream, opts) { this.state = 'inactive'; this.mimeType = (opts && opts.mimeType) || 'video/webm'; recorders.push(this); }
+    start() { this.state = 'recording'; } stop() { this.state = 'inactive'; this.ondataavailable({ data: { size: 10 } }); this.onstop(); } };
+  sandbox.MediaRecorder.isTypeSupported = t => t === 'video/webm';
+  sandbox.Blob = class { constructor(parts, o) { this.parts = parts; this.type = o.type; } };
+  el('game').captureStream = () => ({ getVideoTracks: () => [] });
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid(); eliminateRivals();
+  for (let lap = 0; lap < 5; lap++) { setRacePosition((lap + 1) * 240000 - 60, 0); step(.3); }
+  assert.equal(recorders.length, 0, 'nothing recorded before the final lap');
+  setRacePosition(6 * 240000 - 60000, 0); step(.1);
+  assert.equal(recorders.length, 1); assert.equal(recorders[0].state, 'recording');
+  setRacePosition(6 * 240000 - 60, 0); step(.3);
+  assert.equal(inspect().mode, 'finished');
+  step(2);
+  assert.equal(recorders[0].state, 'inactive', 'stops shortly after the finish');
+  assert.equal(el('share-clip').classList.contains('hidden'), false, 'clip offered after the win');
 });

@@ -10,10 +10,8 @@
   $('pause').addEventListener('click', pauseRace); $('resume').addEventListener('click', pauseRace);
   $('quit').addEventListener('click', garage); $('garage').addEventListener('click', garage);
   $('prev-track').addEventListener('click', () => selectTrack(-1)); $('next-track').addEventListener('click', () => selectTrack(1));
-  document.querySelectorAll('[data-ship]').forEach(button => button.addEventListener('click', () => {
-    shipIndex = Number(button.dataset.ship); document.querySelectorAll('[data-ship]').forEach(b => b.classList.toggle('selected', b === button));
-    $('ship-info').textContent = machines[shipIndex].info;
-  }));
+  document.querySelectorAll('[data-ship]').forEach(button => button.addEventListener('click', () => selectShip(Number(button.dataset.ship))));
+  renderShips(); window.morbidShips = { select: selectShip };
   $('music-toggle').addEventListener('click', () => { if (audio.paused) { if (muted) toggleMute(); playMusic(); } else { audio.pause(); updateMusic(); } });
   $('sound').addEventListener('click', toggleMute);
   audio.addEventListener('play', updateMusic); audio.addEventListener('pause', updateMusic);
@@ -37,7 +35,7 @@
   window.addEventListener('blur', () => { keys.clear(); resetGesture(); if (mode === 'racing' || mode === 'countdown') pauseRace(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && (mode === 'racing' || mode === 'countdown')) pauseRace(); });
   document.querySelectorAll('[data-key]').forEach(button => {
-    button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(event.pointerId); keys.add(button.dataset.key); });
+    button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(/** @type {PointerEvent} */ (event).pointerId); keys.add(button.dataset.key); });
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, () => keys.delete(button.dataset.key));
   });
   const gestureActive = () => mode === 'racing' || mode === 'countdown' || mode === 'final';

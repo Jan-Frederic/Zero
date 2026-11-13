@@ -115,6 +115,22 @@
     }
     ctx.restore();
   }
+  function drawShortcutLead(s) {
+    const a = s.p1, b = s.p2, lane = s.shortcutLead;
+    if (s.index % 4 === 0) { const cx = b.x + b.w * lane, w = b.w * .1; polygon([[cx - w, a.y], [cx, b.y], [cx + w, a.y], [cx, lerp(a.y, b.y, .45)]], '#ff9b2ecc'); }
+    else if (s.index % 4 === 2) roadStrip(a, b, lane - .12, lane + .12, '#ff9b2e22');
+  }
+  function drawShortcut(s) {
+    const a = s.p1, b = s.p2, lane = s.shortcut.lane, w = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + w * lane, y = lerp(a.y, b.y, .5);
+    const size = w * .2; if (size < 2) return;
+    ctx.save(); ctx.translate(x, y);
+    // Tunnel mouth: dark hole in a striped frame with a sign above.
+    ctx.fillStyle = '#05030c'; ctx.beginPath(); ctx.ellipse(0, -size * .55, size * .62, size * .62, 0, Math.PI, 0); ctx.lineTo(size * .62, 0); ctx.lineTo(-size * .62, 0); ctx.fill();
+    ctx.lineWidth = Math.max(2, size * .14); ctx.strokeStyle = Math.sin(time * 8) > 0 ? '#ff9b2e' : '#ffe600'; ctx.setLineDash([size * .2, size * .14]);
+    ctx.beginPath(); ctx.ellipse(0, -size * .55, size * .7, size * .7, 0, Math.PI, 0); ctx.lineTo(size * .7, 0); ctx.moveTo(-size * .7, 0); ctx.lineTo(-size * .7, -size * .55); ctx.stroke(); ctx.setLineDash([]);
+    if (size > 14) { ctx.fillStyle = '#ff9b2e'; ctx.font = `bold ${Math.max(9, size * .22)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.fillText('⤳ SHORTCUT', 0, -size * 1.42); }
+    ctx.restore();
+  }
   function drawTrampoline(s, t) {
     const a = s.p1, b = s.p2, lane = s.trampoline.lane, width = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + width * lane, y = lerp(a.y, b.y, .5);
     const size = width * .24;
@@ -162,14 +178,14 @@
   function drawRoad() {
     const t = tracks[trackIndex], base = Math.floor(position / SEG), percent = position % SEG / SEG;
     const playerSeg = mod(base + 5, COUNT), elevation = lerp(segments[playerSeg].y, segments[mod(playerSeg + 1, COUNT)].y, percent);
-    const cameraY = elevation + 1030;
+    const cameraY = elevation + 1030 + (photo ? photo.h * 900 : 0), camX = playerX + (photo ? photo.x : 0);
     let x = 0, dx = -segments[base].curve * percent, clipY = H + 500;
     const visible = [];
     for (let n = 0; n < 185; n++) {
       const index = mod(base + n, COUNT), s = segments[index], next = segments[mod(index + 1, COUNT)];
       const z = (n - percent) * SEG;
-      project(s.p1, x - playerX * ROAD, s.y, z, cameraY);
-      project(s.p2, x + dx - playerX * ROAD, next.y, z + SEG, cameraY);
+      project(s.p1, x - camX * ROAD, s.y, z, cameraY);
+      project(s.p2, x + dx - camX * ROAD, next.y, z + SEG, cameraY);
       x += dx; dx += s.curve;
       s.clip = clipY; s.depth = n;
       if (z <= DEPTH || s.p2.y >= s.p1.y || s.p2.y >= clipY) continue;
@@ -189,6 +205,8 @@
         roadStrip(a, b, s.padLane - .29, s.padLane + .29, s.index % 3 === 0 ? '#d1ffff' : '#15bccc');
         if (s.index % 3 === 1) { const cx = b.x + b.w * s.padLane; polygon([[cx - b.w * .18, a.y], [cx, b.y], [cx + b.w * .18, a.y], [cx, lerp(a.y, b.y, .5)]], '#a5ffff'); }
       }
+      if (s.shortcutLead !== undefined && mode !== 'menu') drawShortcutLead(s);
+      if (s.shortcut && mode !== 'menu' && s.depth > 3) drawShortcut(s);
       if (s.trampoline) drawTrampoline(s, t);
       if (s.stargate && mode !== 'menu' && s.depth > 3) drawStarGate(s, t);
       if (s.powerup && mode !== 'menu' && s.depth > 3 && !hitPowerups.has(Math.floor((distance + (s.index * SEG < mod(distance, LENGTH) ? LENGTH : 0)) / LENGTH) * COUNT + s.index)) drawPowerupPickup(s);
@@ -237,6 +255,10 @@
             }
           }
         }
+      }
+      for (const m of missiles) {
+        const wp = mod(m.distance, LENGTH);
+        if (mode !== 'menu' && Math.floor(wp / SEG) === s.index && s.depth > 4) { const f = wp % SEG / SEG, rw = lerp(a.w, b.w, f); drawMissile(lerp(a.x, b.x, f) + rw * m.lane, lerp(a.y, b.y, f) - rw * .06, rw, m); }
       }
       for (const explosion of explosions) {
         const worldPosition = mod(explosion.distance, LENGTH);
@@ -375,15 +397,17 @@
   function render() {
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
     ctx.save();
+    if (photo && photo.zoom !== 1) { ctx.translate(W / 2, H * .55); ctx.scale(photo.zoom, photo.zoom); ctx.translate(-W / 2, -H * .55); }
     if (shakeAmount() > .03 && (mode === 'racing' || mode === 'wrecked' || mode === 'invasion' || mode === 'respawning')) ctx.translate(Math.sin(time * 121) * shakeAmount() * 8, Math.cos(time * 93) * shakeAmount() * 5);
     background(); drawRoad(); drawLaserBeams();
     const isMenu = mode === 'menu';
     const m = machines[shipIndex];
-    const shipX = isMenu ? W * .56 : W * .5 + steerVisual * 12;
-    const groundShipY = isMenu ? H * .73 : H * .79, shipY = groundShipY - jumpHeight;
+    const shipX = isMenu ? W * .56 : W * .5 + steerVisual * 12 - (photo ? photo.x * W * .42 : 0);
+    const groundShipY = isMenu ? H * .73 : H * .79 + (photo ? photo.h * H * .12 : 0), shipY = groundShipY - jumpHeight;
     const shipSize = Math.min(W * (isMenu ? .085 : .074), isMenu ? 130 : 110);
+    if (mutator('night') && !isMenu) drawNight(shipX, shipY);
     if (mode === 'wrecked' && wreckBurst) drawExplosion(shipX, shipY, shipSize * .9, wreckBurst);
-    else if (mode === 'respawning' || (time < raceInvulnUntil && Math.sin(time * 40) < 0)) { /* exploded / blinking */ }
+    else if (mode === 'respawning' || (photo && photo.hideShip) || (time < raceInvulnUntil && Math.sin(time * 40) < 0)) { /* exploded / blinking / hidden for a photo */ }
     else {
       if (jumpHeight > 30 && mode === 'racing') {
         ctx.save(); ctx.globalAlpha = clamp(1 - jumpHeight / 420, .18, .7); ctx.fillStyle = m.color; ctx.shadowColor = m.color; ctx.shadowBlur = 18;
@@ -403,7 +427,7 @@
       const glow = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .7); glow.addColorStop(0, '#6d29ff00'); glow.addColorStop(1, '#7644ff40'); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
     }
     for (const p of particles) { ctx.globalAlpha = Math.min(1, p.life * 3); line(p.x, p.y, p.x - p.vx * .03, p.y - p.vy * .03, p.color, 2); } ctx.globalAlpha = 1;
-    drawWeather();
+    drawWeather(); drawSlipstream();
     if (hyperTime > 0 && mode !== 'menu') drawWarpOverlay();
     if (mode !== 'menu') drawCrashLayer();
     if (flashAmount(screenFlash) > .015) {
@@ -416,6 +440,16 @@
     if (mode === 'invasion' && finale) drawAlarm();
     // A light scanline texture ties the entire scene together.
     ctx.fillStyle = '#05051b12'; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+    ctx.restore();
+  }
+  // Night mutator: darkness everywhere except the cone of the ship's headlights.
+  function drawNight(x, y) {
+    ctx.save();
+    const g = ctx.createRadialGradient(x, y - H * .2, H * .04, x, y - H * .16, Math.max(W, H) * .62);
+    g.addColorStop(0, 'rgba(3,2,14,0)'); g.addColorStop(.22, 'rgba(3,2,14,.5)'); g.addColorStop(.5, 'rgba(3,2,14,.93)'); g.addColorStop(1, 'rgba(3,2,14,.98)');
+    ctx.fillStyle = g; ctx.fillRect(-20, -20, W + 40, H + 40);
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .1; ctx.fillStyle = '#fff4c8';
+    ctx.beginPath(); ctx.moveTo(x - W * .03, y - H * .02); ctx.lineTo(x - W * .32, H * .44); ctx.lineTo(x + W * .32, H * .44); ctx.lineTo(x + W * .03, y - H * .02); ctx.fill();
     ctx.restore();
   }
   function frame(now) {

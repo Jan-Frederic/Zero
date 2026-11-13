@@ -12,6 +12,22 @@
     hard: { name: 'HARD', pace: 1.08, dmg: 1.4, lives: -1, credits: 1.5 },
   };
   const diff = () => DIFFICULTY[settings.difficulty] || DIFFICULTY.normal;
+  // Mutators: optional twists for a race, each one pays 15 % more credits.
+  const MUTATORS = { mirror: '⇋ MIRROR', night: '☾ NIGHT', lowgrav: '⇡ LOW GRAVITY', reverse: '⟲ REVERSE' };
+  const mutator = id => Array.isArray(settings.mutators) && settings.mutators.includes(id);
+  const mutatorBonus = () => 1 + .15 * Object.keys(MUTATORS).filter(mutator).length;
+  function toggleMutator(id) {
+    if (!MUTATORS[id]) return;
+    const list = new Set(Array.isArray(settings.mutators) ? settings.mutators : []);
+    if (list.has(id)) list.delete(id); else list.add(id);
+    settings.mutators = [...list]; saveSettings(); renderMutators();
+    if ((id === 'mirror' || id === 'reverse') && mode === 'menu') buildTrack();
+  }
+  function renderMutators() {
+    document.querySelectorAll('[data-mutator]').forEach(b => b.classList.toggle('selected', mutator(b.dataset.mutator)));
+    const n = Object.keys(MUTATORS).filter(mutator).length;
+    if ($('mutator-info')) $('mutator-info').textContent = n ? `${Object.keys(MUTATORS).filter(mutator).map(id => MUTATORS[id]).join(' · ')}  ·  +${n * 15}% CREDITS` : 'OPTIONAL TWISTS · EACH ONE +15% CREDITS';
+  }
   // Generic option buttons: <button data-setting="key" data-value="value">. Hooks run after a change.
   const settingHooks = {};
   function setSetting(key, raw) {

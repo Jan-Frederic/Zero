@@ -1,7 +1,7 @@
   // ==== Gamepad polling.
   // ---- Gamepad (standard mapping): stick/D-pad steer, A/RT accelerate, B/LT brake, X/RB laser, Y/LB boost,
   // START pause; in menus A starts / races again / resumes. Buttons are fed in as virtual keys.
-  const PAD_KEYS = { ArrowUp: [0, 7], ArrowDown: [1, 6], KeyX: [2, 5], Space: [3, 4] };
+  const PAD_KEYS = { ArrowUp: [0, 7], ArrowDown: [1, 6], KeyX: [2, 5], Space: [3, 4], KeyC: [10, 11] };
   let padHeld = new Set(), padSteer = 0, padPrev = {}, padSeen = false;
   function pollGamepad() {
     const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];

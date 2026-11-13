@@ -12,8 +12,34 @@
   const machines = [
     { color: '#44f7ff', dark: '#09627d', name: 'PHANTOM', info: 'BALANCED / PRECISION HANDLING', handling: 1, top: 1, drain: 22 },
     { color: '#ff4aa8', dark: '#851657', name: 'VIPER', info: 'AGGRESSIVE / HIGH TOP SPEED', handling: .88, top: 1.06, drain: 25 },
-    { color: '#ddff46', dark: '#56751b', name: 'PULSE', info: 'AGILE / EXTENDED OVERDRIVE', handling: 1.2, top: .96, drain: 17 }
+    { color: '#ddff46', dark: '#56751b', name: 'PULSE', info: 'AGILE / EXTENDED OVERDRIVE', handling: 1.2, top: .96, drain: 17 },
+    // Special machines, unlocked with a trophy.
+    { color: '#c77dff', dark: '#3d1466', name: 'BLINK', info: 'TELEPORT DASH / PRESS C', handling: 1.05, top: .98, drain: 22, ability: 'blink', trophy: 'mothership' },
+    { color: '#ff9b2e', dark: '#5a2a04', name: 'TWIN', info: 'TWIN LASER / TWO TARGETS PER SHOT', handling: .95, top: 1.02, drain: 23, ability: 'twin', trophy: 'ufo25' },
   ];
+  const machineLocked = i => !!machines[i].trophy && !profile.achievements[machines[i].trophy];
+  const ability = () => machines[shipIndex].ability;
+  function selectShip(i) {
+    if (!machines[i]) return false;
+    if (machineLocked(i)) {
+      const a = ACHIEVEMENTS.find(x => x.id === machines[i].trophy);
+      $('ship-info').textContent = `🔒 UNLOCK WITH THE TROPHY ${a ? a.name : ''}`; playToneSweep(220, 120, .2, 'square', .04); return false;
+    }
+    shipIndex = i; document.querySelectorAll('[data-ship]').forEach(b => b.classList.toggle('selected', Number(b.dataset.ship) === i));
+    $('ship-info').textContent = machines[i].info; document.body.classList.toggle('ship-blink', ability() === 'blink'); return true;
+  }
+  function renderShips() {
+    document.querySelectorAll('[data-ship]').forEach(b => b.classList.toggle('locked', machineLocked(Number(b.dataset.ship))));
+  }
+  // BLINK: a short teleport forward with a moment of invulnerability.
+  let blinkReadyAt = 0;
+  function blink() {
+    if (ability() !== 'blink' || mode !== 'racing') return;
+    if (time < blinkReadyAt) { showMessage(`BLINK RECHARGING  /  ${(blinkReadyAt - time).toFixed(1)} S`, .6); return; }
+    blinkReadyAt = time + 6; distance += 1800; position = mod(distance, LENGTH); raceInvulnUntil = Math.max(raceInvulnUntil, time + .6);
+    screenFlash = Math.max(screenFlash, .35); showMessage('BLINK!', .6); playToneSweep(1800, 300, .25, 'sine', .06); playNoiseBurst(.2, .05, 5000, 1200);
+    for (let i = 0; i < 24; i++) particles.push({ x: W * .5 + (Math.random() - .5) * 140, y: H * .78, vx: (Math.random() - .5) * 900, vy: -Math.random() * 700, life: .5, color: i % 2 ? '#c77dff' : '#ffffff' });
+  }
   function resize() {
     W = innerWidth; H = innerHeight; dpr = lowFx() ? 1 : Math.min(devicePixelRatio || 1, 1.6);
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
@@ -22,14 +48,14 @@
   function buildTrack() {
     const t = tracks[trackIndex];
     segments = Array.from({ length: COUNT }, (_, i) => {
-      const angle = i / COUNT * TAU;
+      const flip = mutator('reverse'), angle = (flip ? mod(COUNT - i, COUNT) : i) / COUNT * TAU, sign = (flip ? -1 : 1) * (mutator('mirror') ? -1 : 1);
       const intro = Math.min(1, i / 90);
       const curve = t.bends.reduce((sum, [frequency, amplitude], bend) => sum + Math.sin(angle * frequency + bend * .7) * amplitude, 0);
       const padPosition = i % t.padEvery;
-      return { index: i, curve: curve * t.curve * intro,
+      return /** @type {any} */ ({ index: i, curve: curve * t.curve * intro * sign,
         y: (Math.sin(angle * 2) * 1900 + Math.sin(angle * 5) * 700 + Math.sin(angle * 9) * 260) * t.hill,
         pad: padPosition >= t.padStart && padPosition < t.padStart + t.padLength, padLane: Math.floor(i / t.padEvery) % 2 === 0 ? -.48 : .48,
-        arch: i % Math.max(90, 150 - trackIndex * 6) === 30, tower: i % 9 === 0, p1: {}, p2: {} };
+        arch: i % Math.max(90, 150 - trackIndex * 6) === 30, tower: i % 9 === 0, p1: {}, p2: {} });
     });
     const placed = [];
     for (let i = 0; i < (t.hazards || 0); i++) {
@@ -70,6 +96,22 @@
       while (segments[index].pad || segments[index].hazard || segments[index].trampoline || segments[index].stargate || placed.some(other => Math.abs(other - index) < 16)) index = mod(index + 23, COUNT);
       placed.push(index);
       segments[index].powerup = { index, lane: powerLanes[i], type: POWERUP_ORDER[(i + trackIndex) % POWERUP_ORDER.length] };
+    }
+    // Attack boxes: one of each per lap, in the second half of the field.
+    for (let i = 0; i < ATTACK_ORDER.length; i++) {
+      let index = mod(Math.floor((i + .7) * COUNT / 3), COUNT);
+      while (segments[index].pad || segments[index].hazard || segments[index].trampoline || segments[index].stargate || segments[index].powerup || placed.some(other => Math.abs(other - index) < 14)) index = mod(index + 19, COUNT);
+      placed.push(index);
+      segments[index].powerup = { index, lane: [.35, -.35, 0][(i + trackIndex) % 3], type: ATTACK_ORDER[(i + trackIndex) % ATTACK_ORDER.length] };
+    }
+    // Shortcuts: a narrow tunnel portal at the road edge, announced by chevrons. Hit it dead centre to warp ahead.
+    for (let i = 0; i < 2; i++) {
+      let index = Math.floor(COUNT * (i ? .74 : .31)) + trackIndex * 7;
+      while ([...Array(SHORTCUT_LEAD + 1).keys()].some(k => { const s = segments[mod(index - k, COUNT)]; return s.pad || s.hazard || s.trampoline || s.stargate || s.powerup; }) || placed.some(other => Math.abs(other - index) < 30)) index = mod(index + 13, COUNT);
+      placed.push(index);
+      const lane = (i + trackIndex) % 2 ? .78 : -.78;
+      segments[index].shortcut = { index, lane };
+      for (let k = 1; k <= SHORTCUT_LEAD; k++) segments[mod(index - k, COUNT)].shortcutLead = lane;
     }
     try { bestLap = Number(localStorage.getItem(`chroma-best-${trackIndex}`)) || 0; } catch { bestLap = 0; }
   }

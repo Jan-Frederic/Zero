@@ -34,7 +34,7 @@ async function waitForServer() {
       const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, hasTouch: !!vp.mobile, isMobile: !!vp.mobile, serviceWorkers: 'block', locale: 'en-GB' });
       const page = await ctx.newPage(), errors = [], lines = [];
       page.on('pageerror', e => errors.push(e.message));
-      await page.route('**/game.js', r => r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(root, 'game.js'), 'utf8').replace('  preloadSoundtrack(); prefetchVoices();', HOOKS + '  preloadSoundtrack(); prefetchVoices();') }));
+      await page.route('**/game.js', r => r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(root, 'game.js'), 'utf8').replace('  function startDownloads() {', HOOKS + '  function startDownloads() {') }));
       const tap = sel => vp.mobile ? page.tap(sel) : page.click(sel);
       const step = async (label, fn) => {
         try { await fn(); lines.push(`  ✓ ${label}`); } catch (e) { failures++; lines.push(`  ✗ ${label}: ${String(e.message).split('\n')[0]}`); }

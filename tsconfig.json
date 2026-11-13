@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "target": "es2022",
+    "lib": ["dom", "dom.iterable", "es2022"],
+    "skipLibCheck": true,
+    "strict": false,
+    "noImplicitThis": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "files": ["game.js", "types/globals.d.ts"]
+}

@@ -1,8 +1,11 @@
 // GENERATED FILE — edit the parts in src/ and run `npm run build` (see src/README.md).
 (() => {
   'use strict';
+  /** DOM lookup. Typed loosely on purpose: elements are used as inputs, media, canvases and buttons. @type {(id: string) => any} */
   const $ = id => document.getElementById(id);
-  const canvas = $('game'), ctx = canvas.getContext('2d', { alpha: false });
+  /** @type {HTMLCanvasElement} */
+  const canvas = $('game');
+  const ctx = canvas.getContext('2d', { alpha: false });
   const map = $('minimap').getContext('2d');
   const audio = $('soundtrack');
   const TAU = Math.PI * 2, SEG = 200, COUNT = 1200, LENGTH = SEG * COUNT, ROAD = 1700, DEPTH = .88, PILOT_COUNT = 30, BASE_LASER_CAPACITY = 10;
@@ -22,6 +25,7 @@
   let lives = 0, raceRespawnAt = 0, raceInvulnUntil = 0;
   let hyperTime = 0, hyperStarted = 0, hitGates = new Set();
   // Mothership boss: appears after every 10 UFO kills. Races run LAP_COUNT laps.
+  const SHORTCUT_LEAD = 24, SHORTCUT_SKIP = 40;
   const BOSS_EVERY = 10, BOSS_HP = 40, LAP_COUNT = 6;
   let ufoKills = 0, boss = null, bossAttacks = [];
   let crashingUfos = [], ufoRespawns = [], smoke = [], megaBlasts = [], confetti = [], callout = null;
@@ -61,9 +65,22 @@
     { id: 'gold', name: '24K GOLD', trophy: 'win', color: '#ffd35a', dark: '#6a4a08', accent: '#fff6c8' },
     { id: 'kitty', name: 'NEON KITTY', trophy: 'cats10', color: '#ff9bf2', dark: '#4a1a46', accent: '#80faff', pattern: 'spots' },
     { id: 'rainbow', name: 'HYPER RAINBOW', trophy: 'galaxy', pattern: 'rainbow', accent: '#ffffff' },
+    { id: 'pumpkin', name: 'PUMPKIN PATCH', season: 'halloween', color: '#ff7a1a', dark: '#2a0e00', accent: '#7dff3a', pattern: 'spots' },
+    { id: 'frost', name: 'FROSTBITE', season: 'xmas', color: '#e8f6ff', dark: '#1b4a7a', accent: '#ff3b55', pattern: 'stripes' },
   ];
+  // ---- Seasonal events by date: Halloween (15 Oct – 7 Nov) and winter (1 Dec – 6 Jan). ?season=… forces one for testing.
+  const SEASONS = { halloween: { name: '🎃 HALLOWEEN EVENT', info: 'PUMPKIN UFOS · GHOST FOG · FREE PAINT: PUMPKIN PATCH' }, xmas: { name: '🎄 WINTER EVENT', info: 'SNOWFALL · SLIPPERY TRACKS · FREE PAINT: FROSTBITE' } };
+  let seasonOverride = null;
+  try { seasonOverride = new URLSearchParams(location.search).get('season'); } catch { /* no URL */ }
+  function season(date = new Date()) {
+    if (seasonOverride !== null) return SEASONS[seasonOverride] ? seasonOverride : null;
+    const m = date.getMonth() + 1, d = date.getDate();
+    if ((m === 10 && d >= 15) || (m === 11 && d <= 7)) return 'halloween';
+    if (m === 12 || (m === 1 && d <= 6)) return 'xmas';
+    return null;
+  }
   profile.paints = profile.paints || ['factory'];
-  const paintOwned = p => p.cost === 0 || profile.paints.includes(p.id) || (p.trophy && profile.achievements && profile.achievements[p.trophy]);
+  const paintOwned = p => p.cost === 0 || (p.season && p.season === season()) || profile.paints.includes(p.id) || (p.trophy && profile.achievements && profile.achievements[p.trophy]);
   // drawShip appends alpha digits to colours ('#rrggbb' + '60'), so paints must be 6-digit hex.
   function hslHex(h, sat, l) {
     const k = n => (n + h / 30) % 12, a = sat * Math.min(l, 1 - l), f = n => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
@@ -83,7 +100,7 @@
   let raceEarned = 0, creditPopAt = -9;
   function stat(key, add = 1) { profile.stats[key] = (profile.stats[key] || 0) + add; saveProfile(); return profile.stats[key]; }
   function addCredits(amount, why) {
-    amount = Math.round(amount * diff().credits); if (!amount) return;
+    amount = Math.round(amount * diff().credits * mutatorBonus()); if (!amount) return;
     profile.credits += amount; raceEarned += amount; saveProfile();
     $('credit-pop').textContent = `+${amount} CR  ${why}`; creditPopAt = time; $('credit-pop').classList.add('visible');
   }
@@ -107,6 +124,7 @@
     { id: 'unlock-all', icon: '🗺', name: 'GRAND TOURER', info: 'Unlock every circuit.' },
     { id: 'egg', icon: '🥚', name: 'EGG HUNTER', info: 'Find the secret on the title screen.' },
     { id: 'share', icon: '📣', name: 'BRAGGING RIGHTS', info: 'Share a race result.' },
+    { id: 'cup', icon: '🏆', name: 'CHAMPION OF THE GALAXY', info: 'Win a championship.' },
     { id: 'nemesis', icon: '☠', name: 'NEMESIS HUNTER', info: 'Destroy all three nemeses in one race.' },
   ];
   profile.achievements = profile.achievements || {}; profile.stats = Object.assign({ cats: 0, ufos: 0, rivals: 0, powerTypes: [] }, profile.stats);
@@ -114,7 +132,7 @@
   function unlockAchievement(id) {
     if (profile.achievements[id]) return;
     const a = ACHIEVEMENTS.find(x => x.id === id); if (!a) return;
-    profile.achievements[id] = Date.now(); saveProfile(); achQueue.push(a); showNextAchievement(); renderTrophyButton();
+    profile.achievements[id] = Date.now(); saveProfile(); achQueue.push(a); showNextAchievement(); renderTrophyButton(); renderShips();
   }
   function showNextAchievement() {
     const el = $('achievement'); if (!el || el.classList.contains('visible') || !achQueue.length) return;
@@ -150,6 +168,22 @@
     hard: { name: 'HARD', pace: 1.08, dmg: 1.4, lives: -1, credits: 1.5 },
   };
   const diff = () => DIFFICULTY[settings.difficulty] || DIFFICULTY.normal;
+  // Mutators: optional twists for a race, each one pays 15 % more credits.
+  const MUTATORS = { mirror: '⇋ MIRROR', night: '☾ NIGHT', lowgrav: '⇡ LOW GRAVITY', reverse: '⟲ REVERSE' };
+  const mutator = id => Array.isArray(settings.mutators) && settings.mutators.includes(id);
+  const mutatorBonus = () => 1 + .15 * Object.keys(MUTATORS).filter(mutator).length;
+  function toggleMutator(id) {
+    if (!MUTATORS[id]) return;
+    const list = new Set(Array.isArray(settings.mutators) ? settings.mutators : []);
+    if (list.has(id)) list.delete(id); else list.add(id);
+    settings.mutators = [...list]; saveSettings(); renderMutators();
+    if ((id === 'mirror' || id === 'reverse') && mode === 'menu') buildTrack();
+  }
+  function renderMutators() {
+    document.querySelectorAll('[data-mutator]').forEach(b => b.classList.toggle('selected', mutator(b.dataset.mutator)));
+    const n = Object.keys(MUTATORS).filter(mutator).length;
+    if ($('mutator-info')) $('mutator-info').textContent = n ? `${Object.keys(MUTATORS).filter(mutator).map(id => MUTATORS[id]).join(' · ')}  ·  +${n * 15}% CREDITS` : 'OPTIONAL TWISTS · EACH ONE +15% CREDITS';
+  }
   // Generic option buttons: <button data-setting="key" data-value="value">. Hooks run after a change.
   const settingHooks = {};
   function setSetting(key, raw) {
@@ -221,12 +255,13 @@
     const d = tilt.x - tilt.neutral;
     return Math.abs(d) < TILT_DEAD ? 0 : clamp((d - Math.sign(d) * TILT_DEAD) / (TILT_FULL - TILT_DEAD), -1, 1);
   }
+  let gyroListening = false;
   async function enableGyro() {
     if (!window.DeviceOrientationEvent) return false;
     try {
-      if (typeof DeviceOrientationEvent.requestPermission === 'function' && await DeviceOrientationEvent.requestPermission() !== 'granted') return false;
+      if (typeof /** @type {any} */ (DeviceOrientationEvent).requestPermission === 'function' && await /** @type {any} */ (DeviceOrientationEvent).requestPermission() !== 'granted') return false;
     } catch { return false; }
-    if (!enableGyro.listening) { window.addEventListener('deviceorientation', onTilt); enableGyro.listening = true; }
+    if (!gyroListening) { window.addEventListener('deviceorientation', onTilt); gyroListening = true; }
     return true;
   }
   function currentOrientation() { return window.matchMedia?.('(orientation: landscape)')?.matches ? 'landscape' : 'portrait'; }
@@ -355,6 +390,52 @@
     'MAGNET': 'MAGNET', 'SHIELD BUBBLE': 'SCHUTZBLASE', 'TIME WARP': 'ZEITLUPE', 'MULTI-LASER': 'MULTI-LASER',
     'PULLS IN PADS, CATS, GATES AND POWER-UPS': 'ZIEHT PADS, KATZEN, TORE UND POWER-UPS AN', 'ABSORBS THE NEXT 3 HITS': 'FÄNGT DIE NÄCHSTEN 3 TREFFER AB',
     'EVERYONE ELSE MOVES IN SLOW MOTION': 'ALLE ANDEREN FAHREN IN ZEITLUPE', 'EVERY SHOT HITS UP TO 3 TARGETS': 'JEDER SCHUSS TRIFFT BIS ZU 3 ZIELE',
+    'HOMING MISSILE': 'ZIELSUCH-RAKETE', 'MINE LAYER': 'MINENLEGER', 'EMP BLAST': 'EMP-STOSS', 'LOCKS ON TO THE NEXT RIVAL AHEAD': 'ERFASST DEN NÄCHSTEN RIVALEN VOR DIR',
+    'THREE MINES DROPPED BEHIND YOU': 'DREI MINEN HINTER DIR ABGEWORFEN', 'RIVALS AHEAD LOSE BOOST AND LASERS': 'RIVALEN VOR DIR VERLIEREN BOOST UND LASER',
+    'MISSILE HIT': 'RAKETENTREFFER', 'RIVAL HIT YOUR MINE!': 'RIVALE AUF DEINE MINE GEFAHREN!', 'SLIPSTREAM': 'WINDSCHATTEN', 'BOOST CHARGING': 'BOOST LÄDT',
+    '🏆 CUP': '🏆 CUP', 'CHAMPIONSHIP': 'MEISTERSCHAFT', 'CUP STANDINGS': 'CUP-WERTUNG', 'FINAL STANDINGS': 'ENDSTAND', 'NEW CHAMPIONSHIP': 'NEUE MEISTERSCHAFT', 'CHAMPION!': 'CHAMPION!',
+    '🏆 CHAMPION!': '🏆 CHAMPION!', 'YOU': 'DU', 'Win a championship.': 'Gewinne eine Meisterschaft.',
+    '⤳ SHORTCUT!': '⤳ ABKÜRZUNG!', '⤳ SHORTCUT': '⤳ ABKÜRZUNG', 'TUNNEL WALL!': 'TUNNELWAND!',
+    'MUTATORS': 'MUTATOREN', '⇋ MIRROR': '⇋ SPIEGEL', '☾ NIGHT': '☾ NACHT', '⇡ LOW GRAVITY': '⇡ WENIG SCHWERKRAFT', '⟲ REVERSE': '⟲ RÜCKWÄRTS', 'OPTIONAL TWISTS · EACH ONE +15% CREDITS': 'OPTIONALE KNIFFE · JEDER +15 % CREDITS',
+    'TELEPORT DASH / PRESS C': 'TELEPORT-SPRUNG / TASTE C', 'TWIN LASER / TWO TARGETS PER SHOT': 'DOPPELLASER / ZWEI ZIELE PRO SCHUSS', 'BLINK!': 'BLINK!',
+    'STORY': 'STORY', '📖 STORY': '📖 STORY', '📖 NEW CHAPTER — READ IT': '📖 NEUES KAPITEL — JETZT LESEN', '‹ PREVIOUS': '‹ ZURÜCK', 'NEXT ›': 'WEITER ›',
+    "THE SIGNAL": "DAS SIGNAL",
+    "2097. Night City never sleeps — and tonight the sky is humming.": "2097. Night City schläft nie — und heute Nacht summt der Himmel.",
+    "A signal hijacks every screen: “EARTHLINGS. ENTERTAIN US.”": "Ein Signal kapert jeden Bildschirm: „ERDLINGE. UNTERHALTET UNS.“",
+    "The Grand Prix goes on. If they want a show, we give them speed.": "Der Grand Prix geht weiter. Wenn sie eine Show wollen, kriegen sie Tempo.",
+    "FIRST CONTACT": "ERSTKONTAKT",
+    "The saucers follow the race to the solar fields. They drop gifts: bombs.": "Die Untertassen folgen dem Rennen in die Sonnenfelder. Sie werfen Geschenke ab: Bomben.",
+    "Someone keeps beaming cats onto the track. Nobody knows why.": "Jemand beamt ständig Katzen auf die Strecke. Niemand weiß, warum.",
+    "VEX: “Aliens or not — first place is mine.”": "VEX: „Aliens hin oder her — Platz eins gehört mir.“",
+    "THE MOTHERSHIP": "DAS MUTTERSCHIFF",
+    "Over the ion seas a shadow swallows the stars. The mothership is here.": "Über den Ionenmeeren verschluckt ein Schatten die Sterne. Das Mutterschiff ist da.",
+    "Mission control: “Down ten saucers and it shows itself. Then shoot it!”": "Missionskontrolle: „Hol zehn Untertassen runter, dann zeigt es sich. Und dann schieß!“",
+    "Your laser cells hum. The crowd goes wild.": "Deine Laserzellen summen. Die Menge tobt.",
+    "SYSTEM GLITCH": "SYSTEMFEHLER",
+    "The aliens hack the city grid. Drones and laser gates rise from the road.": "Die Aliens hacken das Stadtnetz. Drohnen und Lasertore wachsen aus der Fahrbahn.",
+    "NULL-9 laughs: “I helped them. Faster tracks, better ratings.”": "NULL-9 lacht: „Ich habe ihnen geholfen. Schnellere Strecken, bessere Quoten.“",
+    "Your mechanic whispers a trick: star gates. Light speed, ten seconds.": "Deine Mechanikerin flüstert dir einen Trick zu: Sternentore. Lichtgeschwindigkeit, zehn Sekunden.",
+    "COLD FRONT": "KALTFRONT",
+    "They freeze the canyon. Grip is gone, the margins are zero.": "Sie lassen den Canyon gefrieren. Kein Grip, null Spielraum.",
+    "The signal again: “YOUR SPECIES IS… AMUSING. CONTINUE.”": "Wieder das Signal: „EURE SPEZIES IST … AMÜSANT. MACHT WEITER.“",
+    "KRONOS: “Amusing? Let's see how they like losing.”": "KRONOS: „Amüsant? Mal sehen, wie ihnen Verlieren gefällt.“",
+    "GRAVITY WARS": "SCHWERKRAFTKRIEGE",
+    "Beyond the moon, gravity bends. The track pulls you sideways.": "Hinter dem Mond verbiegt sich die Schwerkraft. Die Strecke zieht dich zur Seite.",
+    "Something huge watches from the void. A cyclops? A commander?": "Etwas Riesiges beobachtet dich aus der Leere. Ein Zyklop? Ein Kommandant?",
+    "Only a winner gets close enough to find out.": "Nur wer gewinnt, kommt nah genug heran, um es herauszufinden.",
+    "NO BRAKES": "KEINE BREMSEN",
+    "Plasma storms. Laser gates. The aliens raise the stakes.": "Plasmastürme. Lasertore. Die Aliens erhöhen den Einsatz.",
+    "BLAZE: “Whoever wins here gets the invitation. It's mine.”": "BLAZE: „Wer hier gewinnt, bekommt die Einladung. Die gehört mir.“",
+    "The invitation: a seat at the final fight above the galaxy.": "Die Einladung: ein Platz beim letzten Kampf über der Galaxie.",
+    "THE LAST LINE": "DIE LETZTE LINIE",
+    "The singularity. The final, impossible line.": "Die Singularität. Die letzte, unmögliche Linie.",
+    "Win, and the invasion comes for you. Bosses wait in the dark.": "Gewinne, und die Invasion kommt zu dir. In der Dunkelheit warten Bosse.",
+    "And if you beat them too… the whole galaxy will dance.": "Und wenn du auch sie besiegst … tanzt die ganze Galaxie.",
+    '🎃 HALLOWEEN EVENT': '🎃 HALLOWEEN-EVENT', '🎄 WINTER EVENT': '🎄 WINTER-EVENT', 'PUMPKIN UFOS · GHOST FOG · FREE PAINT: PUMPKIN PATCH': 'KÜRBIS-UFOS · GEISTERNEBEL · GRATIS-LACK: KÜRBISFELD',
+    'SNOWFALL · SLIPPERY TRACKS · FREE PAINT: FROSTBITE': 'SCHNEEFALL · RUTSCHIGE STRECKEN · GRATIS-LACK: FROSTBISS', 'PUMPKIN PATCH': 'KÜRBISFELD', 'FROSTBITE': 'FROSTBISS',
+    '❄ SNOWFALL': '❄ SCHNEEFALL', 'SLIPPERY TRACK — STEER GENTLY': 'RUTSCHIGE STRECKE — SANFT LENKEN', '👻 GHOST FOG': '👻 GEISTERNEBEL', 'SOMETHING IS WATCHING…': 'ETWAS BEOBACHTET DICH …',
+    '📷 PHOTO MODE': '📷 FOTOMODUS', '📸 SAVE / SHARE': '📸 SPEICHERN / TEILEN', '✕ EXIT': '✕ BEENDEN', 'SHIP: HIDDEN': 'SCHIFF: AUS', 'SHIP: SHOWN': 'SCHIFF: AN',
+    '🎬 SHARE CLIP': '🎬 CLIP TEILEN',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -382,6 +463,14 @@
     [/^\+(\d+) CR EARNED  ·  (\d+) CR TOTAL$/, '+$1 CR VERDIENT  ·  $2 CR GESAMT'], [/^DIFFICULTY: (\w+) · (.*?)(\d+)% CREDITS$/, (m, d, l, c) => `SCHWIERIGKEIT: ${tr(d)} · ${l.replace('+1 LIFE', '+1 LEBEN').replace('-1 LIFE', '-1 LEBEN')}${c} % CREDITS`],
     [/^SHIP DESTROYED  \/  (\d+) LI(?:VES|FE) LEFT$/, 'SCHIFF ZERSTÖRT  /  NOCH $1 LEBEN'], [/^SHIP DESTROYED!  (\d+) LI(?:VES|FE) LEFT$/, 'SCHIFF ZERSTÖRT!  NOCH $1 LEBEN'],
     [/^MOTHERSHIP HIT  \/  (\d+)%$/, 'MUTTERSCHIFF GETROFFEN  /  $1 %'], [/^RIVAL HIT  \/  HULL (.+)$/, 'RIVALE GETROFFEN  /  RUMPF $1'], [/^(.+) HIT  \/  HULL (\d\/6)$/, '$1 GETROFFEN  /  RUMPF $2'],
+    [/^EMP  \/  (\d+) RIVALS STALLED$/, 'EMP  /  $1 RIVALEN LAHMGELEGT'], [/^MISSILE GOT (.+)!$/, 'RAKETE ERWISCHT $1!'],
+    [/^4 RACES · F1 POINTS · (.+)$/, '4 RENNEN · F1-PUNKTE · $1'], [/^CHAMPIONSHIP · RACE (\d+)\/(\d+)$/, 'MEISTERSCHAFT · RENNEN $1/$2'], [/^NEXT: (.+)$/, 'NÄCHSTES: $1'],
+    [/^CUP P(\d+)\.$/, 'CUP PLATZ $1.'], [/^(\d+)\. (.+)$/, (m, n, name) => `${n}. ${tr(name)}`], [/^(\d+) PTS$/, '$1 PKT'],
+    [/^TUNNEL WARP  \/  \+([\d.]+) KM AHEAD$/, 'TUNNEL-SPRUNG  /  +$1 KM VORAUS'], [/^TUNNEL WALL!  SHIELD -(\d+)$/, 'TUNNELWAND!  SCHILD -$1'],
+    [/^\+(\d+)% CREDITS$/, '+$1 % CREDITS'],
+    [/^🔒 UNLOCK WITH THE TROPHY (.+)$/, '🔒 FREISCHALTEN MIT DER TROPHÄE $1'], [/^BLINK RECHARGING  \/  ([\d.]+) S$/, 'BLINK LÄDT  /  $1 S'],
+    [/^CHAPTER (\d+) \/ (\d+)  ·  (.+)$/, 'KAPITEL $1 / $2  ·  $3'], [/^🔒 (\d+) MORE CHAPTERS — UNLOCK CIRCUITS TO READ ON$/, '🔒 NOCH $1 KAPITEL — SCHALTE STRECKEN FREI, UM WEITERZULESEN'],
+    [/^FILTER: (\w+)$/, (m, f) => `FILTER: ${({ NONE: 'KEINER' })[f] || f}`],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
@@ -452,8 +541,34 @@
   const machines = [
     { color: '#44f7ff', dark: '#09627d', name: 'PHANTOM', info: 'BALANCED / PRECISION HANDLING', handling: 1, top: 1, drain: 22 },
     { color: '#ff4aa8', dark: '#851657', name: 'VIPER', info: 'AGGRESSIVE / HIGH TOP SPEED', handling: .88, top: 1.06, drain: 25 },
-    { color: '#ddff46', dark: '#56751b', name: 'PULSE', info: 'AGILE / EXTENDED OVERDRIVE', handling: 1.2, top: .96, drain: 17 }
+    { color: '#ddff46', dark: '#56751b', name: 'PULSE', info: 'AGILE / EXTENDED OVERDRIVE', handling: 1.2, top: .96, drain: 17 },
+    // Special machines, unlocked with a trophy.
+    { color: '#c77dff', dark: '#3d1466', name: 'BLINK', info: 'TELEPORT DASH / PRESS C', handling: 1.05, top: .98, drain: 22, ability: 'blink', trophy: 'mothership' },
+    { color: '#ff9b2e', dark: '#5a2a04', name: 'TWIN', info: 'TWIN LASER / TWO TARGETS PER SHOT', handling: .95, top: 1.02, drain: 23, ability: 'twin', trophy: 'ufo25' },
   ];
+  const machineLocked = i => !!machines[i].trophy && !profile.achievements[machines[i].trophy];
+  const ability = () => machines[shipIndex].ability;
+  function selectShip(i) {
+    if (!machines[i]) return false;
+    if (machineLocked(i)) {
+      const a = ACHIEVEMENTS.find(x => x.id === machines[i].trophy);
+      $('ship-info').textContent = `🔒 UNLOCK WITH THE TROPHY ${a ? a.name : ''}`; playToneSweep(220, 120, .2, 'square', .04); return false;
+    }
+    shipIndex = i; document.querySelectorAll('[data-ship]').forEach(b => b.classList.toggle('selected', Number(b.dataset.ship) === i));
+    $('ship-info').textContent = machines[i].info; document.body.classList.toggle('ship-blink', ability() === 'blink'); return true;
+  }
+  function renderShips() {
+    document.querySelectorAll('[data-ship]').forEach(b => b.classList.toggle('locked', machineLocked(Number(b.dataset.ship))));
+  }
+  // BLINK: a short teleport forward with a moment of invulnerability.
+  let blinkReadyAt = 0;
+  function blink() {
+    if (ability() !== 'blink' || mode !== 'racing') return;
+    if (time < blinkReadyAt) { showMessage(`BLINK RECHARGING  /  ${(blinkReadyAt - time).toFixed(1)} S`, .6); return; }
+    blinkReadyAt = time + 6; distance += 1800; position = mod(distance, LENGTH); raceInvulnUntil = Math.max(raceInvulnUntil, time + .6);
+    screenFlash = Math.max(screenFlash, .35); showMessage('BLINK!', .6); playToneSweep(1800, 300, .25, 'sine', .06); playNoiseBurst(.2, .05, 5000, 1200);
+    for (let i = 0; i < 24; i++) particles.push({ x: W * .5 + (Math.random() - .5) * 140, y: H * .78, vx: (Math.random() - .5) * 900, vy: -Math.random() * 700, life: .5, color: i % 2 ? '#c77dff' : '#ffffff' });
+  }
   function resize() {
     W = innerWidth; H = innerHeight; dpr = lowFx() ? 1 : Math.min(devicePixelRatio || 1, 1.6);
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
@@ -462,14 +577,14 @@
   function buildTrack() {
     const t = tracks[trackIndex];
     segments = Array.from({ length: COUNT }, (_, i) => {
-      const angle = i / COUNT * TAU;
+      const flip = mutator('reverse'), angle = (flip ? mod(COUNT - i, COUNT) : i) / COUNT * TAU, sign = (flip ? -1 : 1) * (mutator('mirror') ? -1 : 1);
       const intro = Math.min(1, i / 90);
       const curve = t.bends.reduce((sum, [frequency, amplitude], bend) => sum + Math.sin(angle * frequency + bend * .7) * amplitude, 0);
       const padPosition = i % t.padEvery;
-      return { index: i, curve: curve * t.curve * intro,
+      return /** @type {any} */ ({ index: i, curve: curve * t.curve * intro * sign,
         y: (Math.sin(angle * 2) * 1900 + Math.sin(angle * 5) * 700 + Math.sin(angle * 9) * 260) * t.hill,
         pad: padPosition >= t.padStart && padPosition < t.padStart + t.padLength, padLane: Math.floor(i / t.padEvery) % 2 === 0 ? -.48 : .48,
-        arch: i % Math.max(90, 150 - trackIndex * 6) === 30, tower: i % 9 === 0, p1: {}, p2: {} };
+        arch: i % Math.max(90, 150 - trackIndex * 6) === 30, tower: i % 9 === 0, p1: {}, p2: {} });
     });
     const placed = [];
     for (let i = 0; i < (t.hazards || 0); i++) {
@@ -510,6 +625,22 @@
       while (segments[index].pad || segments[index].hazard || segments[index].trampoline || segments[index].stargate || placed.some(other => Math.abs(other - index) < 16)) index = mod(index + 23, COUNT);
       placed.push(index);
       segments[index].powerup = { index, lane: powerLanes[i], type: POWERUP_ORDER[(i + trackIndex) % POWERUP_ORDER.length] };
+    }
+    // Attack boxes: one of each per lap, in the second half of the field.
+    for (let i = 0; i < ATTACK_ORDER.length; i++) {
+      let index = mod(Math.floor((i + .7) * COUNT / 3), COUNT);
+      while (segments[index].pad || segments[index].hazard || segments[index].trampoline || segments[index].stargate || segments[index].powerup || placed.some(other => Math.abs(other - index) < 14)) index = mod(index + 19, COUNT);
+      placed.push(index);
+      segments[index].powerup = { index, lane: [.35, -.35, 0][(i + trackIndex) % 3], type: ATTACK_ORDER[(i + trackIndex) % ATTACK_ORDER.length] };
+    }
+    // Shortcuts: a narrow tunnel portal at the road edge, announced by chevrons. Hit it dead centre to warp ahead.
+    for (let i = 0; i < 2; i++) {
+      let index = Math.floor(COUNT * (i ? .74 : .31)) + trackIndex * 7;
+      while ([...Array(SHORTCUT_LEAD + 1).keys()].some(k => { const s = segments[mod(index - k, COUNT)]; return s.pad || s.hazard || s.trampoline || s.stargate || s.powerup; }) || placed.some(other => Math.abs(other - index) < 30)) index = mod(index + 13, COUNT);
+      placed.push(index);
+      const lane = (i + trackIndex) % 2 ? .78 : -.78;
+      segments[index].shortcut = { index, lane };
+      for (let k = 1; k <= SHORTCUT_LEAD; k++) segments[mod(index - k, COUNT)].shortcutLead = lane;
     }
     try { bestLap = Number(localStorage.getItem(`chroma-best-${trackIndex}`)) || 0; } catch { bestLap = 0; }
   }
@@ -555,7 +686,7 @@
   const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
   const voiceBuffers = new Map();
   let voiceSource = null;
-  let subtitleAt = -9;
+  let subtitleAt = -9, voicesStarted = false, speechPrimed = false;
   function setupAudio() {
     if (audioContext) { audioContext.resume().catch(() => {}); return; }
     try {
@@ -575,7 +706,9 @@
   }
   // ---- Soundtrack preloading: the whole MP3 is downloaded into memory as soon as the page opens and played
   // from a local blob, so playback can never run dry mid-race. Races wait (briefly) until it is ready.
-  const SOUNDTRACK_URL = (audio.getAttribute && audio.getAttribute('src')) || audio.src;
+  // WebM/Opus copies are ~40 % smaller; browsers that cannot play them get the MP3s.
+  const AUDIO_EXT = (() => { try { return audio.canPlayType && audio.canPlayType('audio/webm; codecs="opus"') ? 'webm' : 'mp3'; } catch { return 'mp3'; } })();
+  const SOUNDTRACK_URL = String((audio.getAttribute && audio.getAttribute('src')) || audio.src || '').replace(/\.mp3$/, '.' + AUDIO_EXT);
   let soundtrackReady = false, soundtrackProgress = 0, soundtrackPromise = null, musicWanted = false;
   const SILENCE = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=='; // 0.1 s of silence
 
@@ -594,7 +727,7 @@
         if (response.body && response.body.getReader && total) {
           const reader = response.body.getReader(), chunks = []; let received = 0;
           for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); received += value.length; soundtrackProgress = Math.min(.99, received / total); updateMusic(); }
-          blob = new Blob(chunks, { type: 'audio/mpeg' });
+          blob = new Blob(chunks, { type: AUDIO_EXT === 'webm' ? 'audio/webm' : 'audio/mpeg' });
         } else blob = await response.blob();
         const resume = !audio.paused && !String(audio.src || '').startsWith('data:'), at = String(audio.src || '').startsWith('data:') ? 0 : audio.currentTime || 0;
         audio.src = URL.createObjectURL(blob); audio.preload = 'auto'; audio.load();
@@ -700,13 +833,13 @@
   let voicesLoaded = 0;
   function prefetchVoices() {
     if (typeof fetch !== 'function') { voicesLoaded = VOICE_CLIPS.length; return; }
-    for (const clip of VOICE_CLIPS) fetch(`voice/${clip}.mp3`).then(r => r.ok ? r.arrayBuffer() : null)
+    for (const clip of VOICE_CLIPS) fetch(`voice/${clip}.${AUDIO_EXT}`).then(r => r.ok ? r.arrayBuffer() : null)
       .then(data => { if (data) voiceData.set(clip, data); }).catch(() => {}).finally(() => { voicesLoaded++; });
   }
   function loadVoices() {
-    if (!audioContext || loadVoices.started || typeof fetch !== 'function') return;
-    loadVoices.started = true;
-    for (const clip of VOICE_CLIPS) (voiceData.has(clip) ? Promise.resolve(voiceData.get(clip).slice(0)) : fetch(`voice/${clip}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()))
+    if (!audioContext || voicesStarted || typeof fetch !== 'function') return;
+    voicesStarted = true;
+    for (const clip of VOICE_CLIPS) (voiceData.has(clip) ? Promise.resolve(voiceData.get(clip).slice(0)) : fetch(`voice/${clip}.${AUDIO_EXT}`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()))
       .then(data => new Promise((ok, fail) => audioContext.decodeAudioData(data, ok, fail))).then(buffer => voiceBuffers.set(clip, buffer)).catch(() => {});
   }
   // Retro robot announcer: plays the pre-rendered clip; falls back to the system voice if it is not loaded.
@@ -756,8 +889,8 @@
   }
   function primeSpeech() {
     // iOS only allows speech after it was started inside a user gesture once.
-    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance || primeSpeech.done) return;
-    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); primeSpeech.done = true; } catch { /* ignore */ }
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance || speechPrimed) return;
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); speechPrimed = true; } catch { /* ignore */ }
   }
   function playFanfare() {
     if (!audioContext || muted) return;
@@ -824,16 +957,23 @@
     bubble: { name: 'SHIELD BUBBLE', icon: '◯', color: '#4df8ff', time: 15, info: 'ABSORBS THE NEXT 3 HITS' },
     warp: { name: 'TIME WARP', icon: '⧗', color: '#a88aff', time: 7, info: 'EVERYONE ELSE MOVES IN SLOW MOTION' },
     multi: { name: 'MULTI-LASER', icon: '⁂', color: '#ff4eb8', time: 10, info: 'EVERY SHOT HITS UP TO 3 TARGETS' },
+    // Attack items fire at once when picked up.
+    missile: { name: 'HOMING MISSILE', icon: '🚀', color: '#ff8a2e', attack: true, info: 'LOCKS ON TO THE NEXT RIVAL AHEAD' },
+    mine: { name: 'MINE LAYER', icon: '✹', color: '#ffe600', attack: true, info: 'THREE MINES DROPPED BEHIND YOU' },
+    emp: { name: 'EMP BLAST', icon: '⌁', color: '#7db8ff', attack: true, info: 'RIVALS AHEAD LOSE BOOST AND LASERS' },
   };
+  const ATTACK_ORDER = ['missile', 'mine', 'emp'];
+  let missiles = [], mines = [], hitShortcuts = new Set();
   const POWERUP_ORDER = ['magnet', 'bubble', 'warp', 'multi'];
   let power = {}, bubbleHits = 0, hitPowerups = new Set();
   const powerOn = type => (power[type] || 0) > time && (mode === 'racing' || mode === 'respawning');
   const magnetReach = () => powerOn('magnet') ? 2.6 : 1;
   const worldPace = () => powerOn('warp') ? .45 : 1;
   function collectPowerup(type) {
-    if (!profile.stats.powerTypes.includes(type)) { profile.stats.powerTypes.push(type); saveProfile(); }
-    if (profile.stats.powerTypes.length >= 4) unlockAchievement('collector');
     const p = POWERUPS[type];
+    if (p.attack) { launchAttack(type); return; }
+    if (!profile.stats.powerTypes.includes(type)) { profile.stats.powerTypes.push(type); saveProfile(); }
+    if (POWERUP_ORDER.every(t => profile.stats.powerTypes.includes(t))) unlockAchievement('collector');
     power[type] = time + p.time; if (type === 'bubble') bubbleHits = 3;
     showCallout(`${p.icon} ${p.name}!`, p.color); showMessage(p.info, 1.6);
     playToneSweep(600, 1800, .25, 'square', .05); playToneSweep(900, 2400, .3, 'sine', .05); buzz([20, 30, 20]);
@@ -863,6 +1003,72 @@
       ctx.restore();
     }
     if (powerOn('warp')) { ctx.save(); ctx.fillStyle = 'rgba(120,90,255,.12)'; ctx.fillRect(-60, -60, W + 120, H + 120); ctx.restore(); }
+  }
+  // ---- Attack items: homing missile, mine layer, EMP.
+  function launchAttack(type) {
+    const p = POWERUPS[type], track = tracks[trackIndex];
+    showCallout(`${p.icon} ${p.name}!`, p.color); showMessage(p.info, 1.4); buzz([30, 20, 30]); raceStats.attacks = (raceStats.attacks || 0) + 1;
+    if (type === 'missile') {
+      const target = rivals.filter(r => r.alive && !r.dying && r.distance > distance + 1050).sort((a, b) => a.distance - b.distance)[0] || null;
+      missiles.push({ distance: distance + 1300, lane: playerX / track.width, target, started: time, speed: Math.max(speed, 8000) + 9000 });
+      playJetBlast(.9); playToneSweep(300, 1600, .5, 'sawtooth', .05);
+    } else if (type === 'mine') {
+      for (let k = 0; k < 3; k++) mines.push({ distance: distance + 1050 - 300 - k * 420, lane: clamp(playerX / track.width + (k - 1) * .28, -.85, .85), armedAt: time + .3, expires: time + 25 });
+      playToneSweep(500, 200, .3, 'square', .04);
+    } else if (type === 'emp') {
+      let hit = 0;
+      for (const r of rivals) if (r.alive && !r.dying && r.distance > distance && r.distance < distance + 14000) { r.empUntil = time + 4.5; r.boosting = false; hit++; }
+      screenFlash = Math.max(screenFlash, .35); playToneSweep(1800, 90, .7, 'sawtooth', .06); playNoiseBurst(.5, .08, 3200, 600);
+      if (hit) showMessage(`EMP  /  ${hit} RIVALS STALLED`, 1.4);
+    }
+  }
+  const empSlow = r => r.empUntil > time ? .55 : 1;
+  function updateAttacks(dt, track) {
+    for (const m of missiles) {
+      const t = m.target && m.target.alive && !m.target.dying ? m.target : null;
+      m.distance += m.speed * dt;
+      if (t) m.lane = lerp(m.lane, t.x, Math.min(1, dt * 5));
+      if (t && m.distance >= t.distance - 120) {
+        m.done = true; knockOut(t); createExplosion(t.distance, t.x * track.width, '#ff8a2e', 1.1); playExplosionSound(1.1);
+        showMessage(t.nemesis ? `MISSILE GOT ${t.nemesis.name}!` : 'MISSILE HIT  /  RIVAL DESTROYED', 1.1);
+      } else if (time - m.started > 3) { m.done = true; createExplosion(m.distance, m.lane * track.width, '#ff8a2e', .7); }
+    }
+    missiles = missiles.filter(m => !m.done);
+    for (const mine of mines) {
+      if (time < mine.armedAt) continue;
+      for (const r of rivals) {
+        if (!r.alive || r.dying || Math.abs(r.distance - mine.distance) > 260 || Math.abs(r.x - mine.lane) > .2) continue;
+        mine.done = true; knockOut(r); createExplosion(mine.distance, mine.lane * track.width, '#ffe600', 1); showMessage('RIVAL HIT YOUR MINE!', 1); break;
+      }
+      if (time > mine.expires) mine.done = true;
+    }
+    mines = mines.filter(m => !m.done);
+  }
+  function drawMissile(x, y, w, m) {
+    const r = Math.max(3, w * .025);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++) { ctx.globalAlpha = .5 - i * .07; ctx.fillStyle = i % 2 ? '#ffd35a' : '#ff6b2e'; ctx.beginPath(); ctx.arc(x, y + r * (1.2 + i * 1.1), r * (1 - i * .1), 0, TAU); ctx.fill(); }
+    ctx.globalAlpha = 1; ctx.shadowColor = '#ff8a2e'; ctx.shadowBlur = 16; ctx.fillStyle = '#fff3d6'; ctx.beginPath(); ctx.ellipse(x, y, r * .7, r * 1.4, 0, 0, TAU); ctx.fill(); ctx.restore();
+  }
+  // ---- Slipstream: tuck in right behind a rival to charge boost and pick up a little speed.
+  let slip = 0, slipShown = false;
+  function updateSlipstream(dt, track) {
+    const ahead = rivals.some(r => { const gap = r.distance - (distance + 1050); return r.alive && !r.dying && gap > 380 && gap < 2600 && Math.abs(r.x * track.width - playerX) < .2 * track.width; });
+    slip = ahead ? Math.min(1, slip + dt * 2.5) : Math.max(0, slip - dt * 3);
+    if (slip > .5) {
+      energy = Math.min(100, energy + dt * 16);
+      if (!boosting) speed = Math.min(12200 * machines[shipIndex].top * topSpeed(), speed + dt * 1600);
+      if (!slipShown) { slipShown = true; showMessage('SLIPSTREAM  /  BOOST CHARGING', .9); playToneSweep(300, 700, .3, 'sine', .03); }
+    } else if (slip === 0) slipShown = false;
+  }
+  function drawSlipstream() {
+    if (slip < .2 || mode !== 'racing') return;
+    ctx.save(); ctx.globalAlpha = slip * .5; ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 16; i++) {
+      const side = i % 2 ? 1 : -1, k = mod(time * 2.2 + i / 16, 1), x = W * .5 + side * W * (.08 + random(i) * .3), y = H * (.5 + k * .45);
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + side * W * .02 * k, y + H * .06 + k * H * .08); ctx.stroke();
+    }
+    ctx.restore();
   }
   // ==== Star gates and the hyperdrive.
   const HYPER_TIME = 10;
@@ -1005,6 +1211,7 @@
     ufoRespawns = ufoRespawns.filter(r => !r.spawned);
   }
   function drawUfoShape(size, color) {
+    if (season() === 'halloween') { drawPumpkin(size); return; }
     ctx.beginPath(); ctx.ellipse(0, 0, size, size * .3, 0, 0, TAU); ctx.fillStyle = '#26253e'; ctx.fill(); ctx.strokeStyle = color; ctx.lineWidth = Math.max(1, size * .075); ctx.stroke();
     ctx.beginPath(); ctx.ellipse(0, -size * .13, size * .42, size * .3, 0, Math.PI, TAU); ctx.fillStyle = '#aeeaff'; ctx.fill(); ctx.strokeStyle = '#efffff'; ctx.lineWidth = Math.max(1, size * .04); ctx.stroke();
     for (let i = -2; i <= 2; i++) { ctx.fillStyle = (i + Math.floor(time * 7)) % 2 ? '#fff4a0' : color; ctx.beginPath(); ctx.arc(i * size * .32, size * .05, Math.max(1, size * .055), 0, TAU); ctx.fill(); }
@@ -1097,7 +1304,7 @@
         ctx.save(); ctx.globalCompositeOperation = 'lighter';
         if (a.type === 'laser') {
           const wob = Math.sin(time * 50) * 3;
-          for (const [w, c] of [[W * .07, '#ff2d5588'], [W * .035, '#ff7a90'], [W * .012, '#ffffff']]) {
+          for (const [w, c] of /** @type {[number, string][]} */ ([[W * .07, '#ff2d5588'], [W * .035, '#ff7a90'], [W * .012, '#ffffff']])) {
             ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(boss.x - w * .3, boss.y + s * .12); ctx.lineTo(boss.x + w * .3, boss.y + s * .12); ctx.lineTo(rx + w + wob, ry); ctx.lineTo(rx - w + wob, ry); ctx.fill();
           }
         } else {
@@ -1241,6 +1448,17 @@
     ctx.restore();
     if (bomb.landed) cbMark(x, roadY, Math.max(10, size * 1.6));
   }
+  // Halloween: the saucers become flying jack-o'-lanterns.
+  function drawPumpkin(size) {
+    const r = size * .62;
+    ctx.fillStyle = '#ff7a1a'; ctx.strokeStyle = '#a83c00'; ctx.lineWidth = Math.max(1, size * .04);
+    for (const dx of [-.45, .45, 0]) { ctx.beginPath(); ctx.ellipse(dx * r, 0, r * .62, r * .8, 0, 0, TAU); ctx.fill(); ctx.stroke(); }
+    ctx.fillStyle = '#3f7a1a'; ctx.fillRect(-r * .08, -r * 1.05, r * .16, r * .3);
+    ctx.fillStyle = Math.sin(time * 9) > -.6 ? '#ffe36b' : '#ffb347';
+    const tri = (x, y, s, up) => { ctx.beginPath(); ctx.moveTo(x - s, y + (up ? s * .7 : -s * .7)); ctx.lineTo(x + s, y + (up ? s * .7 : -s * .7)); ctx.lineTo(x, y + (up ? -s * .7 : s * .7)); ctx.fill(); };
+    tri(-r * .32, -r * .18, r * .17, true); tri(r * .32, -r * .18, r * .17, true);
+    ctx.beginPath(); ctx.moveTo(-r * .5, r * .2); for (let i = 0; i <= 6; i++) ctx.lineTo(-r * .5 + i * r / 6, r * (i % 2 ? .45 : .28)); ctx.lineTo(r * .5, r * .2); ctx.quadraticCurveTo(0, r * .62, -r * .5, r * .2); ctx.fill();
+  }
   // ==== Circuit unlocks, game modes, lifetime race stats.
   // ---- Campaign: circuit n+1 unlocks with a podium (top 3) on circuit n.
   const trackLocked = i => i >= (profile.unlocked || 1);
@@ -1261,13 +1479,60 @@
     if (finished && !trialRun) { if (rank === 1) st.wins = (st.wins || 0) + 1; if (rank <= 3) st.podiums = (st.podiums || 0) + 1; }
     saveProfile();
   }
-  const GAME_MODES = { race: 'GRAND PRIX', trial: 'TIME TRIAL', endless: 'ENDLESS BOSSES' };
+  const GAME_MODES = { race: 'GRAND PRIX', cup: 'CHAMPIONSHIP', trial: 'TIME TRIAL', endless: 'ENDLESS BOSSES' };
   const gameMode = () => GAME_MODES[settings.gameMode] ? settings.gameMode : 'race';
   function renderGameMode() {
-    document.body.classList.toggle('mode-trial', gameMode() === 'trial'); document.body.classList.toggle('mode-endless', gameMode() === 'endless');
+    document.body.classList.toggle('mode-cup', gameMode() === 'cup'); document.body.classList.toggle('mode-trial', gameMode() === 'trial'); document.body.classList.toggle('mode-endless', gameMode() === 'endless');
     const best = profile.stats.trial && profile.stats.trial[trackIndex];
-    if ($('mode-info')) $('mode-info').textContent = gameMode() === 'trial' ? `NO RIVALS, NO UFOS · BEST ${best ? formatTime(best) : '— —:—'}` : gameMode() === 'endless' ? `BOSS AFTER BOSS UNTIL YOU FALL · RECORD ${profile.stats.endlessBest || 0} WAVES` : `${PILOT_COUNT} PILOTS · ${LAP_COUNT} LAPS · WIN TO FACE THE INVASION`;
+    if ($('mode-info')) $('mode-info').textContent = gameMode() === 'trial' ? `NO RIVALS, NO UFOS · BEST ${best ? formatTime(best) : '— —:—'}` : gameMode() === 'endless' ? `BOSS AFTER BOSS UNTIL YOU FALL · RECORD ${profile.stats.endlessBest || 0} WAVES` : gameMode() === 'cup' ? `4 RACES · F1 POINTS · ${cupTracks().map(i => tracks[i].name).join(' → ')}` : `${PILOT_COUNT} PILOTS · ${LAP_COUNT} LAPS · WIN TO FACE THE INVASION`;
     renderLock();
+  }
+  // ---- Championship: four circuits in a row, F1 points for every pilot, standings after each race, a ceremony at the end.
+  const CUP_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1], CUP_RACES = 4;
+  const CALLSIGNS = ['ACE', 'NOVA', 'RIOT', 'ZED', 'KAI', 'LUX', 'ONYX', 'JINX', 'ROOK', 'VOLT', 'HEX', 'ZORA', 'DASH', 'PIKE', 'ECHO', 'MAKO', 'RUNE', 'SKYE', 'FURY', 'IVO', 'NEXA', 'BOLT', 'KIRA', 'TANK', 'WREN', 'ORYX'];
+  let cup = null;
+  function cupTracks() {
+    const pool = tracks.map((_, i) => i).filter(i => !trackLocked(i)), start = Math.max(0, pool.indexOf(trackIndex));
+    return Array.from({ length: CUP_RACES }, (_, k) => pool[(start + k) % pool.length]);
+  }
+  const rivalName = (r, i) => r.nemesis ? r.nemesis.name : CALLSIGNS[i % CALLSIGNS.length];
+  // Called by startRace: begins a new cup or moves on to the next round's circuit.
+  function prepareCupRace() {
+    if (!cup || cup.done) cup = { round: 0, tracks: cupTracks(), player: 0, rivals: [], names: [] };
+    const next = cup.tracks[cup.round];
+    if (next !== trackIndex) { trackIndex = next; buildTrack(); selectTrack(0); }
+  }
+  function scoreCupRace() {
+    // Finishing order: the player at their rank, rivals still running by distance, knocked-out rivals at the back.
+    /** @type {any[]} */
+    const order = rivals.map((r, i) => ({ i, r })).sort((a, b) => (b.r.alive - a.r.alive) || (b.r.distance - a.r.distance));
+    order.splice(rank - 1, 0, { player: true });
+    order.forEach((e, pos) => {
+      const pts = CUP_POINTS[pos] || 0;
+      if (e.player) cup.player += pts; else { cup.rivals[e.i] = (cup.rivals[e.i] || 0) + pts; cup.names[e.i] = rivalName(e.r, e.i); }
+    });
+    cup.round++; cup.done = cup.round >= CUP_RACES;
+    const table = [{ name: 'YOU', pts: cup.player, you: true }, ...cup.rivals.map((pts, i) => ({ name: cup.names[i], pts: pts || 0 })).filter(e => e.name)]
+      .sort((a, b) => b.pts - a.pts || (b.you ? 1 : 0) - (a.you ? 1 : 0));
+    const place = table.findIndex(e => e.you) + 1;
+    return { table, place };
+  }
+  function showCupResults() {
+    const { table, place } = scoreCupRace();
+    $('result-eyebrow').textContent = `CHAMPIONSHIP · RACE ${cup.round}/${CUP_RACES}`;
+    const rows = table.slice(0, 5); if (place > 5) rows.push(table[place - 1]);
+    $('cup-standings').innerHTML = `<b>${cup.done ? 'FINAL STANDINGS' : 'CUP STANDINGS'}</b>` + rows.map(e => `<div class="${e.you ? 'you' : ''}"><span>${table.indexOf(e) + 1}. ${e.name}</span><em>${e.pts} PTS</em></div>`).join('');
+    $('cup-standings').classList.remove('hidden');
+    const again = $('again').firstElementChild; if (again) again.textContent = cup.done ? 'NEW CHAMPIONSHIP' : `NEXT: ${tracks[cup.tracks[cup.round]].name}`;
+    invasionArmed = false;
+    if (cup.done) {
+      const bonus = [600, 300, 150][place - 1] || 0;
+      $('result-title').textContent = place === 1 ? 'CHAMPION!' : `CUP P${place}.`;
+      if (bonus) addCredits(bonus, `CUP P${place}`);
+      $('result-credits').textContent = `+${raceEarned} CR EARNED  ·  ${profile.credits} CR TOTAL`;
+      if (place === 1) { unlockAchievement('cup'); showCallout('🏆 CHAMPION!', '#ffd35a'); launchConfetti(); playFanfare(); robotSay('Congratulations', 'congratulations'); }
+      profile.stats.cups = (profile.stats.cups || 0) + (place === 1 ? 1 : 0); saveProfile();
+    }
   }
   // ==== Daily challenge and streak.
   // ---- Daily challenge: one goal per calendar day (same for everyone), bonus credits and a day streak.
@@ -1311,6 +1576,7 @@
   // ==== Race start/pause/garage, lasers, wrecks, lives, results.
   function startRace() {
     if (gameMode() === 'endless') { startEndless(); return; }
+    if (gameMode() === 'cup') prepareCupRace(); else cup = null;
     if (trackLocked(trackIndex)) { renderLock(); playToneSweep(220, 120, .25, 'square', .05); showLockedHint(); return; }
     mode = 'countdown'; position = 0; distance = 0; playerX = 0; speed = 0; energy = 100; elapsed = 0; lap = 1; lapStart = 0;
     laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = laserCap(); laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
@@ -1323,13 +1589,13 @@
     nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
     if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
     endlessRun = false; trialRun = gameMode() === 'trial';
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); hitShortcuts = new Set(); blinkReadyAt = 0; missiles = []; mines = []; slip = 0; slipShown = false; ufoKills = 0; boss = null; bossAttacks = [];
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
-    $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE';
+    $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE'; $('cup-standings').classList.add('hidden'); $('story-new').classList.add('hidden'); cancelClip(); if ($('again').firstElementChild) $('again').firstElementChild.textContent = 'RACE AGAIN';
     $('race-message').classList.remove('visible'); messageTime = 0;
-    if (settings.steering === 'gyro' && !enableGyro.listening) enableGyro();
+    if (settings.steering === 'gyro' && !gyroListening) enableGyro();
     playMusic(); primeSpeech(); calibrateTilt(); applyScreenSetting(true); updateHUD();
     if (!profile.tutorialDone && gameMode() === 'race') startTutorial(); else { tutorial = null; $('tutorial').classList.remove('visible'); }
     if (window.matchMedia?.('(pointer: coarse)').matches) { hintTime = 6; document.body.classList.add('hinting'); }
@@ -1344,7 +1610,7 @@
   }
   function garage() {
     if (tutorial) { tutorial = null; $('tutorial').classList.remove('visible'); }
-    clearFinale(); mode = 'menu'; keys.clear(); resetGesture(); speed = 0; playerX = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; boosting = false;
+    clearFinale(); cancelClip(); mode = 'menu'; keys.clear(); resetGesture(); speed = 0; playerX = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; boosting = false;
     explosions = []; laserShots = []; enemyShots = []; bombs = []; ufos = []; particles = []; screenFlash = 0;
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; callout = null; hyperTime = 0; boss = null; bossAttacks = []; document.body.classList.remove('hyper', 'boss');
     $('menu').classList.remove('hidden'); ['hud', 'pause-screen', 'results'].forEach(id => $(id).classList.add('hidden'));
@@ -1376,12 +1642,13 @@
     if (!hyper()) laserAmmo--; laserCooldown = hyper() ? .1 : .24;
     laserShots.push({ distance: targetDistance, lane, color: track.second, mega: hyper(), started: time, duration: hyper() ? .28 : .2, x: W * .5, y: H * .79 });
     playLaserSound();
-    if (target && powerOn('multi')) {
-      // Multi-laser: two more beams fan out to the next rivals in a wide cone.
+    const extraBeams = (powerOn('multi') ? 2 : 0) + (ability() === 'twin' ? 1 : 0);
+    if (target && extraBeams) {
+      // Multi-laser and the TWIN machine: more beams fan out to the next rivals in a wide cone.
       const extra = rivals.filter(r => r !== target && r.alive && r.distance > distance + 1350 && r.distance < distance + 22000 && Math.abs(r.x * track.width - playerX) < track.width * .75)
-        .sort((a, b) => a.distance - b.distance).slice(0, 2);
+        .sort((a, b) => a.distance - b.distance).slice(0, extraBeams);
       for (const r of extra) {
-        laserShots.push({ distance: r.distance, lane: r.x * track.width, color: POWERUPS.multi.color, started: time, duration: .2, x: W * .5, y: H * .79 });
+        laserShots.push({ distance: r.distance, lane: r.x * track.width, color: powerOn('multi') ? POWERUPS.multi.color : machines[shipIndex].color, started: time, duration: .2, x: W * .5, y: H * .79 });
         r.hull -= 1; createExplosion(r.distance, r.x * track.width, r.color, r.hull > 0 ? .3 : .45);
         if (r.hull <= 0) knockOut(r);
       }
@@ -1525,6 +1792,7 @@
     $('results').classList.remove('hidden'); invasionArmed = false; soundEffect(880, .6); if (record) playFanfare();
   }
   function finishRace() {
+    finishClip();
     recordRaceStats(true);
     if (trialRun) { finishTrial(); return; }
     addCredits(Math.max(0, (PILOT_COUNT + 1 - rank) * 10) + (rank <= 3 ? 100 : 0) + (rank === 1 ? 150 : 0), `P${rank} FINISH`);
@@ -1541,10 +1809,12 @@
     const record = !bestLap || fastest < bestLap;
     $('result-record').textContent = record ? '✦ NEW CIRCUIT LAP RECORD' : 'Chase the perfect line. The next podium is yours.';
     if (unlockedNow) $('result-record').textContent = `🔓 NEW CIRCUIT UNLOCKED: ${unlockedNow}!` + (record ? '  ·  ✦ NEW LAP RECORD' : '');
+    $('story-new').classList.toggle('hidden', !unlockedNow); if (unlockedNow) renderStoryButton();
     if (record) { bestLap = fastest; try { localStorage.setItem(`chroma-best-${trackIndex}`, String(bestLap)); } catch {} }
     soundEffect(880, .6);
     invasionArmed = rank === 1;
-    if (rank === 1) { launchConfetti(); playFanfare(); robotSay('First place. Flawless victory', 'first-place'); }
+    if (cup) showCupResults();
+    else if (rank === 1) { launchConfetti(); playFanfare(); robotSay('First place. Flawless victory', 'first-place'); }
     checkDaily();
   }
   // ==== Playful boot panel on the start screen.
@@ -1585,11 +1855,13 @@
     meteors: { name: '☄ METEOR SHOWER', info: 'WATCH THE IMPACT MARKERS!', color: '#ff8a2e' },
     sandstorm: { name: '🌪 SANDSTORM', info: 'VISIBILITY DROPPING', color: '#e0b070' },
     gravity: { name: '〰 GRAVITY WAVES', info: 'THE TRACK PULLS YOU SIDEWAYS', color: '#a88aff' },
+    snow: { name: '❄ SNOWFALL', info: 'SLIPPERY TRACK — STEER GENTLY', color: '#dff4ff', season: 'xmas' },
+    ghosts: { name: '👻 GHOST FOG', info: 'SOMETHING IS WATCHING…', color: '#9dff6a', season: 'halloween' },
   };
   let weather = null, nextWeatherAt = 25;
   function updateWeather(dt, track) {
     if (!weather && time >= nextWeatherAt) {
-      const types = Object.keys(WEATHER), type = types[Math.floor(random(Math.floor(time * 3) + trackIndex) * types.length) % types.length];
+      const types = Object.keys(WEATHER).filter(t => !WEATHER[t].season || WEATHER[t].season === season()), type = types[Math.floor(random(Math.floor(time * 3) + trackIndex) * types.length) % types.length];
       weather = { type, started: time, until: time + 9, nextMeteor: time + .6 };
       showCallout(WEATHER[type].name, WEATHER[type].color); showMessage(WEATHER[type].info, 2); playToneSweep(200, 600, .6, 'sawtooth', .04);
     }
@@ -1613,6 +1885,13 @@
     } else if (weather.type === 'gravity') {
       ctx.strokeStyle = '#b89cff'; ctx.lineWidth = 5; ctx.shadowColor = '#a88aff'; ctx.shadowBlur = 14;
       for (let i = 0; i < 4; i++) { const ph = mod(time * .8 + i / 4, 1); ctx.globalAlpha = (1 - ph) * k; ctx.beginPath(); ctx.ellipse(W / 2 + Math.sin((time - weather.started) * 1.4) * W * .2, H * .6, W * (.1 + ph * .7), H * (.03 + ph * .2), 0, 0, TAU); ctx.stroke(); }
+    } else if (weather.type === 'snow') {
+      ctx.fillStyle = `rgba(230,244,255,${.12 * k})`; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 140; i++) { const sp = 60 + random(i) * 120, x = mod(random(i + 400) * W + Math.sin(time + i) * 30 - time * 40, W), y = mod(random(i + 410) * H + time * sp, H); ctx.globalAlpha = k * (.5 + random(i + 3) * .5); ctx.beginPath(); ctx.arc(x, y, 1 + random(i + 7) * 2.5, 0, TAU); ctx.fill(); }
+    } else if (weather.type === 'ghosts') {
+      const g = ctx.createLinearGradient(0, H * .3, 0, H); g.addColorStop(0, `rgba(60,20,90,${.55 * k})`); g.addColorStop(1, `rgba(40,90,40,${.35 * k})`); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.font = `${Math.round(H * .06)}px system-ui, sans-serif`; ctx.textAlign = 'center';
+      for (let i = 0; i < 5; i++) { const ph = mod(time * .15 + i / 5, 1); ctx.globalAlpha = k * Math.sin(ph * Math.PI) * .7; ctx.fillText(i % 2 ? '👻' : '🦇', W * (.1 + random(i + 30) * .8) + Math.sin(time * 2 + i) * 30, H * (.15 + ph * .5)); }
     } else if (weather.type === 'meteors') {
       ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < 10; i++) { const ph = mod(time * .7 + random(i + 70), 1), x = W * (.1 + random(i + 80) * .8) - ph * W * .25, y = -40 + ph * H * .6; ctx.globalAlpha = k * (1 - ph); line(x, y, x + 60, y - 90, '#ffb347', 3); ctx.fillStyle = '#fff1c2'; ctx.beginPath(); ctx.arc(x, y, 4, 0, TAU); ctx.fill(); }
@@ -1655,8 +1934,9 @@
   // ==== Per-frame update loop and HUD.
   let playClock = 0;
   function update(dt) {
+    if (photo) return;
     time += dt; screenFlash = Math.max(0, screenFlash - dt * 2.4);
-    updateBoot(); tickAchievement();
+    updateBoot(); tickAchievement(); updateClip();
     if (frameClock - subtitleAt > 2.8 && $('subtitle')) $('subtitle').classList.remove('visible');
     if (['racing', 'final', 'respawning', 'countdown'].includes(mode)) { playClock += dt; if (playClock > 15) { profile.stats.seconds = (profile.stats.seconds || 0) + playClock; playClock = 0; saveProfile(); } }
     if (analyser && !audio.paused && !muted) { analyser.getByteFrequencyData(frequency); beat = lerp(beat, frequency.slice(0, 12).reduce((a, b) => a + b, 0) / (12 * 255), .2); } else beat *= .95;
@@ -1683,7 +1963,7 @@
       }
       if (document.body.classList.contains('buffering')) { document.body.classList.remove('buffering'); if (audio.paused && !muted) playMusic(); }
       const old = Math.ceil(countdown); countdown -= dt;
-      $('countdown').textContent = countdown > 0 ? Math.ceil(countdown) : 'GO!';
+      $('countdown').textContent = countdown > 0 ? String(Math.ceil(countdown)) : 'GO!';
       if (Math.ceil(countdown) !== old && countdown > 0) soundEffect(440, .13);
       if (countdown <= 0) { mode = 'racing'; launchGoTime = .8; soundEffect(880, .35); calibrateTilt(); }
       updateHUD(); return;
@@ -1733,7 +2013,7 @@
     updateWeather(dt, track);
     if (jumpHeight > 0 || jumpVelocity > 0) {
       jumpHeight = Math.max(0, jumpHeight + jumpVelocity * dt);
-      jumpVelocity -= 1450 * dt;
+      jumpVelocity -= (mutator('lowgrav') ? 620 : 1450) * dt;
       if (jumpHeight === 0 && jumpVelocity < 0) jumpVelocity = 0;
     }
     updateCrashingUfos(dt); updateBoss(dt);
@@ -1753,7 +2033,7 @@
       }
     }
     const seg = segments[Math.floor(mod(position + 1050, LENGTH) / SEG)];
-    playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip;
+    playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip * (weather && weather.type === 'snow' ? .62 : 1);
     if (weather && weather.type === 'gravity') playerX += Math.sin((time - weather.started) * 1.4) * dt * .55 * track.width;
     playerX -= seg.curve * dt * speed / 10700 * .62;
     steerVisual = lerp(steerVisual, steer, Math.min(1, dt * 9));
@@ -1812,6 +2092,19 @@
           }
         }
       }
+      const cut = roadSegment.shortcut;
+      if (cut && !hitShortcuts.has(id) && jumpHeight < 90) {
+        const miss = Math.abs(playerX - cut.lane * track.width);
+        if (miss < .1 * track.width) {
+          hitShortcuts.add(id); distance += SHORTCUT_SKIP * SEG; position = mod(distance, LENGTH); raceStats.shortcuts = (raceStats.shortcuts || 0) + 1;
+          showCallout('⤳ SHORTCUT!', '#ff9b2e'); showMessage('TUNNEL WARP  /  +' + SHORTCUT_SKIP * SEG / 1000 + ' KM AHEAD', 1.2);
+          screenFlash = Math.max(screenFlash, .3); playJetBlast(1); playToneSweep(200, 1400, .4, 'sawtooth', .05); buzz([15, 25, 15]);
+        } else if (miss < .3 * track.width) {
+          hitShortcuts.add(id); speed = Math.max(2500, speed * .7); shake = .9; screenFlash = Math.max(screenFlash, .25);
+          showMessage('TUNNEL WALL!  ' + shieldText(12), 1); playImpactSound(1); createExplosion(worldSegment * SEG + SEG * .5, cut.lane * track.width, '#ff9b2e', .7);
+          if (damageShield(12)) { updateHUD(); return; }
+        }
+      }
       const gate = roadSegment.stargate;
       if (gate && !hitGates.has(id) && Math.abs(playerX - gate.lane * track.width) < .3 * track.width * magnetReach()) { hitGates.add(id); activateHyper(); }
       const pickup = roadSegment.powerup;
@@ -1848,12 +2141,12 @@
         if (r.boostRemaining <= 0) { r.boosting = false; r.boostCooldown = 1.2 + random(Math.floor(time * 11) + r.seed) * 2.1; }
       } else {
         r.boostCooldown -= dt;
-        if (r.boostCooldown <= 0) {
+        if (r.boostCooldown <= 0 && empSlow(r) === 1) {
           r.boosting = true; r.boostRemaining = .82 + random(Math.floor(time * 7) + r.seed * 3) * .72;
           if (Math.abs(r.distance - distance) < 5200) playBoostSound(.42);
         }
       }
-      r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt * worldPace();
+      r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt * worldPace() * empSlow(r);
       r.x = r.lane + .13 * Math.sin(time * .8 + r.seed * 2);
       if (r.nemesis) {
         // Hunt the player: drift towards the player's lane when close, and taunt when overtaking.
@@ -1862,7 +2155,7 @@
         if (gap > 0 && gap < 2200 && time - r.tauntAt > 25) nemesisTaunt(r);
       }
       r.laserCooldown -= dt * worldPace() * (r.nemesis ? 1.6 : 1);
-      if (r.laserCooldown <= 0) {
+      if (r.laserCooldown <= 0 && empSlow(r) === 1) {
         r.laserCooldown = 4.4 + random(Math.floor(time * 5) + r.seed * 31) * 3.2;
         if (r.distance > distance + 1700 && r.distance < distance + 17000 && Math.abs(r.x * track.width - playerX) < track.width * .48) {
           enemyShots.push({ from: r, sourceDistance: r.distance, sourceLane: r.x, targetLane: clamp(playerX / track.width, -.85, .85), color: r.color,
@@ -1882,6 +2175,7 @@
         }
       }
     }
+    updateAttacks(dt, track); updateSlipstream(dt, track);
     for (const shot of enemyShots) {
       if (shot.resolved || time < shot.impactAt) continue;
       shot.resolved = true;
@@ -1898,6 +2192,7 @@
       laserCharge += dt / laserRecharge();
       if (laserCharge >= 1) { laserCharge -= 1; laserAmmo++; if (laserAmmo === laserCap()) laserCharge = 0; }
     } else laserCharge = 0;
+    if (keys.has('KeyC')) { keys.delete('KeyC'); blink(); }
     if ((keys.has('KeyX') || keys.has('KeyF') || gesture.fire || gesture.fireQueued) && laserCooldown <= 0) { gesture.fireQueued = false; fireLaser(); }
     laserShots = laserShots.filter(shot => time - shot.started < shot.duration);
     explosions = explosions.filter(explosion => time - explosion.started < explosion.duration);
@@ -1935,7 +2230,7 @@
     $('progress').style.width = Math.min(100, distance / (LENGTH * LAP_COUNT) * 100) + '%';
     const laserIncoming = enemyShots.some(shot => !shot.resolved && shot.impactAt - time < .55);
     const bombIncoming = bombs.some(bomb => !bomb.exploded && bomb.distance - (distance + 1050) < 4200);
-    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
+    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : slip > .5 ? 'SLIPSTREAM  /  BOOST CHARGING' : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
     document.body.classList.toggle('air-raid', laserIncoming || bombIncoming);
     drawMap();
   }
@@ -2848,6 +3143,22 @@
     }
     ctx.restore();
   }
+  function drawShortcutLead(s) {
+    const a = s.p1, b = s.p2, lane = s.shortcutLead;
+    if (s.index % 4 === 0) { const cx = b.x + b.w * lane, w = b.w * .1; polygon([[cx - w, a.y], [cx, b.y], [cx + w, a.y], [cx, lerp(a.y, b.y, .45)]], '#ff9b2ecc'); }
+    else if (s.index % 4 === 2) roadStrip(a, b, lane - .12, lane + .12, '#ff9b2e22');
+  }
+  function drawShortcut(s) {
+    const a = s.p1, b = s.p2, lane = s.shortcut.lane, w = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + w * lane, y = lerp(a.y, b.y, .5);
+    const size = w * .2; if (size < 2) return;
+    ctx.save(); ctx.translate(x, y);
+    // Tunnel mouth: dark hole in a striped frame with a sign above.
+    ctx.fillStyle = '#05030c'; ctx.beginPath(); ctx.ellipse(0, -size * .55, size * .62, size * .62, 0, Math.PI, 0); ctx.lineTo(size * .62, 0); ctx.lineTo(-size * .62, 0); ctx.fill();
+    ctx.lineWidth = Math.max(2, size * .14); ctx.strokeStyle = Math.sin(time * 8) > 0 ? '#ff9b2e' : '#ffe600'; ctx.setLineDash([size * .2, size * .14]);
+    ctx.beginPath(); ctx.ellipse(0, -size * .55, size * .7, size * .7, 0, Math.PI, 0); ctx.lineTo(size * .7, 0); ctx.moveTo(-size * .7, 0); ctx.lineTo(-size * .7, -size * .55); ctx.stroke(); ctx.setLineDash([]);
+    if (size > 14) { ctx.fillStyle = '#ff9b2e'; ctx.font = `bold ${Math.max(9, size * .22)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.fillText('⤳ SHORTCUT', 0, -size * 1.42); }
+    ctx.restore();
+  }
   function drawTrampoline(s, t) {
     const a = s.p1, b = s.p2, lane = s.trampoline.lane, width = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + width * lane, y = lerp(a.y, b.y, .5);
     const size = width * .24;
@@ -2895,14 +3206,14 @@
   function drawRoad() {
     const t = tracks[trackIndex], base = Math.floor(position / SEG), percent = position % SEG / SEG;
     const playerSeg = mod(base + 5, COUNT), elevation = lerp(segments[playerSeg].y, segments[mod(playerSeg + 1, COUNT)].y, percent);
-    const cameraY = elevation + 1030;
+    const cameraY = elevation + 1030 + (photo ? photo.h * 900 : 0), camX = playerX + (photo ? photo.x : 0);
     let x = 0, dx = -segments[base].curve * percent, clipY = H + 500;
     const visible = [];
     for (let n = 0; n < 185; n++) {
       const index = mod(base + n, COUNT), s = segments[index], next = segments[mod(index + 1, COUNT)];
       const z = (n - percent) * SEG;
-      project(s.p1, x - playerX * ROAD, s.y, z, cameraY);
-      project(s.p2, x + dx - playerX * ROAD, next.y, z + SEG, cameraY);
+      project(s.p1, x - camX * ROAD, s.y, z, cameraY);
+      project(s.p2, x + dx - camX * ROAD, next.y, z + SEG, cameraY);
       x += dx; dx += s.curve;
       s.clip = clipY; s.depth = n;
       if (z <= DEPTH || s.p2.y >= s.p1.y || s.p2.y >= clipY) continue;
@@ -2922,6 +3233,8 @@
         roadStrip(a, b, s.padLane - .29, s.padLane + .29, s.index % 3 === 0 ? '#d1ffff' : '#15bccc');
         if (s.index % 3 === 1) { const cx = b.x + b.w * s.padLane; polygon([[cx - b.w * .18, a.y], [cx, b.y], [cx + b.w * .18, a.y], [cx, lerp(a.y, b.y, .5)]], '#a5ffff'); }
       }
+      if (s.shortcutLead !== undefined && mode !== 'menu') drawShortcutLead(s);
+      if (s.shortcut && mode !== 'menu' && s.depth > 3) drawShortcut(s);
       if (s.trampoline) drawTrampoline(s, t);
       if (s.stargate && mode !== 'menu' && s.depth > 3) drawStarGate(s, t);
       if (s.powerup && mode !== 'menu' && s.depth > 3 && !hitPowerups.has(Math.floor((distance + (s.index * SEG < mod(distance, LENGTH) ? LENGTH : 0)) / LENGTH) * COUNT + s.index)) drawPowerupPickup(s);
@@ -2970,6 +3283,10 @@
             }
           }
         }
+      }
+      for (const m of missiles) {
+        const wp = mod(m.distance, LENGTH);
+        if (mode !== 'menu' && Math.floor(wp / SEG) === s.index && s.depth > 4) { const f = wp % SEG / SEG, rw = lerp(a.w, b.w, f); drawMissile(lerp(a.x, b.x, f) + rw * m.lane, lerp(a.y, b.y, f) - rw * .06, rw, m); }
       }
       for (const explosion of explosions) {
         const worldPosition = mod(explosion.distance, LENGTH);
@@ -3108,15 +3425,17 @@
   function render() {
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
     ctx.save();
+    if (photo && photo.zoom !== 1) { ctx.translate(W / 2, H * .55); ctx.scale(photo.zoom, photo.zoom); ctx.translate(-W / 2, -H * .55); }
     if (shakeAmount() > .03 && (mode === 'racing' || mode === 'wrecked' || mode === 'invasion' || mode === 'respawning')) ctx.translate(Math.sin(time * 121) * shakeAmount() * 8, Math.cos(time * 93) * shakeAmount() * 5);
     background(); drawRoad(); drawLaserBeams();
     const isMenu = mode === 'menu';
     const m = machines[shipIndex];
-    const shipX = isMenu ? W * .56 : W * .5 + steerVisual * 12;
-    const groundShipY = isMenu ? H * .73 : H * .79, shipY = groundShipY - jumpHeight;
+    const shipX = isMenu ? W * .56 : W * .5 + steerVisual * 12 - (photo ? photo.x * W * .42 : 0);
+    const groundShipY = isMenu ? H * .73 : H * .79 + (photo ? photo.h * H * .12 : 0), shipY = groundShipY - jumpHeight;
     const shipSize = Math.min(W * (isMenu ? .085 : .074), isMenu ? 130 : 110);
+    if (mutator('night') && !isMenu) drawNight(shipX, shipY);
     if (mode === 'wrecked' && wreckBurst) drawExplosion(shipX, shipY, shipSize * .9, wreckBurst);
-    else if (mode === 'respawning' || (time < raceInvulnUntil && Math.sin(time * 40) < 0)) { /* exploded / blinking */ }
+    else if (mode === 'respawning' || (photo && photo.hideShip) || (time < raceInvulnUntil && Math.sin(time * 40) < 0)) { /* exploded / blinking / hidden for a photo */ }
     else {
       if (jumpHeight > 30 && mode === 'racing') {
         ctx.save(); ctx.globalAlpha = clamp(1 - jumpHeight / 420, .18, .7); ctx.fillStyle = m.color; ctx.shadowColor = m.color; ctx.shadowBlur = 18;
@@ -3136,7 +3455,7 @@
       const glow = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .7); glow.addColorStop(0, '#6d29ff00'); glow.addColorStop(1, '#7644ff40'); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
     }
     for (const p of particles) { ctx.globalAlpha = Math.min(1, p.life * 3); line(p.x, p.y, p.x - p.vx * .03, p.y - p.vy * .03, p.color, 2); } ctx.globalAlpha = 1;
-    drawWeather();
+    drawWeather(); drawSlipstream();
     if (hyperTime > 0 && mode !== 'menu') drawWarpOverlay();
     if (mode !== 'menu') drawCrashLayer();
     if (flashAmount(screenFlash) > .015) {
@@ -3151,6 +3470,16 @@
     ctx.fillStyle = '#05051b12'; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
     ctx.restore();
   }
+  // Night mutator: darkness everywhere except the cone of the ship's headlights.
+  function drawNight(x, y) {
+    ctx.save();
+    const g = ctx.createRadialGradient(x, y - H * .2, H * .04, x, y - H * .16, Math.max(W, H) * .62);
+    g.addColorStop(0, 'rgba(3,2,14,0)'); g.addColorStop(.22, 'rgba(3,2,14,.5)'); g.addColorStop(.5, 'rgba(3,2,14,.93)'); g.addColorStop(1, 'rgba(3,2,14,.98)');
+    ctx.fillStyle = g; ctx.fillRect(-20, -20, W + 40, H + 40);
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .1; ctx.fillStyle = '#fff4c8';
+    ctx.beginPath(); ctx.moveTo(x - W * .03, y - H * .02); ctx.lineTo(x - W * .32, H * .44); ctx.lineTo(x + W * .32, H * .44); ctx.lineTo(x + W * .03, y - H * .02); ctx.fill();
+    ctx.restore();
+  }
   function frame(now) {
     frameClock = now / 1000; pollGamepad();
     const dt = previousTime ? Math.min((now - previousTime) / 1000, .05) : 1 / 60; previousTime = now;
@@ -3159,7 +3488,7 @@
   // ==== Gamepad polling.
   // ---- Gamepad (standard mapping): stick/D-pad steer, A/RT accelerate, B/LT brake, X/RB laser, Y/LB boost,
   // START pause; in menus A starts / races again / resumes. Buttons are fed in as virtual keys.
-  const PAD_KEYS = { ArrowUp: [0, 7], ArrowDown: [1, 6], KeyX: [2, 5], Space: [3, 4] };
+  const PAD_KEYS = { ArrowUp: [0, 7], ArrowDown: [1, 6], KeyX: [2, 5], Space: [3, 4], KeyC: [10, 11] };
   let padHeld = new Set(), padSteer = 0, padPrev = {}, padSeen = false;
   function pollGamepad() {
     const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
@@ -3193,10 +3522,8 @@
   $('pause').addEventListener('click', pauseRace); $('resume').addEventListener('click', pauseRace);
   $('quit').addEventListener('click', garage); $('garage').addEventListener('click', garage);
   $('prev-track').addEventListener('click', () => selectTrack(-1)); $('next-track').addEventListener('click', () => selectTrack(1));
-  document.querySelectorAll('[data-ship]').forEach(button => button.addEventListener('click', () => {
-    shipIndex = Number(button.dataset.ship); document.querySelectorAll('[data-ship]').forEach(b => b.classList.toggle('selected', b === button));
-    $('ship-info').textContent = machines[shipIndex].info;
-  }));
+  document.querySelectorAll('[data-ship]').forEach(button => button.addEventListener('click', () => selectShip(Number(button.dataset.ship))));
+  renderShips(); window.morbidShips = { select: selectShip };
   $('music-toggle').addEventListener('click', () => { if (audio.paused) { if (muted) toggleMute(); playMusic(); } else { audio.pause(); updateMusic(); } });
   $('sound').addEventListener('click', toggleMute);
   audio.addEventListener('play', updateMusic); audio.addEventListener('pause', updateMusic);
@@ -3220,7 +3547,7 @@
   window.addEventListener('blur', () => { keys.clear(); resetGesture(); if (mode === 'racing' || mode === 'countdown') pauseRace(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && (mode === 'racing' || mode === 'countdown')) pauseRace(); });
   document.querySelectorAll('[data-key]').forEach(button => {
-    button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(event.pointerId); keys.add(button.dataset.key); });
+    button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(/** @type {PointerEvent} */ (event).pointerId); keys.add(button.dataset.key); });
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, () => keys.delete(button.dataset.key));
   });
   const gestureActive = () => mode === 'racing' || mode === 'countdown' || mode === 'final';
@@ -3264,6 +3591,8 @@
     } else setupNote('DRAG ON THE TRACK TO STEER');
     settings.steering = button.dataset.steer; saveSettings(); renderSettings();
   }));
+  document.querySelectorAll('[data-mutator]').forEach(button => button.addEventListener('click', () => toggleMutator(button.dataset.mutator)));
+  renderMutators(); window.morbidMutators = { toggle: toggleMutator };
   document.querySelectorAll('[data-setting]').forEach(button => button.addEventListener('click', () => setSetting(button.dataset.setting, button.dataset.value)));
   settingHooks.gameMode = () => renderGameMode();
   renderGameMode(); renderDaily();
@@ -3321,12 +3650,12 @@
   $('rotate-switch').addEventListener('click', () => { settings.screen = settings.screen === 'portrait' ? 'landscape' : 'portrait'; saveSettings(); renderSettings(); });
   window.matchMedia?.('(orientation: landscape)').addEventListener?.('change', () => setTimeout(checkOrientation, 50));
   // A remembered gyro choice needs the sensor again; iOS will re-ask on the next tap of GYRO.
-  if (settings.steering === 'gyro') enableGyro().then(ok => { if (!ok && typeof window.DeviceOrientationEvent?.requestPermission !== 'function') { settings.steering = 'touch'; renderSettings(); } });
+  if (settings.steering === 'gyro') enableGyro().then(ok => { if (!ok && typeof /** @type {any} */ (window.DeviceOrientationEvent)?.requestPermission !== 'function') { settings.steering = 'touch'; renderSettings(); } });
   renderSettings();
   renderLock();
   // ---- Home screen dialogs: settings and changelog.
   function openDialog(id) { $(id).classList.remove('hidden'); document.body.classList.add('dialog-open'); }
-  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen', 'trophy-screen', 'stats-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
+  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen', 'trophy-screen', 'stats-screen', 'story-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
   // Health warning: shown on every visit (not again after an in-app update reload within the same session).
   let healthSeen = false;
   try { healthSeen = sessionStorage.getItem('morbid-health-ok') === '1'; } catch { /* show it */ }
@@ -3357,7 +3686,7 @@
     openDialog('changelog-screen'); $('changelog-body').innerHTML = '<p>LOADING…</p>';
     try {
       const response = await fetch('CHANGELOG.md', { cache: 'no-cache' });
-      if (!response.ok) throw new Error(response.status);
+      if (!response.ok) throw new Error(String(response.status));
       $('changelog-body').innerHTML = renderChangelog(await response.text());
     } catch { $('changelog-body').innerHTML = '<p>The changelog is not available offline yet.</p>'; }
   }
@@ -3390,6 +3719,38 @@
     eggTyped = (eggTyped + event.code.slice(3)).slice(-4);
     if (eggTyped === 'BOSS') bossRush();
   });
+  // ---- Story: one comic chapter per circuit, unlocked together with the circuit.
+  const STORY = [
+    { title: "THE SIGNAL", panels: [{ art: "🌃📡", text: "2097. Night City never sleeps — and tonight the sky is humming." }, { art: "🛸📺", text: "A signal hijacks every screen: “EARTHLINGS. ENTERTAIN US.”" }, { art: "🏁🔥", text: "The Grand Prix goes on. If they want a show, we give them speed." }] },
+    { title: "FIRST CONTACT", panels: [{ art: "☀️🛸", text: "The saucers follow the race to the solar fields. They drop gifts: bombs." }, { art: "🐱✨", text: "Someone keeps beaming cats onto the track. Nobody knows why." }, { art: "💬😈", text: "VEX: “Aliens or not — first place is mine.”" }] },
+    { title: "THE MOTHERSHIP", panels: [{ art: "🌌🛸", text: "Over the ion seas a shadow swallows the stars. The mothership is here." }, { art: "📡🎯", text: "Mission control: “Down ten saucers and it shows itself. Then shoot it!”" }, { art: "⚡🙌", text: "Your laser cells hum. The crowd goes wild." }] },
+    { title: "SYSTEM GLITCH", panels: [{ art: "🏙️⚠️", text: "The aliens hack the city grid. Drones and laser gates rise from the road." }, { art: "🤖💬", text: "NULL-9 laughs: “I helped them. Faster tracks, better ratings.”" }, { art: "✦🚀", text: "Your mechanic whispers a trick: star gates. Light speed, ten seconds." }] },
+    { title: "COLD FRONT", panels: [{ art: "❄️🏔️", text: "They freeze the canyon. Grip is gone, the margins are zero." }, { art: "🛸💬", text: "The signal again: “YOUR SPECIES IS… AMUSING. CONTINUE.”" }, { art: "🔥💪", text: "KRONOS: “Amusing? Let's see how they like losing.”" }] },
+    { title: "GRAVITY WARS", panels: [{ art: "🕳️🌙", text: "Beyond the moon, gravity bends. The track pulls you sideways." }, { art: "👁️🌑", text: "Something huge watches from the void. A cyclops? A commander?" }, { art: "🏁👀", text: "Only a winner gets close enough to find out." }] },
+    { title: "NO BRAKES", panels: [{ art: "🔴🌪️", text: "Plasma storms. Laser gates. The aliens raise the stakes." }, { art: "💬😎", text: "BLAZE: “Whoever wins here gets the invitation. It's mine.”" }, { art: "🎟️🌌", text: "The invitation: a seat at the final fight above the galaxy." }] },
+    { title: "THE LAST LINE", panels: [{ art: "🌀⚫", text: "The singularity. The final, impossible line." }, { art: "👾👾", text: "Win, and the invasion comes for you. Bosses wait in the dark." }, { art: "🪩💃", text: "And if you beat them too… the whole galaxy will dance." }] },
+  ];
+  let storyChapter = 0;
+  const storyUnlocked = () => Math.min(STORY.length, profile.unlocked || 1);
+  const storyUnseen = () => STORY.slice(0, storyUnlocked()).some((_, i) => !(profile.storySeen || []).includes(i));
+  function renderStoryButton() { const b = $('open-story'); if (b) b.classList.toggle('new', storyUnseen()); }
+  function openStory(chapter = 0) {
+    storyChapter = clamp(chapter, 0, storyUnlocked() - 1); renderStory(); openDialog('story-screen');
+  }
+  function renderStory() {
+    const c = STORY[storyChapter];
+    profile.storySeen = [...new Set([...(profile.storySeen || []), storyChapter])]; saveProfile(); renderStoryButton();
+    $('story-chapter').textContent = `CHAPTER ${storyChapter + 1} / ${STORY.length}  ·  ${tracks[storyChapter].name}`;
+    $('story-title').textContent = c.title;
+    $('story-panels').innerHTML = c.panels.map((p, i) => `<figure class="comic-panel" style="--tilt:${[-1.2, .8, -.5][i]}deg"><div class="comic-art">${p.art}</div><figcaption>${escapeHtml(p.text)}</figcaption></figure>`).join('');
+    $('story-prev').disabled = storyChapter === 0; $('story-next').disabled = storyChapter >= storyUnlocked() - 1;
+    $('story-locked').textContent = storyUnlocked() < STORY.length ? `🔒 ${STORY.length - storyUnlocked()} MORE CHAPTERS — UNLOCK CIRCUITS TO READ ON` : '';
+  }
+  $('open-story').addEventListener('click', () => openStory(Math.max(0, storyUnlocked() - 1)));
+  $('story-prev').addEventListener('click', () => { storyChapter = Math.max(0, storyChapter - 1); renderStory(); });
+  $('story-next').addEventListener('click', () => { storyChapter = Math.min(storyUnlocked() - 1, storyChapter + 1); renderStory(); });
+  $('story-new').addEventListener('click', () => openStory(storyUnlocked() - 1));
+  renderStoryButton(); window.morbidStory = { open: openStory };
   // ==== Upgrade and paint shop.
   // ---- Upgrade shop in the garage.
   function renderShop() {
@@ -3404,13 +3765,14 @@
     $('paint-list').innerHTML = PAINTS.map(p => {
       const owned = paintOwned(p), active = (profile.paint || 'factory') === p.id;
       const swatch = p.pattern === 'rainbow' ? 'linear-gradient(90deg,#ff4eb8,#ddff46,#4df8ff,#a88aff)' : p.id === 'factory' ? machines[shipIndex].color : `linear-gradient(135deg,${p.color} 55%,${p.accent} 55%)`;
-      const label = active ? 'EQUIPPED' : owned ? 'EQUIP' : p.trophy ? `🏆 ${ACHIEVEMENTS.find(a => a.id === p.trophy).name}` : `BUY · ${p.cost} CR`;
-      return `<button class="paint ${active ? 'active' : ''} ${owned ? 'owned' : ''}" data-paint="${p.id}" ${!owned && (p.trophy || profile.credits < p.cost) ? 'disabled' : ''}><i style="background:${swatch}"></i><b>${p.name}</b><small>${label}</small></button>`;
+      const label = active ? 'EQUIPPED' : owned ? 'EQUIP' : p.trophy ? `🏆 ${ACHIEVEMENTS.find(a => a.id === p.trophy).name}` : p.season ? SEASONS[p.season].name : `BUY · ${p.cost} CR`;
+      return `<button class="paint ${active ? 'active' : ''} ${owned ? 'owned' : ''}" data-paint="${p.id}" ${!owned && (p.trophy || p.season || profile.credits < p.cost) ? 'disabled' : ''}><i style="background:${swatch}"></i><b>${p.name}</b><small>${label}</small></button>`;
     }).join('');
   }
   function choosePaint(id) {
     const p = PAINTS.find(x => x.id === id); if (!p) return false;
-    if (!paintOwned(p)) { if (p.trophy || profile.credits < p.cost) return false; profile.credits -= p.cost; profile.paints.push(p.id); playToneSweep(500, 1500, .3, 'square', .05); }
+    if (p.season && paintOwned(p) && !profile.paints.includes(p.id)) profile.paints.push(p.id);
+    if (!paintOwned(p)) { if (p.trophy || p.season || profile.credits < p.cost) return false; profile.credits -= p.cost; profile.paints.push(p.id); playToneSweep(500, 1500, .3, 'square', .05); }
     profile.paint = p.id; saveProfile(); renderShop(); return true;
   }
   if ($('paint-list').addEventListener) $('paint-list').addEventListener('click', event => { const b = event.target && event.target.closest && event.target.closest('[data-paint]'); if (b) choosePaint(b.dataset.paint); });
@@ -3426,6 +3788,14 @@
   renderShop(); renderTrophyButton();
   $('open-trophies').addEventListener('click', () => { renderTrophies(); openDialog('trophy-screen'); });
   window.morbidShop = { buy: buyUpgrade, paint: choosePaint, profile };
+  // Seasonal banner, and season paints are kept for good once the event is seen.
+  function renderSeason() {
+    const sz = season(), el = $('season-badge');
+    document.body.classList.toggle('season-halloween', sz === 'halloween'); document.body.classList.toggle('season-xmas', sz === 'xmas');
+    if (el) { el.classList.toggle('hidden', !sz); if (sz) el.innerHTML = `<b>${SEASONS[sz].name}</b><span>${SEASONS[sz].info}</span>`; }
+    if (sz) { for (const p of PAINTS) if (p.season === sz && !profile.paints.includes(p.id)) profile.paints.push(p.id); saveProfile(); }
+  }
+  renderSeason(); window.morbidSeason = { set: id => { seasonOverride = id; renderSeason(); renderShop(); }, get: date => season(date ? new Date(date) : undefined) };
   // ==== Share card.
   // ---- Share card: a 1200×630 image of the result, shared via the system share sheet (or downloaded).
   function shareCard() {
@@ -3451,18 +3821,103 @@
   $('share').addEventListener('click', async () => {
     const c = shareCard(), text = `I just finished P${$('result-position').textContent} in Morbid Racers! Can you beat me? 🏁`, url = 'https://jan-frederic.github.io/Zero/';
     const blob = await new Promise(done => c.toBlob(done, 'image/png'));
-    const file = blob && typeof File === 'function' ? new File([blob], 'morbid-racers.png', { type: 'image/png' }) : null;
+    if (await shareFile(blob, 'morbid-racers.png', text, url)) unlockAchievement('share');
+  });
+  // Shares a file through the system share sheet, or downloads it where sharing files is not possible.
+  async function shareFile(blob, name, text, url) {
+    if (!blob) return false;
+    const file = typeof File === 'function' ? new File([blob], name, { type: blob.type }) : null;
     try {
       if (file && navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], text, url, title: 'Morbid Racers' });
-      else if (navigator.share) await navigator.share({ text, url, title: 'Morbid Racers' });
-      else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'morbid-racers.png'; a.click(); }
-      unlockAchievement('share');
-    } catch { /* share sheet dismissed */ }
+      else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); }
+      return true;
+    } catch { return false; /* share sheet dismissed */ }
+  }
+  // ---- Photo mode: freeze the race, move the camera, pick a filter and save the shot.
+  const PHOTO_FILTERS = [['NONE', 'none'], ['NOIR', 'grayscale(1) contrast(1.35)'], ['VHS', 'saturate(1.7) hue-rotate(-14deg) contrast(1.15) blur(.4px)'], ['NEON', 'saturate(2.1) brightness(1.12)'], ['SEPIA', 'sepia(.85) contrast(1.1)']];
+  let photo = null;
+  function enterPhoto() {
+    if (mode !== 'paused') return;
+    photo = { x: 0, h: 0, zoom: 1, filter: 0, hideShip: false };
+    document.body.classList.add('photo'); $('pause-screen').classList.add('hidden'); renderPhoto();
+  }
+  function exitPhoto() {
+    if (!photo) return;
+    photo = null; canvas.style.filter = ''; document.body.classList.remove('photo'); $('pause-screen').classList.remove('hidden');
+  }
+  function photoAdjust(what, delta) {
+    if (!photo) return;
+    if (what === 'x') photo.x = clamp(photo.x + delta, -1.2, 1.2);
+    if (what === 'h') photo.h = clamp(photo.h + delta, -.6, 2.5);
+    if (what === 'zoom') photo.zoom = clamp(photo.zoom + delta, 1, 2.2);
+    if (what === 'filter') photo.filter = mod(photo.filter + delta, PHOTO_FILTERS.length);
+    if (what === 'ship') photo.hideShip = !photo.hideShip;
+    renderPhoto();
+  }
+  function renderPhoto() {
+    canvas.style.filter = PHOTO_FILTERS[photo.filter][1] === 'none' ? '' : PHOTO_FILTERS[photo.filter][1];
+    $('photo-filter').textContent = `FILTER: ${PHOTO_FILTERS[photo.filter][0]}`; $('photo-ship').textContent = photo.hideShip ? 'SHIP: HIDDEN' : 'SHIP: SHOWN';
+  }
+  function photoShot() {
+    const c = document.createElement('canvas'); c.width = canvas.width; c.height = canvas.height; const g = c.getContext('2d');
+    const f = PHOTO_FILTERS[photo ? photo.filter : 0][1]; if (f !== 'none' && 'filter' in g) g.filter = f;
+    g.drawImage(canvas, 0, 0); g.filter = 'none';
+    const s = c.width / 1200; g.font = `italic 900 ${Math.round(42 * s)}px "Barlow Condensed", Impact, sans-serif`; g.textAlign = 'right';
+    g.fillStyle = '#ffffffcc'; g.fillText('MORBID', c.width - 150 * s, c.height - 34 * s); g.fillStyle = '#ddff46'; g.fillText('RACERS', c.width - 28 * s, c.height - 34 * s);
+    return c;
+  }
+  async function savePhoto() {
+    const c = photoShot(); const blob = await new Promise(done => c.toBlob(done, 'image/png'));
+    if (await shareFile(blob, 'morbid-racers-photo.png', `${tracks[trackIndex].name} in Morbid Racers 📸`, 'https://jan-frederic.github.io/Zero/')) unlockAchievement('share');
+  }
+  $('photo-mode').addEventListener('click', enterPhoto);
+  document.querySelectorAll('[data-photo]').forEach(b => b.addEventListener('click', () => { const [what, d] = b.dataset.photo.split(':'); photoAdjust(what, Number(d) || 0); }));
+  $('photo-save').addEventListener('click', savePhoto); $('photo-exit').addEventListener('click', exitPhoto);
+  window.addEventListener('keydown', event => {
+    if (!photo) return;
+    const map = { ArrowLeft: ['x', -.1], ArrowRight: ['x', .1], ArrowUp: ['h', .15], ArrowDown: ['h', -.15], Equal: ['zoom', .1], Minus: ['zoom', -.1], KeyF: ['filter', 1] };
+    if (event.code === 'Escape') { event.stopImmediatePropagation(); exitPhoto(); } else if (map[event.code]) { event.preventDefault(); photoAdjust(...map[event.code]); }
+  }, true);
+  window.morbidPhoto = { enter: enterPhoto, exit: exitPhoto, adjust: photoAdjust, shot: photoShot, state: () => photo && { ...photo } };
+  // ---- Highlight clip: the last ~10 s of the final lap are recorded (picture and sound) and can be shared after a win.
+  const CLIP_TYPES = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  let clip = null, clipBlob = null, clipDest = null;
+  function clipSupported() { return typeof MediaRecorder === 'function' && typeof canvas.captureStream === 'function'; }
+  function startClip() {
+    if (clip || !clipSupported()) return;
+    try {
+      const video = canvas.captureStream(30), tracks = [...video.getVideoTracks()];
+      if (audioContext && audioContext.createMediaStreamDestination) {
+        if (!clipDest) { clipDest = audioContext.createMediaStreamDestination(); musicGain.connect(clipDest); sfxBus.connect(clipDest); }
+        tracks.push(...clipDest.stream.getAudioTracks());
+      }
+      const stream = typeof MediaStream === 'function' ? new MediaStream(tracks) : video;
+      const type = CLIP_TYPES.find(t => !MediaRecorder.isTypeSupported || MediaRecorder.isTypeSupported(t)) || '';
+      const rec = new MediaRecorder(stream, type ? { mimeType: type, videoBitsPerSecond: 4e6 } : undefined), chunks = [];
+      rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = () => { clipBlob = chunks.length ? new Blob(chunks, { type: rec.mimeType || type || 'video/webm' }) : null; renderClipButton(); };
+      rec.start(500); clip = { rec, started: time, stopAt: 0 }; clipBlob = null;
+    } catch { clip = null; }
+  }
+  function stopClip() { if (!clip) return; const rec = clip.rec; clip = null; try { if (rec.state !== 'inactive') rec.stop(); } catch { /* already stopped */ } }
+  function cancelClip() { stopClip(); clipBlob = null; renderClipButton(); }
+  function updateClip() {
+    if (clip && clip.stopAt && time >= clip.stopAt) stopClip();
+    if (mode === 'racing' && !clip && !clipBlob && lap === LAP_COUNT && !trialRun && (LENGTH * LAP_COUNT - distance) / Math.max(speed, 3000) < 10) startClip();
+  }
+  function finishClip() { if (clip) clip.stopAt = time + 1.5; }
+  function renderClipButton() { const b = $('share-clip'); if (b) b.classList.toggle('hidden', !(clipBlob && mode === 'finished' && rank === 1)); }
+  $('share-clip').addEventListener('click', () => {
+    if (!clipBlob) return;
+    const ext = /mp4/.test(clipBlob.type) ? 'mp4' : 'webm';
+    shareFile(clipBlob, `morbid-racers-finish.${ext}`, `My finish in Morbid Racers 🏁 ${tracks[trackIndex].name}`, 'https://jan-frederic.github.io/Zero/').then(ok => { if (ok) unlockAchievement('share'); });
   });
   // ==== Start-up.
   // Lets the update job wait until no race is in progress.
   window.morbidBusy = () => ['countdown', 'racing', 'respawning', 'paused', 'wrecked', 'invasion', 'final'].includes(mode) || (mode === 'disco' && !(finale && finale.resultsShown));
   window.addEventListener('resize', resize);
-  preloadSoundtrack(); prefetchVoices();
+  // Music and voices download after the page has loaded, so they do not compete with the first paint.
+  function startDownloads() { preloadSoundtrack(); prefetchVoices(); }
+  if (document.readyState === 'loading' || document.readyState === 'interactive') window.addEventListener('load', startDownloads, { once: true }); else startDownloads();
   applyPerf(); applyLanguage(); resize(); buildTrack(); requestAnimationFrame(frame);
 })();

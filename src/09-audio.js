@@ -9,7 +9,7 @@
   const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
   const voiceBuffers = new Map();
   let voiceSource = null;
-  let subtitleAt = -9;
+  let subtitleAt = -9, voicesStarted = false, speechPrimed = false;
   function setupAudio() {
     if (audioContext) { audioContext.resume().catch(() => {}); return; }
     try {
@@ -29,7 +29,9 @@
   }
   // ---- Soundtrack preloading: the whole MP3 is downloaded into memory as soon as the page opens and played
   // from a local blob, so playback can never run dry mid-race. Races wait (briefly) until it is ready.
-  const SOUNDTRACK_URL = (audio.getAttribute && audio.getAttribute('src')) || audio.src;
+  // WebM/Opus copies are ~40 % smaller; browsers that cannot play them get the MP3s.
+  const AUDIO_EXT = (() => { try { return audio.canPlayType && audio.canPlayType('audio/webm; codecs="opus"') ? 'webm' : 'mp3'; } catch { return 'mp3'; } })();
+  const SOUNDTRACK_URL = String((audio.getAttribute && audio.getAttribute('src')) || audio.src || '').replace(/\.mp3$/, '.' + AUDIO_EXT);
   let soundtrackReady = false, soundtrackProgress = 0, soundtrackPromise = null, musicWanted = false;
   const SILENCE = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=='; // 0.1 s of silence
 
@@ -48,7 +50,7 @@
         if (response.body && response.body.getReader && total) {
           const reader = response.body.getReader(), chunks = []; let received = 0;
           for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); received += value.length; soundtrackProgress = Math.min(.99, received / total); updateMusic(); }
-          blob = new Blob(chunks, { type: 'audio/mpeg' });
+          blob = new Blob(chunks, { type: AUDIO_EXT === 'webm' ? 'audio/webm' : 'audio/mpeg' });
         } else blob = await response.blob();
         const resume = !audio.paused && !String(audio.src || '').startsWith('data:'), at = String(audio.src || '').startsWith('data:') ? 0 : audio.currentTime || 0;
         audio.src = URL.createObjectURL(blob); audio.preload = 'auto'; audio.load();
@@ -154,13 +156,13 @@
   let voicesLoaded = 0;
   function prefetchVoices() {
     if (typeof fetch !== 'function') { voicesLoaded = VOICE_CLIPS.length; return; }
-    for (const clip of VOICE_CLIPS) fetch(`voice/${clip}.mp3`).then(r => r.ok ? r.arrayBuffer() : null)
+    for (const clip of VOICE_CLIPS) fetch(`voice/${clip}.${AUDIO_EXT}`).then(r => r.ok ? r.arrayBuffer() : null)
       .then(data => { if (data) voiceData.set(clip, data); }).catch(() => {}).finally(() => { voicesLoaded++; });
   }
   function loadVoices() {
-    if (!audioContext || loadVoices.started || typeof fetch !== 'function') return;
-    loadVoices.started = true;
-    for (const clip of VOICE_CLIPS) (voiceData.has(clip) ? Promise.resolve(voiceData.get(clip).slice(0)) : fetch(`voice/${clip}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()))
+    if (!audioContext || voicesStarted || typeof fetch !== 'function') return;
+    voicesStarted = true;
+    for (const clip of VOICE_CLIPS) (voiceData.has(clip) ? Promise.resolve(voiceData.get(clip).slice(0)) : fetch(`voice/${clip}.${AUDIO_EXT}`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()))
       .then(data => new Promise((ok, fail) => audioContext.decodeAudioData(data, ok, fail))).then(buffer => voiceBuffers.set(clip, buffer)).catch(() => {});
   }
   // Retro robot announcer: plays the pre-rendered clip; falls back to the system voice if it is not loaded.
@@ -210,8 +212,8 @@
   }
   function primeSpeech() {
     // iOS only allows speech after it was started inside a user gesture once.
-    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance || primeSpeech.done) return;
-    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); primeSpeech.done = true; } catch { /* ignore */ }
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance || speechPrimed) return;
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); speechPrimed = true; } catch { /* ignore */ }
   }
   function playFanfare() {
     if (!audioContext || muted) return;

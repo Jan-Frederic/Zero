@@ -7,6 +7,8 @@
     } else setupNote('DRAG ON THE TRACK TO STEER');
     settings.steering = button.dataset.steer; saveSettings(); renderSettings();
   }));
+  document.querySelectorAll('[data-mutator]').forEach(button => button.addEventListener('click', () => toggleMutator(button.dataset.mutator)));
+  renderMutators(); window.morbidMutators = { toggle: toggleMutator };
   document.querySelectorAll('[data-setting]').forEach(button => button.addEventListener('click', () => setSetting(button.dataset.setting, button.dataset.value)));
   settingHooks.gameMode = () => renderGameMode();
   renderGameMode(); renderDaily();
@@ -64,12 +66,12 @@
   $('rotate-switch').addEventListener('click', () => { settings.screen = settings.screen === 'portrait' ? 'landscape' : 'portrait'; saveSettings(); renderSettings(); });
   window.matchMedia?.('(orientation: landscape)').addEventListener?.('change', () => setTimeout(checkOrientation, 50));
   // A remembered gyro choice needs the sensor again; iOS will re-ask on the next tap of GYRO.
-  if (settings.steering === 'gyro') enableGyro().then(ok => { if (!ok && typeof window.DeviceOrientationEvent?.requestPermission !== 'function') { settings.steering = 'touch'; renderSettings(); } });
+  if (settings.steering === 'gyro') enableGyro().then(ok => { if (!ok && typeof /** @type {any} */ (window.DeviceOrientationEvent)?.requestPermission !== 'function') { settings.steering = 'touch'; renderSettings(); } });
   renderSettings();
   renderLock();
   // ---- Home screen dialogs: settings and changelog.
   function openDialog(id) { $(id).classList.remove('hidden'); document.body.classList.add('dialog-open'); }
-  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen', 'trophy-screen', 'stats-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
+  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen', 'trophy-screen', 'stats-screen', 'story-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
   // Health warning: shown on every visit (not again after an in-app update reload within the same session).
   let healthSeen = false;
   try { healthSeen = sessionStorage.getItem('morbid-health-ok') === '1'; } catch { /* show it */ }
@@ -100,7 +102,7 @@
     openDialog('changelog-screen'); $('changelog-body').innerHTML = '<p>LOADING…</p>';
     try {
       const response = await fetch('CHANGELOG.md', { cache: 'no-cache' });
-      if (!response.ok) throw new Error(response.status);
+      if (!response.ok) throw new Error(String(response.status));
       $('changelog-body').innerHTML = renderChangelog(await response.text());
     } catch { $('changelog-body').innerHTML = '<p>The changelog is not available offline yet.</p>'; }
   }
@@ -133,3 +135,35 @@
     eggTyped = (eggTyped + event.code.slice(3)).slice(-4);
     if (eggTyped === 'BOSS') bossRush();
   });
+  // ---- Story: one comic chapter per circuit, unlocked together with the circuit.
+  const STORY = [
+    { title: "THE SIGNAL", panels: [{ art: "🌃📡", text: "2097. Night City never sleeps — and tonight the sky is humming." }, { art: "🛸📺", text: "A signal hijacks every screen: “EARTHLINGS. ENTERTAIN US.”" }, { art: "🏁🔥", text: "The Grand Prix goes on. If they want a show, we give them speed." }] },
+    { title: "FIRST CONTACT", panels: [{ art: "☀️🛸", text: "The saucers follow the race to the solar fields. They drop gifts: bombs." }, { art: "🐱✨", text: "Someone keeps beaming cats onto the track. Nobody knows why." }, { art: "💬😈", text: "VEX: “Aliens or not — first place is mine.”" }] },
+    { title: "THE MOTHERSHIP", panels: [{ art: "🌌🛸", text: "Over the ion seas a shadow swallows the stars. The mothership is here." }, { art: "📡🎯", text: "Mission control: “Down ten saucers and it shows itself. Then shoot it!”" }, { art: "⚡🙌", text: "Your laser cells hum. The crowd goes wild." }] },
+    { title: "SYSTEM GLITCH", panels: [{ art: "🏙️⚠️", text: "The aliens hack the city grid. Drones and laser gates rise from the road." }, { art: "🤖💬", text: "NULL-9 laughs: “I helped them. Faster tracks, better ratings.”" }, { art: "✦🚀", text: "Your mechanic whispers a trick: star gates. Light speed, ten seconds." }] },
+    { title: "COLD FRONT", panels: [{ art: "❄️🏔️", text: "They freeze the canyon. Grip is gone, the margins are zero." }, { art: "🛸💬", text: "The signal again: “YOUR SPECIES IS… AMUSING. CONTINUE.”" }, { art: "🔥💪", text: "KRONOS: “Amusing? Let's see how they like losing.”" }] },
+    { title: "GRAVITY WARS", panels: [{ art: "🕳️🌙", text: "Beyond the moon, gravity bends. The track pulls you sideways." }, { art: "👁️🌑", text: "Something huge watches from the void. A cyclops? A commander?" }, { art: "🏁👀", text: "Only a winner gets close enough to find out." }] },
+    { title: "NO BRAKES", panels: [{ art: "🔴🌪️", text: "Plasma storms. Laser gates. The aliens raise the stakes." }, { art: "💬😎", text: "BLAZE: “Whoever wins here gets the invitation. It's mine.”" }, { art: "🎟️🌌", text: "The invitation: a seat at the final fight above the galaxy." }] },
+    { title: "THE LAST LINE", panels: [{ art: "🌀⚫", text: "The singularity. The final, impossible line." }, { art: "👾👾", text: "Win, and the invasion comes for you. Bosses wait in the dark." }, { art: "🪩💃", text: "And if you beat them too… the whole galaxy will dance." }] },
+  ];
+  let storyChapter = 0;
+  const storyUnlocked = () => Math.min(STORY.length, profile.unlocked || 1);
+  const storyUnseen = () => STORY.slice(0, storyUnlocked()).some((_, i) => !(profile.storySeen || []).includes(i));
+  function renderStoryButton() { const b = $('open-story'); if (b) b.classList.toggle('new', storyUnseen()); }
+  function openStory(chapter = 0) {
+    storyChapter = clamp(chapter, 0, storyUnlocked() - 1); renderStory(); openDialog('story-screen');
+  }
+  function renderStory() {
+    const c = STORY[storyChapter];
+    profile.storySeen = [...new Set([...(profile.storySeen || []), storyChapter])]; saveProfile(); renderStoryButton();
+    $('story-chapter').textContent = `CHAPTER ${storyChapter + 1} / ${STORY.length}  ·  ${tracks[storyChapter].name}`;
+    $('story-title').textContent = c.title;
+    $('story-panels').innerHTML = c.panels.map((p, i) => `<figure class="comic-panel" style="--tilt:${[-1.2, .8, -.5][i]}deg"><div class="comic-art">${p.art}</div><figcaption>${escapeHtml(p.text)}</figcaption></figure>`).join('');
+    $('story-prev').disabled = storyChapter === 0; $('story-next').disabled = storyChapter >= storyUnlocked() - 1;
+    $('story-locked').textContent = storyUnlocked() < STORY.length ? `🔒 ${STORY.length - storyUnlocked()} MORE CHAPTERS — UNLOCK CIRCUITS TO READ ON` : '';
+  }
+  $('open-story').addEventListener('click', () => openStory(Math.max(0, storyUnlocked() - 1)));
+  $('story-prev').addEventListener('click', () => { storyChapter = Math.max(0, storyChapter - 1); renderStory(); });
+  $('story-next').addEventListener('click', () => { storyChapter = Math.min(storyUnlocked() - 1, storyChapter + 1); renderStory(); });
+  $('story-new').addEventListener('click', () => openStory(storyUnlocked() - 1));
+  renderStoryButton(); window.morbidStory = { open: openStory };
