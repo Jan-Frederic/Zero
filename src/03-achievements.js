@@ -26,7 +26,7 @@
   function unlockAchievement(id) {
     if (profile.achievements[id]) return;
     const a = ACHIEVEMENTS.find(x => x.id === id); if (!a) return;
-    profile.achievements[id] = Date.now(); saveProfile(); achQueue.push(a); showNextAchievement(); renderTrophyButton();
+    profile.achievements[id] = Date.now(); saveProfile(); achQueue.push(a); showNextAchievement(); renderTrophyButton(); renderShips();
   }
   function showNextAchievement() {
     const el = $('achievement'); if (!el || el.classList.contains('visible') || !achQueue.length) return;

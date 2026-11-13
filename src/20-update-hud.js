@@ -258,6 +258,7 @@
       laserCharge += dt / laserRecharge();
       if (laserCharge >= 1) { laserCharge -= 1; laserAmmo++; if (laserAmmo === laserCap()) laserCharge = 0; }
     } else laserCharge = 0;
+    if (keys.has('KeyC')) { keys.delete('KeyC'); blink(); }
     if ((keys.has('KeyX') || keys.has('KeyF') || gesture.fire || gesture.fireQueued) && laserCooldown <= 0) { gesture.fireQueued = false; fireLaser(); }
     laserShots = laserShots.filter(shot => time - shot.started < shot.duration);
     explosions = explosions.filter(explosion => time - explosion.started < explosion.duration);

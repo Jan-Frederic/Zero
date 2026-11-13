@@ -116,7 +116,7 @@
   function unlockAchievement(id) {
     if (profile.achievements[id]) return;
     const a = ACHIEVEMENTS.find(x => x.id === id); if (!a) return;
-    profile.achievements[id] = Date.now(); saveProfile(); achQueue.push(a); showNextAchievement(); renderTrophyButton();
+    profile.achievements[id] = Date.now(); saveProfile(); achQueue.push(a); showNextAchievement(); renderTrophyButton(); renderShips();
   }
   function showNextAchievement() {
     const el = $('achievement'); if (!el || el.classList.contains('visible') || !achQueue.length) return;
@@ -380,6 +380,7 @@
     '🏆 CHAMPION!': '🏆 CHAMPION!', 'YOU': 'DU', 'RACE AGAIN': 'NOCHMAL FAHREN', 'Win a championship.': 'Gewinne eine Meisterschaft.',
     '⤳ SHORTCUT!': '⤳ ABKÜRZUNG!', '⤳ SHORTCUT': '⤳ ABKÜRZUNG', 'TUNNEL WALL!': 'TUNNELWAND!',
     'MUTATORS': 'MUTATOREN', '⇋ MIRROR': '⇋ SPIEGEL', '☾ NIGHT': '☾ NACHT', '⇡ LOW GRAVITY': '⇡ WENIG SCHWERKRAFT', '⟲ REVERSE': '⟲ RÜCKWÄRTS', 'OPTIONAL TWISTS · EACH ONE +15% CREDITS': 'OPTIONALE KNIFFE · JEDER +15 % CREDITS',
+    'TELEPORT DASH / PRESS C': 'TELEPORT-SPRUNG / TASTE C', 'TWIN LASER / TWO TARGETS PER SHOT': 'DOPPELLASER / ZWEI ZIELE PRO SCHUSS', 'BLINK!': 'BLINK!',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -412,6 +413,7 @@
     [/^CUP P(\d+)\.$/, 'CUP PLATZ $1.'], [/^(\d+)\. (.+)$/, (m, n, name) => `${n}. ${tr(name)}`], [/^(\d+) PTS$/, '$1 PKT'],
     [/^TUNNEL WARP  \/  \+([\d.]+) KM AHEAD$/, 'TUNNEL-SPRUNG  /  +$1 KM VORAUS'], [/^TUNNEL WALL!  SHIELD -(\d+)$/, 'TUNNELWAND!  SCHILD -$1'],
     [/^\+(\d+)% CREDITS$/, '+$1 % CREDITS'],
+    [/^🔒 UNLOCK WITH THE TROPHY (.+)$/, '🔒 FREISCHALTEN MIT DER TROPHÄE $1'], [/^BLINK RECHARGING  \/  ([\d.]+) S$/, 'BLINK LÄDT  /  $1 S'],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
@@ -482,8 +484,34 @@
   const machines = [
     { color: '#44f7ff', dark: '#09627d', name: 'PHANTOM', info: 'BALANCED / PRECISION HANDLING', handling: 1, top: 1, drain: 22 },
     { color: '#ff4aa8', dark: '#851657', name: 'VIPER', info: 'AGGRESSIVE / HIGH TOP SPEED', handling: .88, top: 1.06, drain: 25 },
-    { color: '#ddff46', dark: '#56751b', name: 'PULSE', info: 'AGILE / EXTENDED OVERDRIVE', handling: 1.2, top: .96, drain: 17 }
+    { color: '#ddff46', dark: '#56751b', name: 'PULSE', info: 'AGILE / EXTENDED OVERDRIVE', handling: 1.2, top: .96, drain: 17 },
+    // Special machines, unlocked with a trophy.
+    { color: '#c77dff', dark: '#3d1466', name: 'BLINK', info: 'TELEPORT DASH / PRESS C', handling: 1.05, top: .98, drain: 22, ability: 'blink', trophy: 'mothership' },
+    { color: '#ff9b2e', dark: '#5a2a04', name: 'TWIN', info: 'TWIN LASER / TWO TARGETS PER SHOT', handling: .95, top: 1.02, drain: 23, ability: 'twin', trophy: 'ufo25' },
   ];
+  const machineLocked = i => !!machines[i].trophy && !profile.achievements[machines[i].trophy];
+  const ability = () => machines[shipIndex].ability;
+  function selectShip(i) {
+    if (!machines[i]) return false;
+    if (machineLocked(i)) {
+      const a = ACHIEVEMENTS.find(x => x.id === machines[i].trophy);
+      $('ship-info').textContent = `🔒 UNLOCK WITH THE TROPHY ${a ? a.name : ''}`; playToneSweep(220, 120, .2, 'square', .04); return false;
+    }
+    shipIndex = i; document.querySelectorAll('[data-ship]').forEach(b => b.classList.toggle('selected', Number(b.dataset.ship) === i));
+    $('ship-info').textContent = machines[i].info; document.body.classList.toggle('ship-blink', ability() === 'blink'); return true;
+  }
+  function renderShips() {
+    document.querySelectorAll('[data-ship]').forEach(b => b.classList.toggle('locked', machineLocked(Number(b.dataset.ship))));
+  }
+  // BLINK: a short teleport forward with a moment of invulnerability.
+  let blinkReadyAt = 0;
+  function blink() {
+    if (ability() !== 'blink' || mode !== 'racing') return;
+    if (time < blinkReadyAt) { showMessage(`BLINK RECHARGING  /  ${(blinkReadyAt - time).toFixed(1)} S`, .6); return; }
+    blinkReadyAt = time + 6; distance += 1800; position = mod(distance, LENGTH); raceInvulnUntil = Math.max(raceInvulnUntil, time + .6);
+    screenFlash = Math.max(screenFlash, .35); showMessage('BLINK!', .6); playToneSweep(1800, 300, .25, 'sine', .06); playNoiseBurst(.2, .05, 5000, 1200);
+    for (let i = 0; i < 24; i++) particles.push({ x: W * .5 + (Math.random() - .5) * 140, y: H * .78, vx: (Math.random() - .5) * 900, vy: -Math.random() * 700, life: .5, color: i % 2 ? '#c77dff' : '#ffffff' });
+  }
   function resize() {
     W = innerWidth; H = innerHeight; dpr = lowFx() ? 1 : Math.min(devicePixelRatio || 1, 1.6);
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
@@ -1489,7 +1517,7 @@
     nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
     if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
     endlessRun = false; trialRun = gameMode() === 'trial';
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); hitShortcuts = new Set(); missiles = []; mines = []; slip = 0; slipShown = false; ufoKills = 0; boss = null; bossAttacks = [];
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); hitShortcuts = new Set(); blinkReadyAt = 0; missiles = []; mines = []; slip = 0; slipShown = false; ufoKills = 0; boss = null; bossAttacks = [];
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
@@ -1542,12 +1570,13 @@
     if (!hyper()) laserAmmo--; laserCooldown = hyper() ? .1 : .24;
     laserShots.push({ distance: targetDistance, lane, color: track.second, mega: hyper(), started: time, duration: hyper() ? .28 : .2, x: W * .5, y: H * .79 });
     playLaserSound();
-    if (target && powerOn('multi')) {
-      // Multi-laser: two more beams fan out to the next rivals in a wide cone.
+    const extraBeams = (powerOn('multi') ? 2 : 0) + (ability() === 'twin' ? 1 : 0);
+    if (target && extraBeams) {
+      // Multi-laser and the TWIN machine: more beams fan out to the next rivals in a wide cone.
       const extra = rivals.filter(r => r !== target && r.alive && r.distance > distance + 1350 && r.distance < distance + 22000 && Math.abs(r.x * track.width - playerX) < track.width * .75)
-        .sort((a, b) => a.distance - b.distance).slice(0, 2);
+        .sort((a, b) => a.distance - b.distance).slice(0, extraBeams);
       for (const r of extra) {
-        laserShots.push({ distance: r.distance, lane: r.x * track.width, color: POWERUPS.multi.color, started: time, duration: .2, x: W * .5, y: H * .79 });
+        laserShots.push({ distance: r.distance, lane: r.x * track.width, color: powerOn('multi') ? POWERUPS.multi.color : machines[shipIndex].color, started: time, duration: .2, x: W * .5, y: H * .79 });
         r.hull -= 1; createExplosion(r.distance, r.x * track.width, r.color, r.hull > 0 ? .3 : .45);
         if (r.hull <= 0) knockOut(r);
       }
@@ -2079,6 +2108,7 @@
       laserCharge += dt / laserRecharge();
       if (laserCharge >= 1) { laserCharge -= 1; laserAmmo++; if (laserAmmo === laserCap()) laserCharge = 0; }
     } else laserCharge = 0;
+    if (keys.has('KeyC')) { keys.delete('KeyC'); blink(); }
     if ((keys.has('KeyX') || keys.has('KeyF') || gesture.fire || gesture.fireQueued) && laserCooldown <= 0) { gesture.fireQueued = false; fireLaser(); }
     laserShots = laserShots.filter(shot => time - shot.started < shot.duration);
     explosions = explosions.filter(explosion => time - explosion.started < explosion.duration);
@@ -3373,7 +3403,7 @@
   // ==== Gamepad polling.
   // ---- Gamepad (standard mapping): stick/D-pad steer, A/RT accelerate, B/LT brake, X/RB laser, Y/LB boost,
   // START pause; in menus A starts / races again / resumes. Buttons are fed in as virtual keys.
-  const PAD_KEYS = { ArrowUp: [0, 7], ArrowDown: [1, 6], KeyX: [2, 5], Space: [3, 4] };
+  const PAD_KEYS = { ArrowUp: [0, 7], ArrowDown: [1, 6], KeyX: [2, 5], Space: [3, 4], KeyC: [10, 11] };
   let padHeld = new Set(), padSteer = 0, padPrev = {}, padSeen = false;
   function pollGamepad() {
     const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
@@ -3407,10 +3437,8 @@
   $('pause').addEventListener('click', pauseRace); $('resume').addEventListener('click', pauseRace);
   $('quit').addEventListener('click', garage); $('garage').addEventListener('click', garage);
   $('prev-track').addEventListener('click', () => selectTrack(-1)); $('next-track').addEventListener('click', () => selectTrack(1));
-  document.querySelectorAll('[data-ship]').forEach(button => button.addEventListener('click', () => {
-    shipIndex = Number(button.dataset.ship); document.querySelectorAll('[data-ship]').forEach(b => b.classList.toggle('selected', b === button));
-    $('ship-info').textContent = machines[shipIndex].info;
-  }));
+  document.querySelectorAll('[data-ship]').forEach(button => button.addEventListener('click', () => selectShip(Number(button.dataset.ship))));
+  renderShips(); window.morbidShips = { select: selectShip };
   $('music-toggle').addEventListener('click', () => { if (audio.paused) { if (muted) toggleMute(); playMusic(); } else { audio.pause(); updateMusic(); } });
   $('sound').addEventListener('click', toggleMute);
   audio.addEventListener('play', updateMusic); audio.addEventListener('pause', updateMusic);

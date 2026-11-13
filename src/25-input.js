@@ -10,10 +10,8 @@
   $('pause').addEventListener('click', pauseRace); $('resume').addEventListener('click', pauseRace);
   $('quit').addEventListener('click', garage); $('garage').addEventListener('click', garage);
   $('prev-track').addEventListener('click', () => selectTrack(-1)); $('next-track').addEventListener('click', () => selectTrack(1));
-  document.querySelectorAll('[data-ship]').forEach(button => button.addEventListener('click', () => {
-    shipIndex = Number(button.dataset.ship); document.querySelectorAll('[data-ship]').forEach(b => b.classList.toggle('selected', b === button));
-    $('ship-info').textContent = machines[shipIndex].info;
-  }));
+  document.querySelectorAll('[data-ship]').forEach(button => button.addEventListener('click', () => selectShip(Number(button.dataset.ship))));
+  renderShips(); window.morbidShips = { select: selectShip };
   $('music-toggle').addEventListener('click', () => { if (audio.paused) { if (muted) toggleMute(); playMusic(); } else { audio.pause(); updateMusic(); } });
   $('sound').addEventListener('click', toggleMute);
   audio.addEventListener('play', updateMusic); audio.addEventListener('pause', updateMusic);

@@ -424,3 +424,7 @@ body.lowfx .home-bg,body.lowfx .scanlines{animation:none!important}
 @media (max-width:600px) and (orientation:portrait){.mutator-options .setup-option{min-width:calc(50% - 6px);min-height:40px}}
 @media (max-height:520px) and (orientation:landscape){.mutator-picker{margin-top:6px}.mutator-options .setup-option{min-height:28px}}
 @media (max-height:720px){.mutator-picker .mode-info{display:none}}
+
+/* Special machines. */
+.ship-options{flex-wrap:wrap}.ship-option.locked{opacity:.45}.ship-option.locked::after{content:' 🔒';font-size:10px}
+.touch-controls .blink-button{display:none;border-color:#c77dff;color:#d9a8ff}body.ship-blink .touch-controls .blink-button{display:flex}

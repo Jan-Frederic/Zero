@@ -14,7 +14,7 @@
     nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
     if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
     endlessRun = false; trialRun = gameMode() === 'trial';
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); hitShortcuts = new Set(); missiles = []; mines = []; slip = 0; slipShown = false; ufoKills = 0; boss = null; bossAttacks = [];
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); hitShortcuts = new Set(); blinkReadyAt = 0; missiles = []; mines = []; slip = 0; slipShown = false; ufoKills = 0; boss = null; bossAttacks = [];
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
@@ -67,12 +67,13 @@
     if (!hyper()) laserAmmo--; laserCooldown = hyper() ? .1 : .24;
     laserShots.push({ distance: targetDistance, lane, color: track.second, mega: hyper(), started: time, duration: hyper() ? .28 : .2, x: W * .5, y: H * .79 });
     playLaserSound();
-    if (target && powerOn('multi')) {
-      // Multi-laser: two more beams fan out to the next rivals in a wide cone.
+    const extraBeams = (powerOn('multi') ? 2 : 0) + (ability() === 'twin' ? 1 : 0);
+    if (target && extraBeams) {
+      // Multi-laser and the TWIN machine: more beams fan out to the next rivals in a wide cone.
       const extra = rivals.filter(r => r !== target && r.alive && r.distance > distance + 1350 && r.distance < distance + 22000 && Math.abs(r.x * track.width - playerX) < track.width * .75)
-        .sort((a, b) => a.distance - b.distance).slice(0, 2);
+        .sort((a, b) => a.distance - b.distance).slice(0, extraBeams);
       for (const r of extra) {
-        laserShots.push({ distance: r.distance, lane: r.x * track.width, color: POWERUPS.multi.color, started: time, duration: .2, x: W * .5, y: H * .79 });
+        laserShots.push({ distance: r.distance, lane: r.x * track.width, color: powerOn('multi') ? POWERUPS.multi.color : machines[shipIndex].color, started: time, duration: .2, x: W * .5, y: H * .79 });
         r.hull -= 1; createExplosion(r.distance, r.x * track.width, r.color, r.hull > 0 ? .3 : .45);
         if (r.hull <= 0) knockOut(r);
       }

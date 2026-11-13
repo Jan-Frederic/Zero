@@ -12,8 +12,34 @@
   const machines = [
     { color: '#44f7ff', dark: '#09627d', name: 'PHANTOM', info: 'BALANCED / PRECISION HANDLING', handling: 1, top: 1, drain: 22 },
     { color: '#ff4aa8', dark: '#851657', name: 'VIPER', info: 'AGGRESSIVE / HIGH TOP SPEED', handling: .88, top: 1.06, drain: 25 },
-    { color: '#ddff46', dark: '#56751b', name: 'PULSE', info: 'AGILE / EXTENDED OVERDRIVE', handling: 1.2, top: .96, drain: 17 }
+    { color: '#ddff46', dark: '#56751b', name: 'PULSE', info: 'AGILE / EXTENDED OVERDRIVE', handling: 1.2, top: .96, drain: 17 },
+    // Special machines, unlocked with a trophy.
+    { color: '#c77dff', dark: '#3d1466', name: 'BLINK', info: 'TELEPORT DASH / PRESS C', handling: 1.05, top: .98, drain: 22, ability: 'blink', trophy: 'mothership' },
+    { color: '#ff9b2e', dark: '#5a2a04', name: 'TWIN', info: 'TWIN LASER / TWO TARGETS PER SHOT', handling: .95, top: 1.02, drain: 23, ability: 'twin', trophy: 'ufo25' },
   ];
+  const machineLocked = i => !!machines[i].trophy && !profile.achievements[machines[i].trophy];
+  const ability = () => machines[shipIndex].ability;
+  function selectShip(i) {
+    if (!machines[i]) return false;
+    if (machineLocked(i)) {
+      const a = ACHIEVEMENTS.find(x => x.id === machines[i].trophy);
+      $('ship-info').textContent = `🔒 UNLOCK WITH THE TROPHY ${a ? a.name : ''}`; playToneSweep(220, 120, .2, 'square', .04); return false;
+    }
+    shipIndex = i; document.querySelectorAll('[data-ship]').forEach(b => b.classList.toggle('selected', Number(b.dataset.ship) === i));
+    $('ship-info').textContent = machines[i].info; document.body.classList.toggle('ship-blink', ability() === 'blink'); return true;
+  }
+  function renderShips() {
+    document.querySelectorAll('[data-ship]').forEach(b => b.classList.toggle('locked', machineLocked(Number(b.dataset.ship))));
+  }
+  // BLINK: a short teleport forward with a moment of invulnerability.
+  let blinkReadyAt = 0;
+  function blink() {
+    if (ability() !== 'blink' || mode !== 'racing') return;
+    if (time < blinkReadyAt) { showMessage(`BLINK RECHARGING  /  ${(blinkReadyAt - time).toFixed(1)} S`, .6); return; }
+    blinkReadyAt = time + 6; distance += 1800; position = mod(distance, LENGTH); raceInvulnUntil = Math.max(raceInvulnUntil, time + .6);
+    screenFlash = Math.max(screenFlash, .35); showMessage('BLINK!', .6); playToneSweep(1800, 300, .25, 'sine', .06); playNoiseBurst(.2, .05, 5000, 1200);
+    for (let i = 0; i < 24; i++) particles.push({ x: W * .5 + (Math.random() - .5) * 140, y: H * .78, vx: (Math.random() - .5) * 900, vy: -Math.random() * 700, life: .5, color: i % 2 ? '#c77dff' : '#ffffff' });
+  }
   function resize() {
     W = innerWidth; H = innerHeight; dpr = lowFx() ? 1 : Math.min(devicePixelRatio || 1, 1.6);
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
