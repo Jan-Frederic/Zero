@@ -612,3 +612,15 @@ test('endless boss rush keeps sending bosses and records the waves cleared', () 
   assert.match(el('result-title').textContent, /7 WAVES/);
   assert.equal(JSON.parse(storage.get('morbid-profile-v1')).stats.endlessBest, 7);
 });
+
+test('paint shop: buy and equip a paint job, trophy paints stay locked', () => {
+  const { storage, sandbox } = (() => { const h = harness(); return h; })();
+  const shop = sandbox.morbidShop;
+  shop.profile.credits = 700;
+  assert.equal(shop.paint('gold'), false, 'trophy paint needs its trophy');
+  assert.equal(shop.paint('chrome'), true, 'chrome bought');
+  assert.equal(shop.profile.credits, 300);
+  assert.equal(JSON.parse(storage.get('morbid-profile-v1')).paint, 'chrome');
+  assert.equal(shop.paint('flames'), false, 'not enough credits for hot rods');
+  assert.equal(shop.paint('factory'), true, 'factory paint is always available');
+});

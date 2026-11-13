@@ -370,6 +370,8 @@
   }
   function drawShip(x, y, width, color, dark, steer, player, rivalBoost = false, airborne = false, spin = 0) {
     if (width < 1) return;
+    let paint = null;
+    if (player) { paint = playerPaint(machines[shipIndex]); color = paint.color; dark = paint.dark; }
     ctx.save(); ctx.translate(x, y); ctx.scale(width / 100, width / 100); ctx.rotate(steer * (player ? .1 : .06) + spin);
     const bob = Math.sin(time * 8) * (player ? 2 : 1); ctx.translate(0, bob);
     const boosted = player ? boosting || jumpBoostTimer > 0 : rivalBoost;
@@ -387,6 +389,10 @@
     polygon([[84, -1], [43, -15], [35, 6], [96, 22]], color);
     const hull = ctx.createLinearGradient(-28, 0, 30, 0); hull.addColorStop(0, color); hull.addColorStop(.48, '#e3f5ff'); hull.addColorStop(.55, '#b3cbdf'); hull.addColorStop(1, dark);
     polygon([[0, -81], [-24, -45], [-30, 14], [0, 27], [30, 14], [24, -45]], hull);
+    if (paint && paint.pattern === 'flames') for (const s of [-1, 1]) { polygon([[s * 40, -12], [s * 92, 18], [s * 70, 4], [s * 80, 16], [s * 58, 2], [s * 62, 12], [s * 44, 4]], paint.accent); polygon([[s * 42, -6], [s * 78, 14], [s * 60, 6], [s * 52, 8]], '#ffffff'); }
+    if (paint && paint.pattern === 'stripes') { polygon([[-7, -80], [7, -80], [9, 26], [-9, 26]], paint.accent); polygon([[-3, -80], [3, -80], [4, 26], [-4, 26]], color); }
+    if (paint && paint.pattern === 'spots') { ctx.fillStyle = paint.accent; for (const [sx, sy, r] of [[-60, 6, 5], [62, 4, 6], [-14, -30, 4], [16, -10, 5], [-74, 14, 3], [80, 14, 3]]) { ctx.beginPath(); ctx.arc(sx, sy, r, 0, TAU); ctx.fill(); } }
+    if (paint && paint.pattern === 'rainbow') for (let i = 0; i < 5; i++) line(-90 + i * 4, 20 - i * 3, 90 - i * 4, 20 - i * 3, `hsl(${(time * 90 + i * 60) % 360},100%,65%)`, 2);
     polygon([[0, -54], [-15, -28], [-13, -4], [13, -4], [15, -28]], '#10132f', '#86d9ef', 1.5);
     polygon([[0, -49], [-10, -28], [10, -28]], '#7568b6');
     polygon([[-49, -25], [-63, -14], [-66, 13], [-43, 13]], '#16152c', '#ddf9ff', 1);

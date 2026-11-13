@@ -22,6 +22,30 @@
     boost: { name: 'BOOST CORE', icon: 'ϟ', info: lvl => `${Math.round(lvl * 20)}% less drain, +${lvl * 3}% top speed` },
   };
   const UPGRADE_COST = [150, 350, 700], UPGRADE_MAX = 3;
+  // Paint jobs for the player's ship: bought with credits or unlocked by a trophy.
+  const PAINTS = [
+    { id: 'factory', name: 'FACTORY', cost: 0 },
+    { id: 'stealth', name: 'STEALTH', cost: 250, color: '#5b5f70', dark: '#14141c', accent: '#ff2a4a' },
+    { id: 'chrome', name: 'CHROME', cost: 400, color: '#e8eef6', dark: '#5d6b80', accent: '#9fe8ff' },
+    { id: 'flames', name: 'HOT RODS', cost: 600, color: '#ff4a1c', dark: '#3a0a04', accent: '#ffd35a', pattern: 'flames' },
+    { id: 'stripes', name: 'RACING STRIPES', cost: 500, color: '#2f6bff', dark: '#0c1a4a', accent: '#ffffff', pattern: 'stripes' },
+    { id: 'gold', name: '24K GOLD', trophy: 'win', color: '#ffd35a', dark: '#6a4a08', accent: '#fff6c8' },
+    { id: 'kitty', name: 'NEON KITTY', trophy: 'cats10', color: '#ff9bf2', dark: '#4a1a46', accent: '#80faff', pattern: 'spots' },
+    { id: 'rainbow', name: 'HYPER RAINBOW', trophy: 'galaxy', pattern: 'rainbow', accent: '#ffffff' },
+  ];
+  profile.paints = profile.paints || ['factory'];
+  const paintOwned = p => p.cost === 0 || profile.paints.includes(p.id) || (p.trophy && profile.achievements && profile.achievements[p.trophy]);
+  // drawShip appends alpha digits to colours ('#rrggbb' + '60'), so paints must be 6-digit hex.
+  function hslHex(h, sat, l) {
+    const k = n => (n + h / 30) % 12, a = sat * Math.min(l, 1 - l), f = n => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+    return '#' + [f(0), f(8), f(4)].map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+  }
+  function playerPaint(machine) {
+    const p = PAINTS.find(x => x.id === profile.paint) || PAINTS[0];
+    if (!paintOwned(p) || p.id === 'factory') return { color: machine.color, dark: machine.dark };
+    if (p.pattern === 'rainbow') { const h = (time * 90) % 360; return { color: hslHex(h, 1, .62), dark: hslHex((h + 180) % 360, .8, .22), accent: p.accent, pattern: p.pattern }; }
+    return { color: p.color, dark: p.dark, accent: p.accent, pattern: p.pattern };
+  }
   const hullStrength = () => BASE_HULL_STRENGTH * (1 + profile.upgrades.armor * .25);
   const laserCap = () => BASE_LASER_CAPACITY + profile.upgrades.laser * 2;
   const laserRecharge = () => BASE_LASER_RECHARGE * (1 - profile.upgrades.laser * .15);

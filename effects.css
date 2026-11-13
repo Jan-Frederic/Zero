@@ -360,3 +360,11 @@ body.mode-endless .track-lock{display:none}
   .mode-options .setup-option{min-height:30px!important;font-size:11px!important;padding:0 6px!important}
   .ship-picker{margin-top:6px!important}.ship-option{min-height:30px;padding:4px 8px!important}
 }
+
+/* Paint shop. */
+.paint-head{margin-top:16px}.paint-head{font-size:13px}
+.paint-list{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.paint{display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px 6px;background:#ffffff08;border:1px solid #ffffff1a;color:#fff;font:11px var(--mono);letter-spacing:.6px}
+.paint i{width:38px;height:22px;transform:skew(-15deg);border:1px solid #ffffff44}.paint b{font-weight:400}.paint small{font-size:10px;color:#a9a1bd;text-align:center}
+.paint.owned small{color:#9fe8ff}.paint.active{border-color:var(--acid);background:#ddff4612}.paint.active small{color:var(--acid)}.paint:disabled{opacity:.45}
+@media (max-width:600px){.paint-list{grid-template-columns:repeat(2,1fr)}.paint{min-height:76px}}

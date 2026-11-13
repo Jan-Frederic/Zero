@@ -22,6 +22,30 @@
     boost: { name: 'BOOST CORE', icon: 'ϟ', info: lvl => `${Math.round(lvl * 20)}% less drain, +${lvl * 3}% top speed` },
   };
   const UPGRADE_COST = [150, 350, 700], UPGRADE_MAX = 3;
+  // Paint jobs for the player's ship: bought with credits or unlocked by a trophy.
+  const PAINTS = [
+    { id: 'factory', name: 'FACTORY', cost: 0 },
+    { id: 'stealth', name: 'STEALTH', cost: 250, color: '#5b5f70', dark: '#14141c', accent: '#ff2a4a' },
+    { id: 'chrome', name: 'CHROME', cost: 400, color: '#e8eef6', dark: '#5d6b80', accent: '#9fe8ff' },
+    { id: 'flames', name: 'HOT RODS', cost: 600, color: '#ff4a1c', dark: '#3a0a04', accent: '#ffd35a', pattern: 'flames' },
+    { id: 'stripes', name: 'RACING STRIPES', cost: 500, color: '#2f6bff', dark: '#0c1a4a', accent: '#ffffff', pattern: 'stripes' },
+    { id: 'gold', name: '24K GOLD', trophy: 'win', color: '#ffd35a', dark: '#6a4a08', accent: '#fff6c8' },
+    { id: 'kitty', name: 'NEON KITTY', trophy: 'cats10', color: '#ff9bf2', dark: '#4a1a46', accent: '#80faff', pattern: 'spots' },
+    { id: 'rainbow', name: 'HYPER RAINBOW', trophy: 'galaxy', pattern: 'rainbow', accent: '#ffffff' },
+  ];
+  profile.paints = profile.paints || ['factory'];
+  const paintOwned = p => p.cost === 0 || profile.paints.includes(p.id) || (p.trophy && profile.achievements && profile.achievements[p.trophy]);
+  // drawShip appends alpha digits to colours ('#rrggbb' + '60'), so paints must be 6-digit hex.
+  function hslHex(h, sat, l) {
+    const k = n => (n + h / 30) % 12, a = sat * Math.min(l, 1 - l), f = n => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+    return '#' + [f(0), f(8), f(4)].map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+  }
+  function playerPaint(machine) {
+    const p = PAINTS.find(x => x.id === profile.paint) || PAINTS[0];
+    if (!paintOwned(p) || p.id === 'factory') return { color: machine.color, dark: machine.dark };
+    if (p.pattern === 'rainbow') { const h = (time * 90) % 360; return { color: hslHex(h, 1, .62), dark: hslHex((h + 180) % 360, .8, .22), accent: p.accent, pattern: p.pattern }; }
+    return { color: p.color, dark: p.dark, accent: p.accent, pattern: p.pattern };
+  }
   const hullStrength = () => BASE_HULL_STRENGTH * (1 + profile.upgrades.armor * .25);
   const laserCap = () => BASE_LASER_CAPACITY + profile.upgrades.laser * 2;
   const laserRecharge = () => BASE_LASER_RECHARGE * (1 - profile.upgrades.laser * .15);
@@ -2593,6 +2617,8 @@
   }
   function drawShip(x, y, width, color, dark, steer, player, rivalBoost = false, airborne = false, spin = 0) {
     if (width < 1) return;
+    let paint = null;
+    if (player) { paint = playerPaint(machines[shipIndex]); color = paint.color; dark = paint.dark; }
     ctx.save(); ctx.translate(x, y); ctx.scale(width / 100, width / 100); ctx.rotate(steer * (player ? .1 : .06) + spin);
     const bob = Math.sin(time * 8) * (player ? 2 : 1); ctx.translate(0, bob);
     const boosted = player ? boosting || jumpBoostTimer > 0 : rivalBoost;
@@ -2610,6 +2636,10 @@
     polygon([[84, -1], [43, -15], [35, 6], [96, 22]], color);
     const hull = ctx.createLinearGradient(-28, 0, 30, 0); hull.addColorStop(0, color); hull.addColorStop(.48, '#e3f5ff'); hull.addColorStop(.55, '#b3cbdf'); hull.addColorStop(1, dark);
     polygon([[0, -81], [-24, -45], [-30, 14], [0, 27], [30, 14], [24, -45]], hull);
+    if (paint && paint.pattern === 'flames') for (const s of [-1, 1]) { polygon([[s * 40, -12], [s * 92, 18], [s * 70, 4], [s * 80, 16], [s * 58, 2], [s * 62, 12], [s * 44, 4]], paint.accent); polygon([[s * 42, -6], [s * 78, 14], [s * 60, 6], [s * 52, 8]], '#ffffff'); }
+    if (paint && paint.pattern === 'stripes') { polygon([[-7, -80], [7, -80], [9, 26], [-9, 26]], paint.accent); polygon([[-3, -80], [3, -80], [4, 26], [-4, 26]], color); }
+    if (paint && paint.pattern === 'spots') { ctx.fillStyle = paint.accent; for (const [sx, sy, r] of [[-60, 6, 5], [62, 4, 6], [-14, -30, 4], [16, -10, 5], [-74, 14, 3], [80, 14, 3]]) { ctx.beginPath(); ctx.arc(sx, sy, r, 0, TAU); ctx.fill(); } }
+    if (paint && paint.pattern === 'rainbow') for (let i = 0; i < 5; i++) line(-90 + i * 4, 20 - i * 3, 90 - i * 4, 20 - i * 3, `hsl(${(time * 90 + i * 60) % 360},100%,65%)`, 2);
     polygon([[0, -54], [-15, -28], [-13, -4], [13, -4], [15, -28]], '#10132f', '#86d9ef', 1.5);
     polygon([[0, -49], [-10, -28], [10, -28]], '#7568b6');
     polygon([[-49, -25], [-63, -14], [-66, 13], [-43, 13]], '#16152c', '#ddf9ff', 1);
@@ -2886,7 +2916,19 @@
       return `<div class="shop-row"><div class="shop-info"><b>${u.icon} ${u.name}</b><span class="pips">${pips}</span><small>${maxed ? 'MAXED OUT — ' : 'NOW: '}${u.info(lvl)}${maxed ? '' : `<br>NEXT: ${u.info(lvl + 1)}`}</small></div>`
         + `<button class="setup-option shop-buy" data-buy="${key}" ${maxed || profile.credits < cost ? 'disabled' : ''}>${maxed ? 'MAX' : `UPGRADE · ${cost} CR`}</button></div>`;
     }).join('');
+    $('paint-list').innerHTML = PAINTS.map(p => {
+      const owned = paintOwned(p), active = (profile.paint || 'factory') === p.id;
+      const swatch = p.pattern === 'rainbow' ? 'linear-gradient(90deg,#ff4eb8,#ddff46,#4df8ff,#a88aff)' : p.id === 'factory' ? machines[shipIndex].color : `linear-gradient(135deg,${p.color} 55%,${p.accent} 55%)`;
+      const label = active ? 'EQUIPPED' : owned ? 'EQUIP' : p.trophy ? `🏆 ${ACHIEVEMENTS.find(a => a.id === p.trophy).name}` : `BUY · ${p.cost} CR`;
+      return `<button class="paint ${active ? 'active' : ''} ${owned ? 'owned' : ''}" data-paint="${p.id}" ${!owned && (p.trophy || profile.credits < p.cost) ? 'disabled' : ''}><i style="background:${swatch}"></i><b>${p.name}</b><small>${label}</small></button>`;
+    }).join('');
   }
+  function choosePaint(id) {
+    const p = PAINTS.find(x => x.id === id); if (!p) return false;
+    if (!paintOwned(p)) { if (p.trophy || profile.credits < p.cost) return false; profile.credits -= p.cost; profile.paints.push(p.id); playToneSweep(500, 1500, .3, 'square', .05); }
+    profile.paint = p.id; saveProfile(); renderShop(); return true;
+  }
+  if ($('paint-list').addEventListener) $('paint-list').addEventListener('click', event => { const b = event.target && event.target.closest && event.target.closest('[data-paint]'); if (b) choosePaint(b.dataset.paint); });
   function buyUpgrade(key) {
     const lvl = profile.upgrades[key], cost = UPGRADE_COST[lvl];
     if (lvl >= UPGRADE_MAX || profile.credits < cost) return false;
@@ -2898,7 +2940,7 @@
   $('open-shop').addEventListener('click', () => { renderShop(); openDialog('shop-screen'); });
   renderShop(); renderTrophyButton();
   $('open-trophies').addEventListener('click', () => { renderTrophies(); openDialog('trophy-screen'); });
-  window.morbidShop = { buy: buyUpgrade, profile };
+  window.morbidShop = { buy: buyUpgrade, paint: choosePaint, profile };
   // ---- Share card: a 1200×630 image of the result, shared via the system share sheet (or downloaded).
   function shareCard() {
     const c = document.createElement('canvas'); c.width = 1200; c.height = 630; const g = c.getContext('2d');
