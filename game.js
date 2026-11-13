@@ -381,6 +381,39 @@
     '⤳ SHORTCUT!': '⤳ ABKÜRZUNG!', '⤳ SHORTCUT': '⤳ ABKÜRZUNG', 'TUNNEL WALL!': 'TUNNELWAND!',
     'MUTATORS': 'MUTATOREN', '⇋ MIRROR': '⇋ SPIEGEL', '☾ NIGHT': '☾ NACHT', '⇡ LOW GRAVITY': '⇡ WENIG SCHWERKRAFT', '⟲ REVERSE': '⟲ RÜCKWÄRTS', 'OPTIONAL TWISTS · EACH ONE +15% CREDITS': 'OPTIONALE KNIFFE · JEDER +15 % CREDITS',
     'TELEPORT DASH / PRESS C': 'TELEPORT-SPRUNG / TASTE C', 'TWIN LASER / TWO TARGETS PER SHOT': 'DOPPELLASER / ZWEI ZIELE PRO SCHUSS', 'BLINK!': 'BLINK!',
+    'STORY': 'STORY', '📖 STORY': '📖 STORY', '📖 NEW CHAPTER — READ IT': '📖 NEUES KAPITEL — JETZT LESEN', '‹ PREVIOUS': '‹ ZURÜCK', 'NEXT ›': 'WEITER ›',
+    "THE SIGNAL": "DAS SIGNAL",
+    "2097. Night City never sleeps — and tonight the sky is humming.": "2097. Night City schläft nie — und heute Nacht summt der Himmel.",
+    "A signal hijacks every screen: “EARTHLINGS. ENTERTAIN US.”": "Ein Signal kapert jeden Bildschirm: „ERDLINGE. UNTERHALTET UNS.“",
+    "The Grand Prix goes on. If they want a show, we give them speed.": "Der Grand Prix geht weiter. Wenn sie eine Show wollen, kriegen sie Tempo.",
+    "FIRST CONTACT": "ERSTKONTAKT",
+    "The saucers follow the race to the solar fields. They drop gifts: bombs.": "Die Untertassen folgen dem Rennen in die Sonnenfelder. Sie werfen Geschenke ab: Bomben.",
+    "Someone keeps beaming cats onto the track. Nobody knows why.": "Jemand beamt ständig Katzen auf die Strecke. Niemand weiß, warum.",
+    "VEX: “Aliens or not — first place is mine.”": "VEX: „Aliens hin oder her — Platz eins gehört mir.“",
+    "THE MOTHERSHIP": "DAS MUTTERSCHIFF",
+    "Over the ion seas a shadow swallows the stars. The mothership is here.": "Über den Ionenmeeren verschluckt ein Schatten die Sterne. Das Mutterschiff ist da.",
+    "Mission control: “Down ten saucers and it shows itself. Then shoot it!”": "Missionskontrolle: „Hol zehn Untertassen runter, dann zeigt es sich. Und dann schieß!“",
+    "Your laser cells hum. The crowd goes wild.": "Deine Laserzellen summen. Die Menge tobt.",
+    "SYSTEM GLITCH": "SYSTEMFEHLER",
+    "The aliens hack the city grid. Drones and laser gates rise from the road.": "Die Aliens hacken das Stadtnetz. Drohnen und Lasertore wachsen aus der Fahrbahn.",
+    "NULL-9 laughs: “I helped them. Faster tracks, better ratings.”": "NULL-9 lacht: „Ich habe ihnen geholfen. Schnellere Strecken, bessere Quoten.“",
+    "Your mechanic whispers a trick: star gates. Light speed, ten seconds.": "Deine Mechanikerin flüstert dir einen Trick zu: Sternentore. Lichtgeschwindigkeit, zehn Sekunden.",
+    "COLD FRONT": "KALTFRONT",
+    "They freeze the canyon. Grip is gone, the margins are zero.": "Sie lassen den Canyon gefrieren. Kein Grip, null Spielraum.",
+    "The signal again: “YOUR SPECIES IS… AMUSING. CONTINUE.”": "Wieder das Signal: „EURE SPEZIES IST … AMÜSANT. MACHT WEITER.“",
+    "KRONOS: “Amusing? Let's see how they like losing.”": "KRONOS: „Amüsant? Mal sehen, wie ihnen Verlieren gefällt.“",
+    "GRAVITY WARS": "SCHWERKRAFTKRIEGE",
+    "Beyond the moon, gravity bends. The track pulls you sideways.": "Hinter dem Mond verbiegt sich die Schwerkraft. Die Strecke zieht dich zur Seite.",
+    "Something huge watches from the void. A cyclops? A commander?": "Etwas Riesiges beobachtet dich aus der Leere. Ein Zyklop? Ein Kommandant?",
+    "Only a winner gets close enough to find out.": "Nur wer gewinnt, kommt nah genug heran, um es herauszufinden.",
+    "NO BRAKES": "KEINE BREMSEN",
+    "Plasma storms. Laser gates. The aliens raise the stakes.": "Plasmastürme. Lasertore. Die Aliens erhöhen den Einsatz.",
+    "BLAZE: “Whoever wins here gets the invitation. It's mine.”": "BLAZE: „Wer hier gewinnt, bekommt die Einladung. Die gehört mir.“",
+    "The invitation: a seat at the final fight above the galaxy.": "Die Einladung: ein Platz beim letzten Kampf über der Galaxie.",
+    "THE LAST LINE": "DIE LETZTE LINIE",
+    "The singularity. The final, impossible line.": "Die Singularität. Die letzte, unmögliche Linie.",
+    "Win, and the invasion comes for you. Bosses wait in the dark.": "Gewinne, und die Invasion kommt zu dir. In der Dunkelheit warten Bosse.",
+    "And if you beat them too… the whole galaxy will dance.": "Und wenn du auch sie besiegst … tanzt die ganze Galaxie.",
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -414,6 +447,7 @@
     [/^TUNNEL WARP  \/  \+([\d.]+) KM AHEAD$/, 'TUNNEL-SPRUNG  /  +$1 KM VORAUS'], [/^TUNNEL WALL!  SHIELD -(\d+)$/, 'TUNNELWAND!  SCHILD -$1'],
     [/^\+(\d+)% CREDITS$/, '+$1 % CREDITS'],
     [/^🔒 UNLOCK WITH THE TROPHY (.+)$/, '🔒 FREISCHALTEN MIT DER TROPHÄE $1'], [/^BLINK RECHARGING  \/  ([\d.]+) S$/, 'BLINK LÄDT  /  $1 S'],
+    [/^CHAPTER (\d+) \/ (\d+)  ·  (.+)$/, 'KAPITEL $1 / $2  ·  $3'], [/^🔒 (\d+) MORE CHAPTERS — UNLOCK CIRCUITS TO READ ON$/, '🔒 NOCH $1 KAPITEL — SCHALTE STRECKEN FREI, UM WEITERZULESEN'],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
@@ -1521,7 +1555,7 @@
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
-    $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE'; $('cup-standings').classList.add('hidden'); if ($('again').firstElementChild) $('again').firstElementChild.textContent = 'RACE AGAIN';
+    $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE'; $('cup-standings').classList.add('hidden'); $('story-new').classList.add('hidden'); if ($('again').firstElementChild) $('again').firstElementChild.textContent = 'RACE AGAIN';
     $('race-message').classList.remove('visible'); messageTime = 0;
     if (settings.steering === 'gyro' && !enableGyro.listening) enableGyro();
     playMusic(); primeSpeech(); calibrateTilt(); applyScreenSetting(true); updateHUD();
@@ -1736,6 +1770,7 @@
     const record = !bestLap || fastest < bestLap;
     $('result-record').textContent = record ? '✦ NEW CIRCUIT LAP RECORD' : 'Chase the perfect line. The next podium is yours.';
     if (unlockedNow) $('result-record').textContent = `🔓 NEW CIRCUIT UNLOCKED: ${unlockedNow}!` + (record ? '  ·  ✦ NEW LAP RECORD' : '');
+    $('story-new').classList.toggle('hidden', !unlockedNow); if (unlockedNow) renderStoryButton();
     if (record) { bestLap = fastest; try { localStorage.setItem(`chroma-best-${trackIndex}`, String(bestLap)); } catch {} }
     soundEffect(880, .6);
     invasionArmed = rank === 1;
@@ -3570,7 +3605,7 @@
   renderLock();
   // ---- Home screen dialogs: settings and changelog.
   function openDialog(id) { $(id).classList.remove('hidden'); document.body.classList.add('dialog-open'); }
-  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen', 'trophy-screen', 'stats-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
+  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen', 'trophy-screen', 'stats-screen', 'story-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
   // Health warning: shown on every visit (not again after an in-app update reload within the same session).
   let healthSeen = false;
   try { healthSeen = sessionStorage.getItem('morbid-health-ok') === '1'; } catch { /* show it */ }
@@ -3634,6 +3669,38 @@
     eggTyped = (eggTyped + event.code.slice(3)).slice(-4);
     if (eggTyped === 'BOSS') bossRush();
   });
+  // ---- Story: one comic chapter per circuit, unlocked together with the circuit.
+  const STORY = [
+    { title: "THE SIGNAL", panels: [{ art: "🌃📡", text: "2097. Night City never sleeps — and tonight the sky is humming." }, { art: "🛸📺", text: "A signal hijacks every screen: “EARTHLINGS. ENTERTAIN US.”" }, { art: "🏁🔥", text: "The Grand Prix goes on. If they want a show, we give them speed." }] },
+    { title: "FIRST CONTACT", panels: [{ art: "☀️🛸", text: "The saucers follow the race to the solar fields. They drop gifts: bombs." }, { art: "🐱✨", text: "Someone keeps beaming cats onto the track. Nobody knows why." }, { art: "💬😈", text: "VEX: “Aliens or not — first place is mine.”" }] },
+    { title: "THE MOTHERSHIP", panels: [{ art: "🌌🛸", text: "Over the ion seas a shadow swallows the stars. The mothership is here." }, { art: "📡🎯", text: "Mission control: “Down ten saucers and it shows itself. Then shoot it!”" }, { art: "⚡🙌", text: "Your laser cells hum. The crowd goes wild." }] },
+    { title: "SYSTEM GLITCH", panels: [{ art: "🏙️⚠️", text: "The aliens hack the city grid. Drones and laser gates rise from the road." }, { art: "🤖💬", text: "NULL-9 laughs: “I helped them. Faster tracks, better ratings.”" }, { art: "✦🚀", text: "Your mechanic whispers a trick: star gates. Light speed, ten seconds." }] },
+    { title: "COLD FRONT", panels: [{ art: "❄️🏔️", text: "They freeze the canyon. Grip is gone, the margins are zero." }, { art: "🛸💬", text: "The signal again: “YOUR SPECIES IS… AMUSING. CONTINUE.”" }, { art: "🔥💪", text: "KRONOS: “Amusing? Let's see how they like losing.”" }] },
+    { title: "GRAVITY WARS", panels: [{ art: "🕳️🌙", text: "Beyond the moon, gravity bends. The track pulls you sideways." }, { art: "👁️🌑", text: "Something huge watches from the void. A cyclops? A commander?" }, { art: "🏁👀", text: "Only a winner gets close enough to find out." }] },
+    { title: "NO BRAKES", panels: [{ art: "🔴🌪️", text: "Plasma storms. Laser gates. The aliens raise the stakes." }, { art: "💬😎", text: "BLAZE: “Whoever wins here gets the invitation. It's mine.”" }, { art: "🎟️🌌", text: "The invitation: a seat at the final fight above the galaxy." }] },
+    { title: "THE LAST LINE", panels: [{ art: "🌀⚫", text: "The singularity. The final, impossible line." }, { art: "👾👾", text: "Win, and the invasion comes for you. Bosses wait in the dark." }, { art: "🪩💃", text: "And if you beat them too… the whole galaxy will dance." }] },
+  ];
+  let storyChapter = 0;
+  const storyUnlocked = () => Math.min(STORY.length, profile.unlocked || 1);
+  const storyUnseen = () => STORY.slice(0, storyUnlocked()).some((_, i) => !(profile.storySeen || []).includes(i));
+  function renderStoryButton() { const b = $('open-story'); if (b) b.classList.toggle('new', storyUnseen()); }
+  function openStory(chapter = 0) {
+    storyChapter = clamp(chapter, 0, storyUnlocked() - 1); renderStory(); openDialog('story-screen');
+  }
+  function renderStory() {
+    const c = STORY[storyChapter];
+    profile.storySeen = [...new Set([...(profile.storySeen || []), storyChapter])]; saveProfile(); renderStoryButton();
+    $('story-chapter').textContent = `CHAPTER ${storyChapter + 1} / ${STORY.length}  ·  ${tracks[storyChapter].name}`;
+    $('story-title').textContent = c.title;
+    $('story-panels').innerHTML = c.panels.map((p, i) => `<figure class="comic-panel" style="--tilt:${[-1.2, .8, -.5][i]}deg"><div class="comic-art">${p.art}</div><figcaption>${escapeHtml(p.text)}</figcaption></figure>`).join('');
+    $('story-prev').disabled = storyChapter === 0; $('story-next').disabled = storyChapter >= storyUnlocked() - 1;
+    $('story-locked').textContent = storyUnlocked() < STORY.length ? `🔒 ${STORY.length - storyUnlocked()} MORE CHAPTERS — UNLOCK CIRCUITS TO READ ON` : '';
+  }
+  $('open-story').addEventListener('click', () => openStory(Math.max(0, storyUnlocked() - 1)));
+  $('story-prev').addEventListener('click', () => { storyChapter = Math.max(0, storyChapter - 1); renderStory(); });
+  $('story-next').addEventListener('click', () => { storyChapter = Math.min(storyUnlocked() - 1, storyChapter + 1); renderStory(); });
+  $('story-new').addEventListener('click', () => openStory(storyUnlocked() - 1));
+  renderStoryButton(); window.morbidStory = { open: openStory };
   // ==== Upgrade and paint shop.
   // ---- Upgrade shop in the garage.
   function renderShop() {

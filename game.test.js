@@ -836,3 +836,20 @@ test('special machines: BLINK teleports, TWIN hits two rivals, both need a troph
   key('KeyX'); step(.05); key('KeyX', 'keyup');
   assert.equal(a.hull, 2, 'main target hit'); assert.equal(b.hull, 2, 'twin beam hit a second rival');
 });
+
+test('story: one comic chapter per unlocked circuit, a new one after unlocking a circuit', () => {
+  const { element: el, step, key, inspect, sandbox, setRacePosition, disableAirRaid, eliminateRivals, storage } = harness({ profile: { unlocked: 2, tutorialDone: true } });
+  el('open-story').fire('click');
+  assert.match(el('story-chapter').textContent, /CHAPTER 2 \/ 8/);
+  assert.equal(el('story-title').textContent, 'FIRST CONTACT');
+  assert.match(el('story-panels').innerHTML, /comic-panel/);
+  assert.equal(el('story-next').disabled, true, 'chapter 3 is still locked');
+  el('story-prev').fire('click'); assert.equal(el('story-title').textContent, 'THE SIGNAL');
+  el('next-track').fire('click');
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid(); eliminateRivals();
+  for (let lap = 0; lap < 6 && inspect().mode === 'racing'; lap++) { setRacePosition((lap + 1) * 240000 - 60, 0); step(.5); }
+  assert.equal(el('story-new').classList.contains('hidden'), false, 'new chapter offered after unlocking');
+  el('story-new').fire('click'); assert.equal(el('story-title').textContent, 'THE MOTHERSHIP');
+  assert.deepEqual(JSON.parse(storage.get('morbid-profile-v1')).storySeen.sort(), [0, 1, 2]);
+  void sandbox;
+});

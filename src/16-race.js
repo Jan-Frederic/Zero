@@ -18,7 +18,7 @@
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
-    $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE'; $('cup-standings').classList.add('hidden'); if ($('again').firstElementChild) $('again').firstElementChild.textContent = 'RACE AGAIN';
+    $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE'; $('cup-standings').classList.add('hidden'); $('story-new').classList.add('hidden'); if ($('again').firstElementChild) $('again').firstElementChild.textContent = 'RACE AGAIN';
     $('race-message').classList.remove('visible'); messageTime = 0;
     if (settings.steering === 'gyro' && !enableGyro.listening) enableGyro();
     playMusic(); primeSpeech(); calibrateTilt(); applyScreenSetting(true); updateHUD();
@@ -233,6 +233,7 @@
     const record = !bestLap || fastest < bestLap;
     $('result-record').textContent = record ? '✦ NEW CIRCUIT LAP RECORD' : 'Chase the perfect line. The next podium is yours.';
     if (unlockedNow) $('result-record').textContent = `🔓 NEW CIRCUIT UNLOCKED: ${unlockedNow}!` + (record ? '  ·  ✦ NEW LAP RECORD' : '');
+    $('story-new').classList.toggle('hidden', !unlockedNow); if (unlockedNow) renderStoryButton();
     if (record) { bestLap = fastest; try { localStorage.setItem(`chroma-best-${trackIndex}`, String(bestLap)); } catch {} }
     soundEffect(880, .6);
     invasionArmed = rank === 1;

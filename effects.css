@@ -428,3 +428,17 @@ body.lowfx .home-bg,body.lowfx .scanlines{animation:none!important}
 /* Special machines. */
 .ship-options{flex-wrap:wrap}.ship-option.locked{opacity:.45}.ship-option.locked::after{content:' 🔒';font-size:10px}
 .touch-controls .blink-button{display:none;border-color:#c77dff;color:#d9a8ff}body.ship-blink .touch-controls .blink-button{display:flex}
+
+/* Story comic. */
+.home-action-story{color:#80faff;border-color:#80faff66;position:relative}.home-action-story.new::after{content:'NEW';position:absolute;top:-7px;right:6px;background:var(--pink);color:#fff;font:9px var(--mono);padding:1px 5px;letter-spacing:1px}
+.story-card{max-width:860px}.story-panels{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:14px 0 8px}
+.comic-panel{margin:0;background:radial-gradient(circle,#ffffff14 1px,transparent 1.5px) 0 0/8px 8px,linear-gradient(160deg,#2a1d55,#140f2c);border:3px solid #fff;box-shadow:5px 5px 0 #ff4eb8;transform:rotate(var(--tilt));padding:12px;display:flex;flex-direction:column;gap:10px;min-height:190px}
+.comic-art{font-size:54px;text-align:center;line-height:1.2;filter:drop-shadow(0 0 12px #ffffff40)}
+.comic-panel figcaption{background:#fff;color:#14102a;font:600 14px/1.35 var(--body);padding:8px 10px;border-radius:12px;position:relative}
+.comic-panel figcaption::before{content:'';position:absolute;top:-8px;left:22px;border:8px solid transparent;border-top:0;border-bottom-color:#fff}
+.story-locked{font:11px var(--mono);letter-spacing:1px;color:#b9b2cc;min-height:14px;margin:4px 0}
+.story-nav{display:flex;gap:8px;margin-bottom:10px}.story-nav .setup-option{flex:1;min-height:38px}.story-nav .setup-option:disabled{opacity:.35}
+.story-new{display:block;margin:6px auto 0;color:#80faff}
+@media (max-width:700px){.story-panels{grid-template-columns:1fr}.comic-panel{min-height:0;flex-direction:row;align-items:center}.comic-art{font-size:38px;min-width:76px}}
+@media (max-height:520px) and (orientation:landscape){.story-panels{gap:8px}.comic-panel{min-height:0;padding:8px}.comic-art{font-size:32px}.comic-panel figcaption{font-size:12px}}
+.modal-card.dialog-card.story-card{max-width:880px;width:min(880px,calc(100vw - 32px))}.comic-art{white-space:nowrap}
