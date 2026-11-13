@@ -78,6 +78,15 @@
       placed.push(index);
       segments[index].powerup = { index, lane: [.35, -.35, 0][(i + trackIndex) % 3], type: ATTACK_ORDER[(i + trackIndex) % ATTACK_ORDER.length] };
     }
+    // Shortcuts: a narrow tunnel portal at the road edge, announced by chevrons. Hit it dead centre to warp ahead.
+    for (let i = 0; i < 2; i++) {
+      let index = Math.floor(COUNT * (i ? .74 : .31)) + trackIndex * 7;
+      while ([...Array(SHORTCUT_LEAD + 1).keys()].some(k => { const s = segments[mod(index - k, COUNT)]; return s.pad || s.hazard || s.trampoline || s.stargate || s.powerup; }) || placed.some(other => Math.abs(other - index) < 30)) index = mod(index + 13, COUNT);
+      placed.push(index);
+      const lane = (i + trackIndex) % 2 ? .78 : -.78;
+      segments[index].shortcut = { index, lane };
+      for (let k = 1; k <= SHORTCUT_LEAD; k++) segments[mod(index - k, COUNT)].shortcutLead = lane;
+    }
     try { bestLap = Number(localStorage.getItem(`chroma-best-${trackIndex}`)) || 0; } catch { bestLap = 0; }
   }
   function selectTrack(delta) {

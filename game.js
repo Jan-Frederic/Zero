@@ -22,6 +22,7 @@
   let lives = 0, raceRespawnAt = 0, raceInvulnUntil = 0;
   let hyperTime = 0, hyperStarted = 0, hitGates = new Set();
   // Mothership boss: appears after every 10 UFO kills. Races run LAP_COUNT laps.
+  const SHORTCUT_LEAD = 24, SHORTCUT_SKIP = 40;
   const BOSS_EVERY = 10, BOSS_HP = 40, LAP_COUNT = 6;
   let ufoKills = 0, boss = null, bossAttacks = [];
   let crashingUfos = [], ufoRespawns = [], smoke = [], megaBlasts = [], confetti = [], callout = null;
@@ -361,6 +362,7 @@
     'MISSILE HIT': 'RAKETENTREFFER', 'RIVAL HIT YOUR MINE!': 'RIVALE AUF DEINE MINE GEFAHREN!', 'SLIPSTREAM': 'WINDSCHATTEN', 'BOOST CHARGING': 'BOOST LÄDT',
     '🏆 CUP': '🏆 CUP', 'CHAMPIONSHIP': 'MEISTERSCHAFT', 'CUP STANDINGS': 'CUP-WERTUNG', 'FINAL STANDINGS': 'ENDSTAND', 'NEW CHAMPIONSHIP': 'NEUE MEISTERSCHAFT', 'CHAMPION!': 'CHAMPION!',
     '🏆 CHAMPION!': '🏆 CHAMPION!', 'YOU': 'DU', 'RACE AGAIN': 'NOCHMAL FAHREN', 'Win a championship.': 'Gewinne eine Meisterschaft.',
+    '⤳ SHORTCUT!': '⤳ ABKÜRZUNG!', '⤳ SHORTCUT': '⤳ ABKÜRZUNG', 'TUNNEL WALL!': 'TUNNELWAND!',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -391,6 +393,7 @@
     [/^EMP  \/  (\d+) RIVALS STALLED$/, 'EMP  /  $1 RIVALEN LAHMGELEGT'], [/^MISSILE GOT (.+)!$/, 'RAKETE ERWISCHT $1!'],
     [/^4 RACES · F1 POINTS · (.+)$/, '4 RENNEN · F1-PUNKTE · $1'], [/^CHAMPIONSHIP · RACE (\d+)\/(\d+)$/, 'MEISTERSCHAFT · RENNEN $1/$2'], [/^NEXT: (.+)$/, 'NÄCHSTES: $1'],
     [/^CUP P(\d+)\.$/, 'CUP PLATZ $1.'], [/^(\d+)\. (.+)$/, (m, n, name) => `${n}. ${tr(name)}`], [/^(\d+) PTS$/, '$1 PKT'],
+    [/^TUNNEL WARP  \/  \+([\d.]+) KM AHEAD$/, 'TUNNEL-SPRUNG  /  +$1 KM VORAUS'], [/^TUNNEL WALL!  SHIELD -(\d+)$/, 'TUNNELWAND!  SCHILD -$1'],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
@@ -526,6 +529,15 @@
       while (segments[index].pad || segments[index].hazard || segments[index].trampoline || segments[index].stargate || segments[index].powerup || placed.some(other => Math.abs(other - index) < 14)) index = mod(index + 19, COUNT);
       placed.push(index);
       segments[index].powerup = { index, lane: [.35, -.35, 0][(i + trackIndex) % 3], type: ATTACK_ORDER[(i + trackIndex) % ATTACK_ORDER.length] };
+    }
+    // Shortcuts: a narrow tunnel portal at the road edge, announced by chevrons. Hit it dead centre to warp ahead.
+    for (let i = 0; i < 2; i++) {
+      let index = Math.floor(COUNT * (i ? .74 : .31)) + trackIndex * 7;
+      while ([...Array(SHORTCUT_LEAD + 1).keys()].some(k => { const s = segments[mod(index - k, COUNT)]; return s.pad || s.hazard || s.trampoline || s.stargate || s.powerup; }) || placed.some(other => Math.abs(other - index) < 30)) index = mod(index + 13, COUNT);
+      placed.push(index);
+      const lane = (i + trackIndex) % 2 ? .78 : -.78;
+      segments[index].shortcut = { index, lane };
+      for (let k = 1; k <= SHORTCUT_LEAD; k++) segments[mod(index - k, COUNT)].shortcutLead = lane;
     }
     try { bestLap = Number(localStorage.getItem(`chroma-best-${trackIndex}`)) || 0; } catch { bestLap = 0; }
   }
@@ -846,7 +858,7 @@
     emp: { name: 'EMP BLAST', icon: '⌁', color: '#7db8ff', attack: true, info: 'RIVALS AHEAD LOSE BOOST AND LASERS' },
   };
   const ATTACK_ORDER = ['missile', 'mine', 'emp'];
-  let missiles = [], mines = [];
+  let missiles = [], mines = [], hitShortcuts = new Set();
   const POWERUP_ORDER = ['magnet', 'bubble', 'warp', 'multi'];
   let power = {}, bubbleHits = 0, hitPowerups = new Set();
   const powerOn = type => (power[type] || 0) > time && (mode === 'racing' || mode === 'respawning');
@@ -1459,7 +1471,7 @@
     nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
     if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
     endlessRun = false; trialRun = gameMode() === 'trial';
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); missiles = []; mines = []; slip = 0; slipShown = false; ufoKills = 0; boss = null; bossAttacks = [];
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); hitShortcuts = new Set(); missiles = []; mines = []; slip = 0; slipShown = false; ufoKills = 0; boss = null; bossAttacks = [];
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
@@ -1947,6 +1959,19 @@
             if (damageShield(17 + trackIndex * 1.5)) { updateHUD(); return; }
             for (let i = 0; i < 7; i++) particles.push({ x: W * .5, y: H * .78, vx: (random(time * 200 + i) - .5) * 740, vy: -random(time * 300 + i) * 460, life: .65, color: track.edge });
           }
+        }
+      }
+      const cut = roadSegment.shortcut;
+      if (cut && !hitShortcuts.has(id) && jumpHeight < 90) {
+        const miss = Math.abs(playerX - cut.lane * track.width);
+        if (miss < .1 * track.width) {
+          hitShortcuts.add(id); distance += SHORTCUT_SKIP * SEG; position = mod(distance, LENGTH); raceStats.shortcuts = (raceStats.shortcuts || 0) + 1;
+          showCallout('⤳ SHORTCUT!', '#ff9b2e'); showMessage('TUNNEL WARP  /  +' + SHORTCUT_SKIP * SEG / 1000 + ' KM AHEAD', 1.2);
+          screenFlash = Math.max(screenFlash, .3); playJetBlast(1); playToneSweep(200, 1400, .4, 'sawtooth', .05); buzz([15, 25, 15]);
+        } else if (miss < .3 * track.width) {
+          hitShortcuts.add(id); speed = Math.max(2500, speed * .7); shake = .9; screenFlash = Math.max(screenFlash, .25);
+          showMessage('TUNNEL WALL!  ' + shieldText(12), 1); playImpactSound(1); createExplosion(worldSegment * SEG + SEG * .5, cut.lane * track.width, '#ff9b2e', .7);
+          if (damageShield(12)) { updateHUD(); return; }
         }
       }
       const gate = roadSegment.stargate;
@@ -2986,6 +3011,22 @@
     }
     ctx.restore();
   }
+  function drawShortcutLead(s) {
+    const a = s.p1, b = s.p2, lane = s.shortcutLead;
+    if (s.index % 4 === 0) { const cx = b.x + b.w * lane, w = b.w * .1; polygon([[cx - w, a.y], [cx, b.y], [cx + w, a.y], [cx, lerp(a.y, b.y, .45)]], '#ff9b2ecc'); }
+    else if (s.index % 4 === 2) roadStrip(a, b, lane - .12, lane + .12, '#ff9b2e22');
+  }
+  function drawShortcut(s) {
+    const a = s.p1, b = s.p2, lane = s.shortcut.lane, w = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + w * lane, y = lerp(a.y, b.y, .5);
+    const size = w * .2; if (size < 2) return;
+    ctx.save(); ctx.translate(x, y);
+    // Tunnel mouth: dark hole in a striped frame with a sign above.
+    ctx.fillStyle = '#05030c'; ctx.beginPath(); ctx.ellipse(0, -size * .55, size * .62, size * .62, 0, Math.PI, 0); ctx.lineTo(size * .62, 0); ctx.lineTo(-size * .62, 0); ctx.fill();
+    ctx.lineWidth = Math.max(2, size * .14); ctx.strokeStyle = Math.sin(time * 8) > 0 ? '#ff9b2e' : '#ffe600'; ctx.setLineDash([size * .2, size * .14]);
+    ctx.beginPath(); ctx.ellipse(0, -size * .55, size * .7, size * .7, 0, Math.PI, 0); ctx.lineTo(size * .7, 0); ctx.moveTo(-size * .7, 0); ctx.lineTo(-size * .7, -size * .55); ctx.stroke(); ctx.setLineDash([]);
+    if (size > 14) { ctx.fillStyle = '#ff9b2e'; ctx.font = `bold ${Math.max(9, size * .22)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.fillText('⤳ SHORTCUT', 0, -size * 1.42); }
+    ctx.restore();
+  }
   function drawTrampoline(s, t) {
     const a = s.p1, b = s.p2, lane = s.trampoline.lane, width = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + width * lane, y = lerp(a.y, b.y, .5);
     const size = width * .24;
@@ -3060,6 +3101,8 @@
         roadStrip(a, b, s.padLane - .29, s.padLane + .29, s.index % 3 === 0 ? '#d1ffff' : '#15bccc');
         if (s.index % 3 === 1) { const cx = b.x + b.w * s.padLane; polygon([[cx - b.w * .18, a.y], [cx, b.y], [cx + b.w * .18, a.y], [cx, lerp(a.y, b.y, .5)]], '#a5ffff'); }
       }
+      if (s.shortcutLead !== undefined && mode !== 'menu') drawShortcutLead(s);
+      if (s.shortcut && mode !== 'menu' && s.depth > 3) drawShortcut(s);
       if (s.trampoline) drawTrampoline(s, t);
       if (s.stargate && mode !== 'menu' && s.depth > 3) drawStarGate(s, t);
       if (s.powerup && mode !== 'menu' && s.depth > 3 && !hitPowerups.has(Math.floor((distance + (s.index * SEG < mod(distance, LENGTH) ? LENGTH : 0)) / LENGTH) * COUNT + s.index)) drawPowerupPickup(s);

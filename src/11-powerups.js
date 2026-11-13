@@ -11,7 +11,7 @@
     emp: { name: 'EMP BLAST', icon: '⌁', color: '#7db8ff', attack: true, info: 'RIVALS AHEAD LOSE BOOST AND LASERS' },
   };
   const ATTACK_ORDER = ['missile', 'mine', 'emp'];
-  let missiles = [], mines = [];
+  let missiles = [], mines = [], hitShortcuts = new Set();
   const POWERUP_ORDER = ['magnet', 'bubble', 'warp', 'multi'];
   let power = {}, bubbleHits = 0, hitPowerups = new Set();
   const powerOn = type => (power[type] || 0) > time && (mode === 'racing' || mode === 'respawning');

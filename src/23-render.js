@@ -115,6 +115,22 @@
     }
     ctx.restore();
   }
+  function drawShortcutLead(s) {
+    const a = s.p1, b = s.p2, lane = s.shortcutLead;
+    if (s.index % 4 === 0) { const cx = b.x + b.w * lane, w = b.w * .1; polygon([[cx - w, a.y], [cx, b.y], [cx + w, a.y], [cx, lerp(a.y, b.y, .45)]], '#ff9b2ecc'); }
+    else if (s.index % 4 === 2) roadStrip(a, b, lane - .12, lane + .12, '#ff9b2e22');
+  }
+  function drawShortcut(s) {
+    const a = s.p1, b = s.p2, lane = s.shortcut.lane, w = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + w * lane, y = lerp(a.y, b.y, .5);
+    const size = w * .2; if (size < 2) return;
+    ctx.save(); ctx.translate(x, y);
+    // Tunnel mouth: dark hole in a striped frame with a sign above.
+    ctx.fillStyle = '#05030c'; ctx.beginPath(); ctx.ellipse(0, -size * .55, size * .62, size * .62, 0, Math.PI, 0); ctx.lineTo(size * .62, 0); ctx.lineTo(-size * .62, 0); ctx.fill();
+    ctx.lineWidth = Math.max(2, size * .14); ctx.strokeStyle = Math.sin(time * 8) > 0 ? '#ff9b2e' : '#ffe600'; ctx.setLineDash([size * .2, size * .14]);
+    ctx.beginPath(); ctx.ellipse(0, -size * .55, size * .7, size * .7, 0, Math.PI, 0); ctx.lineTo(size * .7, 0); ctx.moveTo(-size * .7, 0); ctx.lineTo(-size * .7, -size * .55); ctx.stroke(); ctx.setLineDash([]);
+    if (size > 14) { ctx.fillStyle = '#ff9b2e'; ctx.font = `bold ${Math.max(9, size * .22)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.fillText('⤳ SHORTCUT', 0, -size * 1.42); }
+    ctx.restore();
+  }
   function drawTrampoline(s, t) {
     const a = s.p1, b = s.p2, lane = s.trampoline.lane, width = lerp(a.w, b.w, .5), x = lerp(a.x, b.x, .5) + width * lane, y = lerp(a.y, b.y, .5);
     const size = width * .24;
@@ -189,6 +205,8 @@
         roadStrip(a, b, s.padLane - .29, s.padLane + .29, s.index % 3 === 0 ? '#d1ffff' : '#15bccc');
         if (s.index % 3 === 1) { const cx = b.x + b.w * s.padLane; polygon([[cx - b.w * .18, a.y], [cx, b.y], [cx + b.w * .18, a.y], [cx, lerp(a.y, b.y, .5)]], '#a5ffff'); }
       }
+      if (s.shortcutLead !== undefined && mode !== 'menu') drawShortcutLead(s);
+      if (s.shortcut && mode !== 'menu' && s.depth > 3) drawShortcut(s);
       if (s.trampoline) drawTrampoline(s, t);
       if (s.stargate && mode !== 'menu' && s.depth > 3) drawStarGate(s, t);
       if (s.powerup && mode !== 'menu' && s.depth > 3 && !hitPowerups.has(Math.floor((distance + (s.index * SEG < mod(distance, LENGTH) ? LENGTH : 0)) / LENGTH) * COUNT + s.index)) drawPowerupPickup(s);

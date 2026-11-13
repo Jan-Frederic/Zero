@@ -158,6 +158,19 @@
           }
         }
       }
+      const cut = roadSegment.shortcut;
+      if (cut && !hitShortcuts.has(id) && jumpHeight < 90) {
+        const miss = Math.abs(playerX - cut.lane * track.width);
+        if (miss < .1 * track.width) {
+          hitShortcuts.add(id); distance += SHORTCUT_SKIP * SEG; position = mod(distance, LENGTH); raceStats.shortcuts = (raceStats.shortcuts || 0) + 1;
+          showCallout('⤳ SHORTCUT!', '#ff9b2e'); showMessage('TUNNEL WARP  /  +' + SHORTCUT_SKIP * SEG / 1000 + ' KM AHEAD', 1.2);
+          screenFlash = Math.max(screenFlash, .3); playJetBlast(1); playToneSweep(200, 1400, .4, 'sawtooth', .05); buzz([15, 25, 15]);
+        } else if (miss < .3 * track.width) {
+          hitShortcuts.add(id); speed = Math.max(2500, speed * .7); shake = .9; screenFlash = Math.max(screenFlash, .25);
+          showMessage('TUNNEL WALL!  ' + shieldText(12), 1); playImpactSound(1); createExplosion(worldSegment * SEG + SEG * .5, cut.lane * track.width, '#ff9b2e', .7);
+          if (damageShield(12)) { updateHUD(); return; }
+        }
+      }
       const gate = roadSegment.stargate;
       if (gate && !hitGates.has(id) && Math.abs(playerX - gate.lane * track.width) < .3 * track.width * magnetReach()) { hitGates.add(id); activateHyper(); }
       const pickup = roadSegment.powerup;

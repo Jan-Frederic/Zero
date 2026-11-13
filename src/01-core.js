@@ -22,6 +22,7 @@
   let lives = 0, raceRespawnAt = 0, raceInvulnUntil = 0;
   let hyperTime = 0, hyperStarted = 0, hitGates = new Set();
   // Mothership boss: appears after every 10 UFO kills. Races run LAP_COUNT laps.
+  const SHORTCUT_LEAD = 24, SHORTCUT_SKIP = 40;
   const BOSS_EVERY = 10, BOSS_HP = 40, LAP_COUNT = 6;
   let ufoKills = 0, boss = null, bossAttacks = [];
   let crashingUfos = [], ufoRespawns = [], smoke = [], megaBlasts = [], confetti = [], callout = null;
