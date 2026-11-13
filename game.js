@@ -355,6 +355,9 @@
     'MAGNET': 'MAGNET', 'SHIELD BUBBLE': 'SCHUTZBLASE', 'TIME WARP': 'ZEITLUPE', 'MULTI-LASER': 'MULTI-LASER',
     'PULLS IN PADS, CATS, GATES AND POWER-UPS': 'ZIEHT PADS, KATZEN, TORE UND POWER-UPS AN', 'ABSORBS THE NEXT 3 HITS': 'FÄNGT DIE NÄCHSTEN 3 TREFFER AB',
     'EVERYONE ELSE MOVES IN SLOW MOTION': 'ALLE ANDEREN FAHREN IN ZEITLUPE', 'EVERY SHOT HITS UP TO 3 TARGETS': 'JEDER SCHUSS TRIFFT BIS ZU 3 ZIELE',
+    'HOMING MISSILE': 'ZIELSUCH-RAKETE', 'MINE LAYER': 'MINENLEGER', 'EMP BLAST': 'EMP-STOSS', 'LOCKS ON TO THE NEXT RIVAL AHEAD': 'ERFASST DEN NÄCHSTEN RIVALEN VOR DIR',
+    'THREE MINES DROPPED BEHIND YOU': 'DREI MINEN HINTER DIR ABGEWORFEN', 'RIVALS AHEAD LOSE BOOST AND LASERS': 'RIVALEN VOR DIR VERLIEREN BOOST UND LASER',
+    'MISSILE HIT': 'RAKETENTREFFER', 'RIVAL HIT YOUR MINE!': 'RIVALE AUF DEINE MINE GEFAHREN!', 'SLIPSTREAM': 'WINDSCHATTEN', 'BOOST CHARGING': 'BOOST LÄDT',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -382,6 +385,7 @@
     [/^\+(\d+) CR EARNED  ·  (\d+) CR TOTAL$/, '+$1 CR VERDIENT  ·  $2 CR GESAMT'], [/^DIFFICULTY: (\w+) · (.*?)(\d+)% CREDITS$/, (m, d, l, c) => `SCHWIERIGKEIT: ${tr(d)} · ${l.replace('+1 LIFE', '+1 LEBEN').replace('-1 LIFE', '-1 LEBEN')}${c} % CREDITS`],
     [/^SHIP DESTROYED  \/  (\d+) LI(?:VES|FE) LEFT$/, 'SCHIFF ZERSTÖRT  /  NOCH $1 LEBEN'], [/^SHIP DESTROYED!  (\d+) LI(?:VES|FE) LEFT$/, 'SCHIFF ZERSTÖRT!  NOCH $1 LEBEN'],
     [/^MOTHERSHIP HIT  \/  (\d+)%$/, 'MUTTERSCHIFF GETROFFEN  /  $1 %'], [/^RIVAL HIT  \/  HULL (.+)$/, 'RIVALE GETROFFEN  /  RUMPF $1'], [/^(.+) HIT  \/  HULL (\d\/6)$/, '$1 GETROFFEN  /  RUMPF $2'],
+    [/^EMP  \/  (\d+) RIVALS STALLED$/, 'EMP  /  $1 RIVALEN LAHMGELEGT'], [/^MISSILE GOT (.+)!$/, 'RAKETE ERWISCHT $1!'],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
@@ -510,6 +514,13 @@
       while (segments[index].pad || segments[index].hazard || segments[index].trampoline || segments[index].stargate || placed.some(other => Math.abs(other - index) < 16)) index = mod(index + 23, COUNT);
       placed.push(index);
       segments[index].powerup = { index, lane: powerLanes[i], type: POWERUP_ORDER[(i + trackIndex) % POWERUP_ORDER.length] };
+    }
+    // Attack boxes: one of each per lap, in the second half of the field.
+    for (let i = 0; i < ATTACK_ORDER.length; i++) {
+      let index = mod(Math.floor((i + .7) * COUNT / 3), COUNT);
+      while (segments[index].pad || segments[index].hazard || segments[index].trampoline || segments[index].stargate || segments[index].powerup || placed.some(other => Math.abs(other - index) < 14)) index = mod(index + 19, COUNT);
+      placed.push(index);
+      segments[index].powerup = { index, lane: [.35, -.35, 0][(i + trackIndex) % 3], type: ATTACK_ORDER[(i + trackIndex) % ATTACK_ORDER.length] };
     }
     try { bestLap = Number(localStorage.getItem(`chroma-best-${trackIndex}`)) || 0; } catch { bestLap = 0; }
   }
@@ -824,16 +835,23 @@
     bubble: { name: 'SHIELD BUBBLE', icon: '◯', color: '#4df8ff', time: 15, info: 'ABSORBS THE NEXT 3 HITS' },
     warp: { name: 'TIME WARP', icon: '⧗', color: '#a88aff', time: 7, info: 'EVERYONE ELSE MOVES IN SLOW MOTION' },
     multi: { name: 'MULTI-LASER', icon: '⁂', color: '#ff4eb8', time: 10, info: 'EVERY SHOT HITS UP TO 3 TARGETS' },
+    // Attack items fire at once when picked up.
+    missile: { name: 'HOMING MISSILE', icon: '🚀', color: '#ff8a2e', attack: true, info: 'LOCKS ON TO THE NEXT RIVAL AHEAD' },
+    mine: { name: 'MINE LAYER', icon: '✹', color: '#ffe600', attack: true, info: 'THREE MINES DROPPED BEHIND YOU' },
+    emp: { name: 'EMP BLAST', icon: '⌁', color: '#7db8ff', attack: true, info: 'RIVALS AHEAD LOSE BOOST AND LASERS' },
   };
+  const ATTACK_ORDER = ['missile', 'mine', 'emp'];
+  let missiles = [], mines = [];
   const POWERUP_ORDER = ['magnet', 'bubble', 'warp', 'multi'];
   let power = {}, bubbleHits = 0, hitPowerups = new Set();
   const powerOn = type => (power[type] || 0) > time && (mode === 'racing' || mode === 'respawning');
   const magnetReach = () => powerOn('magnet') ? 2.6 : 1;
   const worldPace = () => powerOn('warp') ? .45 : 1;
   function collectPowerup(type) {
-    if (!profile.stats.powerTypes.includes(type)) { profile.stats.powerTypes.push(type); saveProfile(); }
-    if (profile.stats.powerTypes.length >= 4) unlockAchievement('collector');
     const p = POWERUPS[type];
+    if (p.attack) { launchAttack(type); return; }
+    if (!profile.stats.powerTypes.includes(type)) { profile.stats.powerTypes.push(type); saveProfile(); }
+    if (POWERUP_ORDER.every(t => profile.stats.powerTypes.includes(t))) unlockAchievement('collector');
     power[type] = time + p.time; if (type === 'bubble') bubbleHits = 3;
     showCallout(`${p.icon} ${p.name}!`, p.color); showMessage(p.info, 1.6);
     playToneSweep(600, 1800, .25, 'square', .05); playToneSweep(900, 2400, .3, 'sine', .05); buzz([20, 30, 20]);
@@ -863,6 +881,72 @@
       ctx.restore();
     }
     if (powerOn('warp')) { ctx.save(); ctx.fillStyle = 'rgba(120,90,255,.12)'; ctx.fillRect(-60, -60, W + 120, H + 120); ctx.restore(); }
+  }
+  // ---- Attack items: homing missile, mine layer, EMP.
+  function launchAttack(type) {
+    const p = POWERUPS[type], track = tracks[trackIndex];
+    showCallout(`${p.icon} ${p.name}!`, p.color); showMessage(p.info, 1.4); buzz([30, 20, 30]); raceStats.attacks = (raceStats.attacks || 0) + 1;
+    if (type === 'missile') {
+      const target = rivals.filter(r => r.alive && !r.dying && r.distance > distance + 1050).sort((a, b) => a.distance - b.distance)[0] || null;
+      missiles.push({ distance: distance + 1300, lane: playerX / track.width, target, started: time, speed: Math.max(speed, 8000) + 9000 });
+      playJetBlast(.9); playToneSweep(300, 1600, .5, 'sawtooth', .05);
+    } else if (type === 'mine') {
+      for (let k = 0; k < 3; k++) mines.push({ distance: distance + 1050 - 300 - k * 420, lane: clamp(playerX / track.width + (k - 1) * .28, -.85, .85), armedAt: time + .3, expires: time + 25 });
+      playToneSweep(500, 200, .3, 'square', .04);
+    } else if (type === 'emp') {
+      let hit = 0;
+      for (const r of rivals) if (r.alive && !r.dying && r.distance > distance && r.distance < distance + 14000) { r.empUntil = time + 4.5; r.boosting = false; hit++; }
+      screenFlash = Math.max(screenFlash, .35); playToneSweep(1800, 90, .7, 'sawtooth', .06); playNoiseBurst(.5, .08, 3200, 600);
+      if (hit) showMessage(`EMP  /  ${hit} RIVALS STALLED`, 1.4);
+    }
+  }
+  const empSlow = r => r.empUntil > time ? .55 : 1;
+  function updateAttacks(dt, track) {
+    for (const m of missiles) {
+      const t = m.target && m.target.alive && !m.target.dying ? m.target : null;
+      m.distance += m.speed * dt;
+      if (t) m.lane = lerp(m.lane, t.x, Math.min(1, dt * 5));
+      if (t && m.distance >= t.distance - 120) {
+        m.done = true; knockOut(t); createExplosion(t.distance, t.x * track.width, '#ff8a2e', 1.1); playExplosionSound(1.1);
+        showMessage(t.nemesis ? `MISSILE GOT ${t.nemesis.name}!` : 'MISSILE HIT  /  RIVAL DESTROYED', 1.1);
+      } else if (time - m.started > 3) { m.done = true; createExplosion(m.distance, m.lane * track.width, '#ff8a2e', .7); }
+    }
+    missiles = missiles.filter(m => !m.done);
+    for (const mine of mines) {
+      if (time < mine.armedAt) continue;
+      for (const r of rivals) {
+        if (!r.alive || r.dying || Math.abs(r.distance - mine.distance) > 260 || Math.abs(r.x - mine.lane) > .2) continue;
+        mine.done = true; knockOut(r); createExplosion(mine.distance, mine.lane * track.width, '#ffe600', 1); showMessage('RIVAL HIT YOUR MINE!', 1); break;
+      }
+      if (time > mine.expires) mine.done = true;
+    }
+    mines = mines.filter(m => !m.done);
+  }
+  function drawMissile(x, y, w, m) {
+    const r = Math.max(3, w * .025);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++) { ctx.globalAlpha = .5 - i * .07; ctx.fillStyle = i % 2 ? '#ffd35a' : '#ff6b2e'; ctx.beginPath(); ctx.arc(x, y + r * (1.2 + i * 1.1), r * (1 - i * .1), 0, TAU); ctx.fill(); }
+    ctx.globalAlpha = 1; ctx.shadowColor = '#ff8a2e'; ctx.shadowBlur = 16; ctx.fillStyle = '#fff3d6'; ctx.beginPath(); ctx.ellipse(x, y, r * .7, r * 1.4, 0, 0, TAU); ctx.fill(); ctx.restore();
+  }
+  // ---- Slipstream: tuck in right behind a rival to charge boost and pick up a little speed.
+  let slip = 0, slipShown = false;
+  function updateSlipstream(dt, track) {
+    const ahead = rivals.some(r => { const gap = r.distance - (distance + 1050); return r.alive && !r.dying && gap > 380 && gap < 2600 && Math.abs(r.x * track.width - playerX) < .2 * track.width; });
+    slip = ahead ? Math.min(1, slip + dt * 2.5) : Math.max(0, slip - dt * 3);
+    if (slip > .5) {
+      energy = Math.min(100, energy + dt * 16);
+      if (!boosting) speed = Math.min(12200 * machines[shipIndex].top * topSpeed(), speed + dt * 1600);
+      if (!slipShown) { slipShown = true; showMessage('SLIPSTREAM  /  BOOST CHARGING', .9); playToneSweep(300, 700, .3, 'sine', .03); }
+    } else if (slip === 0) slipShown = false;
+  }
+  function drawSlipstream() {
+    if (slip < .2 || mode !== 'racing') return;
+    ctx.save(); ctx.globalAlpha = slip * .5; ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 16; i++) {
+      const side = i % 2 ? 1 : -1, k = mod(time * 2.2 + i / 16, 1), x = W * .5 + side * W * (.08 + random(i) * .3), y = H * (.5 + k * .45);
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + side * W * .02 * k, y + H * .06 + k * H * .08); ctx.stroke();
+    }
+    ctx.restore();
   }
   // ==== Star gates and the hyperdrive.
   const HYPER_TIME = 10;
@@ -1323,7 +1407,7 @@
     nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
     if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
     endlessRun = false; trialRun = gameMode() === 'trial';
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); ufoKills = 0; boss = null; bossAttacks = [];
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); missiles = []; mines = []; slip = 0; slipShown = false; ufoKills = 0; boss = null; bossAttacks = [];
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
@@ -1848,12 +1932,12 @@
         if (r.boostRemaining <= 0) { r.boosting = false; r.boostCooldown = 1.2 + random(Math.floor(time * 11) + r.seed) * 2.1; }
       } else {
         r.boostCooldown -= dt;
-        if (r.boostCooldown <= 0) {
+        if (r.boostCooldown <= 0 && empSlow(r) === 1) {
           r.boosting = true; r.boostRemaining = .82 + random(Math.floor(time * 7) + r.seed * 3) * .72;
           if (Math.abs(r.distance - distance) < 5200) playBoostSound(.42);
         }
       }
-      r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt * worldPace();
+      r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt * worldPace() * empSlow(r);
       r.x = r.lane + .13 * Math.sin(time * .8 + r.seed * 2);
       if (r.nemesis) {
         // Hunt the player: drift towards the player's lane when close, and taunt when overtaking.
@@ -1862,7 +1946,7 @@
         if (gap > 0 && gap < 2200 && time - r.tauntAt > 25) nemesisTaunt(r);
       }
       r.laserCooldown -= dt * worldPace() * (r.nemesis ? 1.6 : 1);
-      if (r.laserCooldown <= 0) {
+      if (r.laserCooldown <= 0 && empSlow(r) === 1) {
         r.laserCooldown = 4.4 + random(Math.floor(time * 5) + r.seed * 31) * 3.2;
         if (r.distance > distance + 1700 && r.distance < distance + 17000 && Math.abs(r.x * track.width - playerX) < track.width * .48) {
           enemyShots.push({ from: r, sourceDistance: r.distance, sourceLane: r.x, targetLane: clamp(playerX / track.width, -.85, .85), color: r.color,
@@ -1882,6 +1966,7 @@
         }
       }
     }
+    updateAttacks(dt, track); updateSlipstream(dt, track);
     for (const shot of enemyShots) {
       if (shot.resolved || time < shot.impactAt) continue;
       shot.resolved = true;
@@ -1935,7 +2020,7 @@
     $('progress').style.width = Math.min(100, distance / (LENGTH * LAP_COUNT) * 100) + '%';
     const laserIncoming = enemyShots.some(shot => !shot.resolved && shot.impactAt - time < .55);
     const bombIncoming = bombs.some(bomb => !bomb.exploded && bomb.distance - (distance + 1050) < 4200);
-    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
+    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : slip > .5 ? 'SLIPSTREAM  /  BOOST CHARGING' : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
     document.body.classList.toggle('air-raid', laserIncoming || bombIncoming);
     drawMap();
   }
@@ -2971,6 +3056,10 @@
           }
         }
       }
+      for (const m of missiles) {
+        const wp = mod(m.distance, LENGTH);
+        if (mode !== 'menu' && Math.floor(wp / SEG) === s.index && s.depth > 4) { const f = wp % SEG / SEG, rw = lerp(a.w, b.w, f); drawMissile(lerp(a.x, b.x, f) + rw * m.lane, lerp(a.y, b.y, f) - rw * .06, rw, m); }
+      }
       for (const explosion of explosions) {
         const worldPosition = mod(explosion.distance, LENGTH);
         if (Math.floor(worldPosition / SEG) === s.index && s.depth > 5) {
@@ -3136,7 +3225,7 @@
       const glow = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .7); glow.addColorStop(0, '#6d29ff00'); glow.addColorStop(1, '#7644ff40'); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
     }
     for (const p of particles) { ctx.globalAlpha = Math.min(1, p.life * 3); line(p.x, p.y, p.x - p.vx * .03, p.y - p.vy * .03, p.color, 2); } ctx.globalAlpha = 1;
-    drawWeather();
+    drawWeather(); drawSlipstream();
     if (hyperTime > 0 && mode !== 'menu') drawWarpOverlay();
     if (mode !== 'menu') drawCrashLayer();
     if (flashAmount(screenFlash) > .015) {

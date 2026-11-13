@@ -71,6 +71,13 @@
       placed.push(index);
       segments[index].powerup = { index, lane: powerLanes[i], type: POWERUP_ORDER[(i + trackIndex) % POWERUP_ORDER.length] };
     }
+    // Attack boxes: one of each per lap, in the second half of the field.
+    for (let i = 0; i < ATTACK_ORDER.length; i++) {
+      let index = mod(Math.floor((i + .7) * COUNT / 3), COUNT);
+      while (segments[index].pad || segments[index].hazard || segments[index].trampoline || segments[index].stargate || segments[index].powerup || placed.some(other => Math.abs(other - index) < 14)) index = mod(index + 19, COUNT);
+      placed.push(index);
+      segments[index].powerup = { index, lane: [.35, -.35, 0][(i + trackIndex) % 3], type: ATTACK_ORDER[(i + trackIndex) % ATTACK_ORDER.length] };
+    }
     try { bestLap = Number(localStorage.getItem(`chroma-best-${trackIndex}`)) || 0; } catch { bestLap = 0; }
   }
   function selectTrack(delta) {
