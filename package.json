@@ -9,13 +9,15 @@
     "test": "node --test game.test.js",
     "release": "semantic-release",
     "build": "node tools/build.js",
-    "smoke": "node tests/smoke.js"
+    "smoke": "node tests/smoke.js",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "playwright": "1.63.0",
-    "semantic-release": "^24.2.9"
+    "semantic-release": "^24.2.9",
+    "typescript": "5.9.3"
   },
   "repository": {
     "type": "git",

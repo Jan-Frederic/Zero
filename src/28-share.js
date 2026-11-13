@@ -83,15 +83,15 @@
   window.morbidPhoto = { enter: enterPhoto, exit: exitPhoto, adjust: photoAdjust, shot: photoShot, state: () => photo && { ...photo } };
   // ---- Highlight clip: the last ~10 s of the final lap are recorded (picture and sound) and can be shared after a win.
   const CLIP_TYPES = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
-  let clip = null, clipBlob = null;
+  let clip = null, clipBlob = null, clipDest = null;
   function clipSupported() { return typeof MediaRecorder === 'function' && typeof canvas.captureStream === 'function'; }
   function startClip() {
     if (clip || !clipSupported()) return;
     try {
       const video = canvas.captureStream(30), tracks = [...video.getVideoTracks()];
       if (audioContext && audioContext.createMediaStreamDestination) {
-        if (!startClip.dest) { startClip.dest = audioContext.createMediaStreamDestination(); musicGain.connect(startClip.dest); sfxBus.connect(startClip.dest); }
-        tracks.push(...startClip.dest.stream.getAudioTracks());
+        if (!clipDest) { clipDest = audioContext.createMediaStreamDestination(); musicGain.connect(clipDest); sfxBus.connect(clipDest); }
+        tracks.push(...clipDest.stream.getAudioTracks());
       }
       const stream = typeof MediaStream === 'function' ? new MediaStream(tracks) : video;
       const type = CLIP_TYPES.find(t => !MediaRecorder.isTypeSupported || MediaRecorder.isTypeSupported(t)) || '';

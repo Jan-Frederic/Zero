@@ -150,7 +150,7 @@
         ctx.save(); ctx.globalCompositeOperation = 'lighter';
         if (a.type === 'laser') {
           const wob = Math.sin(time * 50) * 3;
-          for (const [w, c] of [[W * .07, '#ff2d5588'], [W * .035, '#ff7a90'], [W * .012, '#ffffff']]) {
+          for (const [w, c] of /** @type {[number, string][]} */ ([[W * .07, '#ff2d5588'], [W * .035, '#ff7a90'], [W * .012, '#ffffff']])) {
             ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(boss.x - w * .3, boss.y + s * .12); ctx.lineTo(boss.x + w * .3, boss.y + s * .12); ctx.lineTo(rx + w + wob, ry); ctx.lineTo(rx - w + wob, ry); ctx.fill();
           }
         } else {

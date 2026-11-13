@@ -52,10 +52,10 @@
       const intro = Math.min(1, i / 90);
       const curve = t.bends.reduce((sum, [frequency, amplitude], bend) => sum + Math.sin(angle * frequency + bend * .7) * amplitude, 0);
       const padPosition = i % t.padEvery;
-      return { index: i, curve: curve * t.curve * intro * sign,
+      return /** @type {any} */ ({ index: i, curve: curve * t.curve * intro * sign,
         y: (Math.sin(angle * 2) * 1900 + Math.sin(angle * 5) * 700 + Math.sin(angle * 9) * 260) * t.hill,
         pad: padPosition >= t.padStart && padPosition < t.padStart + t.padLength, padLane: Math.floor(i / t.padEvery) % 2 === 0 ? -.48 : .48,
-        arch: i % Math.max(90, 150 - trackIndex * 6) === 30, tower: i % 9 === 0, p1: {}, p2: {} };
+        arch: i % Math.max(90, 150 - trackIndex * 6) === 30, tower: i % 9 === 0, p1: {}, p2: {} });
     });
     const placed = [];
     for (let i = 0; i < (t.hazards || 0); i++) {

@@ -43,6 +43,7 @@
   }
   function scoreCupRace() {
     // Finishing order: the player at their rank, rivals still running by distance, knocked-out rivals at the back.
+    /** @type {any[]} */
     const order = rivals.map((r, i) => ({ i, r })).sort((a, b) => (b.r.alive - a.r.alive) || (b.r.distance - a.r.distance));
     order.splice(rank - 1, 0, { player: true });
     order.forEach((e, pos) => {

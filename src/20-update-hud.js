@@ -30,7 +30,7 @@
       }
       if (document.body.classList.contains('buffering')) { document.body.classList.remove('buffering'); if (audio.paused && !muted) playMusic(); }
       const old = Math.ceil(countdown); countdown -= dt;
-      $('countdown').textContent = countdown > 0 ? Math.ceil(countdown) : 'GO!';
+      $('countdown').textContent = countdown > 0 ? String(Math.ceil(countdown)) : 'GO!';
       if (Math.ceil(countdown) !== old && countdown > 0) soundEffect(440, .13);
       if (countdown <= 0) { mode = 'racing'; launchGoTime = .8; soundEffect(880, .35); calibrateTilt(); }
       updateHUD(); return;

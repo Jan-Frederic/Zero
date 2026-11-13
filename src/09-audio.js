@@ -9,7 +9,7 @@
   const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
   const voiceBuffers = new Map();
   let voiceSource = null;
-  let subtitleAt = -9;
+  let subtitleAt = -9, voicesStarted = false, speechPrimed = false;
   function setupAudio() {
     if (audioContext) { audioContext.resume().catch(() => {}); return; }
     try {
@@ -158,8 +158,8 @@
       .then(data => { if (data) voiceData.set(clip, data); }).catch(() => {}).finally(() => { voicesLoaded++; });
   }
   function loadVoices() {
-    if (!audioContext || loadVoices.started || typeof fetch !== 'function') return;
-    loadVoices.started = true;
+    if (!audioContext || voicesStarted || typeof fetch !== 'function') return;
+    voicesStarted = true;
     for (const clip of VOICE_CLIPS) (voiceData.has(clip) ? Promise.resolve(voiceData.get(clip).slice(0)) : fetch(`voice/${clip}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()))
       .then(data => new Promise((ok, fail) => audioContext.decodeAudioData(data, ok, fail))).then(buffer => voiceBuffers.set(clip, buffer)).catch(() => {});
   }
@@ -210,8 +210,8 @@
   }
   function primeSpeech() {
     // iOS only allows speech after it was started inside a user gesture once.
-    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance || primeSpeech.done) return;
-    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); primeSpeech.done = true; } catch { /* ignore */ }
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance || speechPrimed) return;
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); speechPrimed = true; } catch { /* ignore */ }
   }
   function playFanfare() {
     if (!audioContext || muted) return;

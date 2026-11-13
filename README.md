@@ -58,7 +58,7 @@ The machine cruises automatically; hold accelerate for race speed. Boost spends 
 
 Music starts on your first click or race launch. The bottom-left music button independently pauses the soundtrack. The top-right sound button mutes both music and synthesized engine effects.
 
-The game code lives in `src/` (see `src/README.md`); `npm run build` assembles it into `game.js`. `npm run check` verifies that `game.js` is up to date and performs JavaScript syntax checks. `npm test` simulates a complete race and verifies controls, boost, collisions, pause/resume, lap records, restart, and the final circuit's hazards.
+The game code lives in `src/` (see `src/README.md`); `npm run build` assembles it into `game.js`. `npm run check` verifies that `game.js` is up to date and performs JavaScript syntax checks. `npm run typecheck` type-checks the built `game.js` with TypeScript (`checkJs`, ambient types in `types/globals.d.ts`). `npm test` simulates a complete race and verifies controls, boost, collisions, pause/resume, lap records, restart, and the final circuit's hazards.
 
 ## Versioning & releases
 

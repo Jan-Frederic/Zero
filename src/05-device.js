@@ -17,12 +17,13 @@
     const d = tilt.x - tilt.neutral;
     return Math.abs(d) < TILT_DEAD ? 0 : clamp((d - Math.sign(d) * TILT_DEAD) / (TILT_FULL - TILT_DEAD), -1, 1);
   }
+  let gyroListening = false;
   async function enableGyro() {
     if (!window.DeviceOrientationEvent) return false;
     try {
-      if (typeof DeviceOrientationEvent.requestPermission === 'function' && await DeviceOrientationEvent.requestPermission() !== 'granted') return false;
+      if (typeof /** @type {any} */ (DeviceOrientationEvent).requestPermission === 'function' && await /** @type {any} */ (DeviceOrientationEvent).requestPermission() !== 'granted') return false;
     } catch { return false; }
-    if (!enableGyro.listening) { window.addEventListener('deviceorientation', onTilt); enableGyro.listening = true; }
+    if (!gyroListening) { window.addEventListener('deviceorientation', onTilt); gyroListening = true; }
     return true;
   }
   function currentOrientation() { return window.matchMedia?.('(orientation: landscape)')?.matches ? 'landscape' : 'portrait'; }

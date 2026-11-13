@@ -1,8 +1,11 @@
 // GENERATED FILE — edit the parts in src/ and run `npm run build` (see src/README.md).
 (() => {
   'use strict';
+  /** DOM lookup. Typed loosely on purpose: elements are used as inputs, media, canvases and buttons. @type {(id: string) => any} */
   const $ = id => document.getElementById(id);
-  const canvas = $('game'), ctx = canvas.getContext('2d', { alpha: false });
+  /** @type {HTMLCanvasElement} */
+  const canvas = $('game');
+  const ctx = canvas.getContext('2d', { alpha: false });
   const map = $('minimap').getContext('2d');
   const audio = $('soundtrack');
   const TAU = Math.PI * 2, SEG = 200, COUNT = 1200, LENGTH = SEG * COUNT, ROAD = 1700, DEPTH = .88, PILOT_COUNT = 30, BASE_LASER_CAPACITY = 10;

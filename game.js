@@ -1,8 +1,11 @@
 // GENERATED FILE — edit the parts in src/ and run `npm run build` (see src/README.md).
 (() => {
   'use strict';
+  /** DOM lookup. Typed loosely on purpose: elements are used as inputs, media, canvases and buttons. @type {(id: string) => any} */
   const $ = id => document.getElementById(id);
-  const canvas = $('game'), ctx = canvas.getContext('2d', { alpha: false });
+  /** @type {HTMLCanvasElement} */
+  const canvas = $('game');
+  const ctx = canvas.getContext('2d', { alpha: false });
   const map = $('minimap').getContext('2d');
   const audio = $('soundtrack');
   const TAU = Math.PI * 2, SEG = 200, COUNT = 1200, LENGTH = SEG * COUNT, ROAD = 1700, DEPTH = .88, PILOT_COUNT = 30, BASE_LASER_CAPACITY = 10;
@@ -252,12 +255,13 @@
     const d = tilt.x - tilt.neutral;
     return Math.abs(d) < TILT_DEAD ? 0 : clamp((d - Math.sign(d) * TILT_DEAD) / (TILT_FULL - TILT_DEAD), -1, 1);
   }
+  let gyroListening = false;
   async function enableGyro() {
     if (!window.DeviceOrientationEvent) return false;
     try {
-      if (typeof DeviceOrientationEvent.requestPermission === 'function' && await DeviceOrientationEvent.requestPermission() !== 'granted') return false;
+      if (typeof /** @type {any} */ (DeviceOrientationEvent).requestPermission === 'function' && await /** @type {any} */ (DeviceOrientationEvent).requestPermission() !== 'granted') return false;
     } catch { return false; }
-    if (!enableGyro.listening) { window.addEventListener('deviceorientation', onTilt); enableGyro.listening = true; }
+    if (!gyroListening) { window.addEventListener('deviceorientation', onTilt); gyroListening = true; }
     return true;
   }
   function currentOrientation() { return window.matchMedia?.('(orientation: landscape)')?.matches ? 'landscape' : 'portrait'; }
@@ -390,7 +394,7 @@
     'THREE MINES DROPPED BEHIND YOU': 'DREI MINEN HINTER DIR ABGEWORFEN', 'RIVALS AHEAD LOSE BOOST AND LASERS': 'RIVALEN VOR DIR VERLIEREN BOOST UND LASER',
     'MISSILE HIT': 'RAKETENTREFFER', 'RIVAL HIT YOUR MINE!': 'RIVALE AUF DEINE MINE GEFAHREN!', 'SLIPSTREAM': 'WINDSCHATTEN', 'BOOST CHARGING': 'BOOST LÄDT',
     '🏆 CUP': '🏆 CUP', 'CHAMPIONSHIP': 'MEISTERSCHAFT', 'CUP STANDINGS': 'CUP-WERTUNG', 'FINAL STANDINGS': 'ENDSTAND', 'NEW CHAMPIONSHIP': 'NEUE MEISTERSCHAFT', 'CHAMPION!': 'CHAMPION!',
-    '🏆 CHAMPION!': '🏆 CHAMPION!', 'YOU': 'DU', 'RACE AGAIN': 'NOCHMAL FAHREN', 'Win a championship.': 'Gewinne eine Meisterschaft.',
+    '🏆 CHAMPION!': '🏆 CHAMPION!', 'YOU': 'DU', 'Win a championship.': 'Gewinne eine Meisterschaft.',
     '⤳ SHORTCUT!': '⤳ ABKÜRZUNG!', '⤳ SHORTCUT': '⤳ ABKÜRZUNG', 'TUNNEL WALL!': 'TUNNELWAND!',
     'MUTATORS': 'MUTATOREN', '⇋ MIRROR': '⇋ SPIEGEL', '☾ NIGHT': '☾ NACHT', '⇡ LOW GRAVITY': '⇡ WENIG SCHWERKRAFT', '⟲ REVERSE': '⟲ RÜCKWÄRTS', 'OPTIONAL TWISTS · EACH ONE +15% CREDITS': 'OPTIONALE KNIFFE · JEDER +15 % CREDITS',
     'TELEPORT DASH / PRESS C': 'TELEPORT-SPRUNG / TASTE C', 'TWIN LASER / TWO TARGETS PER SHOT': 'DOPPELLASER / ZWEI ZIELE PRO SCHUSS', 'BLINK!': 'BLINK!',
@@ -577,10 +581,10 @@
       const intro = Math.min(1, i / 90);
       const curve = t.bends.reduce((sum, [frequency, amplitude], bend) => sum + Math.sin(angle * frequency + bend * .7) * amplitude, 0);
       const padPosition = i % t.padEvery;
-      return { index: i, curve: curve * t.curve * intro * sign,
+      return /** @type {any} */ ({ index: i, curve: curve * t.curve * intro * sign,
         y: (Math.sin(angle * 2) * 1900 + Math.sin(angle * 5) * 700 + Math.sin(angle * 9) * 260) * t.hill,
         pad: padPosition >= t.padStart && padPosition < t.padStart + t.padLength, padLane: Math.floor(i / t.padEvery) % 2 === 0 ? -.48 : .48,
-        arch: i % Math.max(90, 150 - trackIndex * 6) === 30, tower: i % 9 === 0, p1: {}, p2: {} };
+        arch: i % Math.max(90, 150 - trackIndex * 6) === 30, tower: i % 9 === 0, p1: {}, p2: {} });
     });
     const placed = [];
     for (let i = 0; i < (t.hazards || 0); i++) {
@@ -682,7 +686,7 @@
   const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
   const voiceBuffers = new Map();
   let voiceSource = null;
-  let subtitleAt = -9;
+  let subtitleAt = -9, voicesStarted = false, speechPrimed = false;
   function setupAudio() {
     if (audioContext) { audioContext.resume().catch(() => {}); return; }
     try {
@@ -831,8 +835,8 @@
       .then(data => { if (data) voiceData.set(clip, data); }).catch(() => {}).finally(() => { voicesLoaded++; });
   }
   function loadVoices() {
-    if (!audioContext || loadVoices.started || typeof fetch !== 'function') return;
-    loadVoices.started = true;
+    if (!audioContext || voicesStarted || typeof fetch !== 'function') return;
+    voicesStarted = true;
     for (const clip of VOICE_CLIPS) (voiceData.has(clip) ? Promise.resolve(voiceData.get(clip).slice(0)) : fetch(`voice/${clip}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()))
       .then(data => new Promise((ok, fail) => audioContext.decodeAudioData(data, ok, fail))).then(buffer => voiceBuffers.set(clip, buffer)).catch(() => {});
   }
@@ -883,8 +887,8 @@
   }
   function primeSpeech() {
     // iOS only allows speech after it was started inside a user gesture once.
-    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance || primeSpeech.done) return;
-    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); primeSpeech.done = true; } catch { /* ignore */ }
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance || speechPrimed) return;
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); speechPrimed = true; } catch { /* ignore */ }
   }
   function playFanfare() {
     if (!audioContext || muted) return;
@@ -1298,7 +1302,7 @@
         ctx.save(); ctx.globalCompositeOperation = 'lighter';
         if (a.type === 'laser') {
           const wob = Math.sin(time * 50) * 3;
-          for (const [w, c] of [[W * .07, '#ff2d5588'], [W * .035, '#ff7a90'], [W * .012, '#ffffff']]) {
+          for (const [w, c] of /** @type {[number, string][]} */ ([[W * .07, '#ff2d5588'], [W * .035, '#ff7a90'], [W * .012, '#ffffff']])) {
             ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(boss.x - w * .3, boss.y + s * .12); ctx.lineTo(boss.x + w * .3, boss.y + s * .12); ctx.lineTo(rx + w + wob, ry); ctx.lineTo(rx - w + wob, ry); ctx.fill();
           }
         } else {
@@ -1498,6 +1502,7 @@
   }
   function scoreCupRace() {
     // Finishing order: the player at their rank, rivals still running by distance, knocked-out rivals at the back.
+    /** @type {any[]} */
     const order = rivals.map((r, i) => ({ i, r })).sort((a, b) => (b.r.alive - a.r.alive) || (b.r.distance - a.r.distance));
     order.splice(rank - 1, 0, { player: true });
     order.forEach((e, pos) => {
@@ -1588,7 +1593,7 @@
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
     $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE'; $('cup-standings').classList.add('hidden'); $('story-new').classList.add('hidden'); cancelClip(); if ($('again').firstElementChild) $('again').firstElementChild.textContent = 'RACE AGAIN';
     $('race-message').classList.remove('visible'); messageTime = 0;
-    if (settings.steering === 'gyro' && !enableGyro.listening) enableGyro();
+    if (settings.steering === 'gyro' && !gyroListening) enableGyro();
     playMusic(); primeSpeech(); calibrateTilt(); applyScreenSetting(true); updateHUD();
     if (!profile.tutorialDone && gameMode() === 'race') startTutorial(); else { tutorial = null; $('tutorial').classList.remove('visible'); }
     if (window.matchMedia?.('(pointer: coarse)').matches) { hintTime = 6; document.body.classList.add('hinting'); }
@@ -1956,7 +1961,7 @@
       }
       if (document.body.classList.contains('buffering')) { document.body.classList.remove('buffering'); if (audio.paused && !muted) playMusic(); }
       const old = Math.ceil(countdown); countdown -= dt;
-      $('countdown').textContent = countdown > 0 ? Math.ceil(countdown) : 'GO!';
+      $('countdown').textContent = countdown > 0 ? String(Math.ceil(countdown)) : 'GO!';
       if (Math.ceil(countdown) !== old && countdown > 0) soundEffect(440, .13);
       if (countdown <= 0) { mode = 'racing'; launchGoTime = .8; soundEffect(880, .35); calibrateTilt(); }
       updateHUD(); return;
@@ -3540,7 +3545,7 @@
   window.addEventListener('blur', () => { keys.clear(); resetGesture(); if (mode === 'racing' || mode === 'countdown') pauseRace(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && (mode === 'racing' || mode === 'countdown')) pauseRace(); });
   document.querySelectorAll('[data-key]').forEach(button => {
-    button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(event.pointerId); keys.add(button.dataset.key); });
+    button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(/** @type {PointerEvent} */ (event).pointerId); keys.add(button.dataset.key); });
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, () => keys.delete(button.dataset.key));
   });
   const gestureActive = () => mode === 'racing' || mode === 'countdown' || mode === 'final';
@@ -3643,7 +3648,7 @@
   $('rotate-switch').addEventListener('click', () => { settings.screen = settings.screen === 'portrait' ? 'landscape' : 'portrait'; saveSettings(); renderSettings(); });
   window.matchMedia?.('(orientation: landscape)').addEventListener?.('change', () => setTimeout(checkOrientation, 50));
   // A remembered gyro choice needs the sensor again; iOS will re-ask on the next tap of GYRO.
-  if (settings.steering === 'gyro') enableGyro().then(ok => { if (!ok && typeof window.DeviceOrientationEvent?.requestPermission !== 'function') { settings.steering = 'touch'; renderSettings(); } });
+  if (settings.steering === 'gyro') enableGyro().then(ok => { if (!ok && typeof /** @type {any} */ (window.DeviceOrientationEvent)?.requestPermission !== 'function') { settings.steering = 'touch'; renderSettings(); } });
   renderSettings();
   renderLock();
   // ---- Home screen dialogs: settings and changelog.
@@ -3679,7 +3684,7 @@
     openDialog('changelog-screen'); $('changelog-body').innerHTML = '<p>LOADING…</p>';
     try {
       const response = await fetch('CHANGELOG.md', { cache: 'no-cache' });
-      if (!response.ok) throw new Error(response.status);
+      if (!response.ok) throw new Error(String(response.status));
       $('changelog-body').innerHTML = renderChangelog(await response.text());
     } catch { $('changelog-body').innerHTML = '<p>The changelog is not available offline yet.</p>'; }
   }
@@ -3874,15 +3879,15 @@
   window.morbidPhoto = { enter: enterPhoto, exit: exitPhoto, adjust: photoAdjust, shot: photoShot, state: () => photo && { ...photo } };
   // ---- Highlight clip: the last ~10 s of the final lap are recorded (picture and sound) and can be shared after a win.
   const CLIP_TYPES = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
-  let clip = null, clipBlob = null;
+  let clip = null, clipBlob = null, clipDest = null;
   function clipSupported() { return typeof MediaRecorder === 'function' && typeof canvas.captureStream === 'function'; }
   function startClip() {
     if (clip || !clipSupported()) return;
     try {
       const video = canvas.captureStream(30), tracks = [...video.getVideoTracks()];
       if (audioContext && audioContext.createMediaStreamDestination) {
-        if (!startClip.dest) { startClip.dest = audioContext.createMediaStreamDestination(); musicGain.connect(startClip.dest); sfxBus.connect(startClip.dest); }
-        tracks.push(...startClip.dest.stream.getAudioTracks());
+        if (!clipDest) { clipDest = audioContext.createMediaStreamDestination(); musicGain.connect(clipDest); sfxBus.connect(clipDest); }
+        tracks.push(...clipDest.stream.getAudioTracks());
       }
       const stream = typeof MediaStream === 'function' ? new MediaStream(tracks) : video;
       const type = CLIP_TYPES.find(t => !MediaRecorder.isTypeSupported || MediaRecorder.isTypeSupported(t)) || '';

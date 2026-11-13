@@ -66,7 +66,7 @@
   $('rotate-switch').addEventListener('click', () => { settings.screen = settings.screen === 'portrait' ? 'landscape' : 'portrait'; saveSettings(); renderSettings(); });
   window.matchMedia?.('(orientation: landscape)').addEventListener?.('change', () => setTimeout(checkOrientation, 50));
   // A remembered gyro choice needs the sensor again; iOS will re-ask on the next tap of GYRO.
-  if (settings.steering === 'gyro') enableGyro().then(ok => { if (!ok && typeof window.DeviceOrientationEvent?.requestPermission !== 'function') { settings.steering = 'touch'; renderSettings(); } });
+  if (settings.steering === 'gyro') enableGyro().then(ok => { if (!ok && typeof /** @type {any} */ (window.DeviceOrientationEvent)?.requestPermission !== 'function') { settings.steering = 'touch'; renderSettings(); } });
   renderSettings();
   renderLock();
   // ---- Home screen dialogs: settings and changelog.
@@ -102,7 +102,7 @@
     openDialog('changelog-screen'); $('changelog-body').innerHTML = '<p>LOADING…</p>';
     try {
       const response = await fetch('CHANGELOG.md', { cache: 'no-cache' });
-      if (!response.ok) throw new Error(response.status);
+      if (!response.ok) throw new Error(String(response.status));
       $('changelog-body').innerHTML = renderChangelog(await response.text());
     } catch { $('changelog-body').innerHTML = '<p>The changelog is not available offline yet.</p>'; }
   }
