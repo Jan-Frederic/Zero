@@ -21,4 +21,5 @@ concatenated in file-name order rather than imported as ES modules.
 | `07-race-rules.js` | power-ups, campaign, race start/pause/garage, lasers, wrecks, lives, results, boot panel |
 | `08-update-hud.js` | the per-frame update loop and HUD |
 | `09-render.js` | all race rendering and the frame loop |
+| `10-i18n.js` | English → German translation table; DOM text via MutationObserver, canvas text via fillText |
 | `11-input-ui-init.js` | input, gestures, dialogs, easter egg, shop, sharing, start-up |

@@ -22,4 +22,4 @@ http.createServer((req, res) => {
       fs.createReadStream(file).pipe(res);
     }
   });
-}).listen(3000, '0.0.0.0', () => console.log('MORBID RACERS → http://localhost:3000'));
+}).listen(Number(process.env.PORT) || 3000, '0.0.0.0', function () { console.log(`MORBID RACERS → http://localhost:${this.address().port}`); });
