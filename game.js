@@ -436,6 +436,7 @@
     '❄ SNOWFALL': '❄ SCHNEEFALL', 'SLIPPERY TRACK — STEER GENTLY': 'RUTSCHIGE STRECKE — SANFT LENKEN', '👻 GHOST FOG': '👻 GEISTERNEBEL', 'SOMETHING IS WATCHING…': 'ETWAS BEOBACHTET DICH …',
     '📷 PHOTO MODE': '📷 FOTOMODUS', '📸 SAVE / SHARE': '📸 SPEICHERN / TEILEN', '✕ EXIT': '✕ BEENDEN', 'SHIP: HIDDEN': 'SCHIFF: AUS', 'SHIP: SHOWN': 'SCHIFF: AN',
     '🎬 SHARE CLIP': '🎬 CLIP TEILEN',
+    'INCOMING MISSILE': 'RAKETE IM ANFLUG', 'DODGE OR JUMP!': 'AUSWEICHEN ODER SPRINGEN!', 'MISSILE DODGED!': 'RAKETE AUSGEWICHEN!', 'MISSILE ON YOUR TAIL': 'RAKETE IM NACKEN', 'RIVAL SHIELD POPPED': 'RIVALEN-SCHILD GEPLATZT',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -1615,7 +1616,7 @@
     nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
     if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
     endlessRun = false; trialRun = gameMode() === 'trial';
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); hitShortcuts = new Set(); blinkReadyAt = 0; missiles = []; mines = []; slip = 0; slipShown = false; drift = 0; driftTime = 0; ufoKills = 0; boss = null; bossAttacks = [];
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); hitShortcuts = new Set(); blinkReadyAt = 0; rivalMissiles = []; missiles = []; mines = []; slip = 0; slipShown = false; drift = 0; driftTime = 0; ufoKills = 0; boss = null; bossAttacks = [];
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
@@ -1678,6 +1679,9 @@
         r.hull -= 1; createExplosion(r.distance, r.x * track.width, r.color, r.hull > 0 ? .3 : .45);
         if (r.hull <= 0) knockOut(r);
       }
+    }
+    if (target && target.bubbleUntil > time && !hyper()) {
+      target.bubbleUntil = 0; createExplosion(target.distance, lane, '#4df8ff', .35); showMessage('RIVAL SHIELD POPPED', .8); playToneSweep(900, 1500, .2, 'sine', .05); return;
     }
     if (target) {
       target.hull = hyper() ? 0 : target.hull - 1; target.stunnedUntil = time + .32;
@@ -1842,6 +1846,45 @@
     if (cup) showCupResults();
     else if (rank === 1) { launchConfetti(); playFanfare(); robotSay('First place. Flawless victory', 'first-place'); }
     checkDaily();
+  }
+  // ---- Rival AI: dodge hazards ahead, block the player (aggressive pilots), and use power-ups of their own.
+  let rivalMissiles = [];
+  function rivalAI(r, dt, track) {
+    if (r.baseLane === undefined) r.baseLane = r.lane;
+    let target = r.baseLane; r.dodging = false; r.blocking = false;
+    const at = Math.floor(mod(r.distance, LENGTH) / SEG);
+    for (let k = 2; k < 14; k++) {
+      const h = segments[mod(at + k, COUNT)].hazard;
+      if (!h || h.type === 'cat') continue;
+      const hl = hazardLane(h);
+      if (Math.abs(hl - r.lane) < h.radius + .16) { target = hl > 0 ? hl - h.radius - .28 : hl + h.radius + .28; r.dodging = true; break; }
+    }
+    const ahead = r.distance - (distance + 1050);
+    if (!r.dodging && !r.nemesis && r.seed % 3 === 0 && ahead > 250 && ahead < 2600 && mode === 'racing') { target = clamp(playerX / track.width, -.7, .7); r.blocking = true; }
+    r.lane = lerp(r.lane, clamp(target, -.75, .75), Math.min(1, dt * (r.dodging ? 4 : r.blocking ? 1.8 : 1)));
+    // Power-ups: a homing missile at the player from behind, or a protective bubble when ahead.
+    if (r.powerCooldown === undefined) r.powerCooldown = 15 + random(r.seed + 600) * 25;
+    r.powerCooldown -= dt * worldPace();
+    if (r.powerCooldown <= 0 && mode === 'racing' && empSlow(r) === 1) {
+      r.powerCooldown = 22 + random(Math.floor(time) + r.seed) * 20;
+      if (ahead < -300 && ahead > -7000 && (r.nemesis || r.seed % 4 === 1)) {
+        rivalMissiles.push({ distance: r.distance, lane: r.x, from: r, started: time, speed: Math.max(speed, 7000) + 5200 });
+        showMessage('INCOMING MISSILE  /  DODGE OR JUMP!', 1.2); playToneSweep(1400, 700, .5, 'square', .04);
+      } else if (ahead > 0 && ahead < 15000) r.bubbleUntil = time + 8;
+    }
+  }
+  function updateRivalMissiles(dt, track) {
+    for (const m of rivalMissiles) {
+      m.distance += m.speed * dt;
+      m.lane = lerp(m.lane, playerX / track.width, Math.min(1, dt * 1.4)); // limited turn rate: a sharp swerve shakes it off
+      if (m.distance < distance + 1050) continue;
+      m.done = true;
+      if (jumpHeight < 90 && Math.abs(m.lane * track.width - playerX) < .16 * track.width) {
+        createExplosion(distance + 1100, playerX, '#ff8a2e', 1); shake = Math.max(shake, .8); screenFlash = Math.max(screenFlash, .3);
+        showMessage('MISSILE HIT  /  ' + shieldText(14), 1); playExplosionSound(1); damageShield(14);
+      } else { showMessage('MISSILE DODGED!', .8); createExplosion(distance + 2600, m.lane * track.width, '#ff8a2e', .7); }
+    }
+    rivalMissiles = rivalMissiles.filter(m => !m.done && time - m.started < 6);
   }
   // ==== Playful boot panel on the start screen.
   // ---- Playful boot screen on the start page while the soundtrack and voices download.
@@ -2174,7 +2217,8 @@
         }
       }
       r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt * worldPace() * empSlow(r);
-      r.x = r.lane + .13 * Math.sin(time * .8 + r.seed * 2);
+      rivalAI(r, dt, track);
+      r.x = r.lane + .13 * (r.dodging ? .25 : 1) * Math.sin(time * .8 + r.seed * 2);
       if (r.nemesis) {
         // Hunt the player: drift towards the player's lane when close, and taunt when overtaking.
         const gap = r.distance - distance;
@@ -2202,7 +2246,7 @@
         }
       }
     }
-    updateAttacks(dt, track); updateSlipstream(dt, track);
+    updateAttacks(dt, track); updateSlipstream(dt, track); updateRivalMissiles(dt, track);
     for (const shot of enemyShots) {
       if (shot.resolved || time < shot.impactAt) continue;
       shot.resolved = true;
@@ -2256,9 +2300,10 @@
     $('lap').textContent = String(lap).padStart(2, '0'); $('timer').textContent = formatTime(elapsed);
     $('progress').style.width = Math.min(100, distance / (LENGTH * LAP_COUNT) * 100) + '%';
     const laserIncoming = enemyShots.some(shot => !shot.resolved && shot.impactAt - time < .55);
+    const missileIncoming = rivalMissiles.length > 0;
     const bombIncoming = bombs.some(bomb => !bomb.exploded && bomb.distance - (distance + 1050) < 4200);
-    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : slip > .5 ? 'SLIPSTREAM  /  BOOST CHARGING' : drift > .5 ? `DRIFT  ${driftTime.toFixed(1)} S` : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
-    document.body.classList.toggle('air-raid', laserIncoming || bombIncoming);
+    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : missileIncoming ? 'WARNING  /  MISSILE ON YOUR TAIL' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : slip > .5 ? 'SLIPSTREAM  /  BOOST CHARGING' : drift > .5 ? `DRIFT  ${driftTime.toFixed(1)} S` : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
+    document.body.classList.toggle('air-raid', laserIncoming || bombIncoming || missileIncoming);
     drawMap();
   }
   // ==== Invasion, boss chain, final fight flow and disco.
@@ -3302,6 +3347,7 @@
               drawSmoke(rx, ry, rw * .115, r);
             } else {
               drawShip(rx, ry, rw * .115, r.color, r.dark || '#393156', Math.sin(time + r.seed) * .1, false, r.boosting);
+              if (r.bubbleUntil > time) { ctx.save(); ctx.strokeStyle = '#4df8ff'; ctx.globalAlpha = .55 + .25 * Math.sin(time * 8); ctx.lineWidth = Math.max(1.5, rw * .006); ctx.beginPath(); ctx.ellipse(rx, ry - rw * .03, rw * .16, rw * .1, 0, 0, TAU); ctx.stroke(); ctx.restore(); }
               if (r.nemesis && rw * .115 > 26) {
                 const fs = Math.max(11, Math.min(15, rw * .03)); ctx.save(); ctx.font = `${fs}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center';
                 const label = `☠ ${r.nemesis.name}  ${'▮'.repeat(Math.max(0, r.hull))}`; const w = ((ctx.measureText(label) || {}).width || label.length * fs * .6) + 12, ty = ry - rw * .115 * .95;

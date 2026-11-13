@@ -14,7 +14,7 @@
     nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
     if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
     endlessRun = false; trialRun = gameMode() === 'trial';
-    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); hitShortcuts = new Set(); blinkReadyAt = 0; missiles = []; mines = []; slip = 0; slipShown = false; drift = 0; driftTime = 0; ufoKills = 0; boss = null; bossAttacks = [];
+    crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; confetti = []; callout = null; hyperTime = 0; hitGates = new Set(); power = {}; bubbleHits = 0; hitPowerups = new Set(); hitShortcuts = new Set(); blinkReadyAt = 0; rivalMissiles = []; missiles = []; mines = []; slip = 0; slipShown = false; drift = 0; driftTime = 0; ufoKills = 0; boss = null; bossAttacks = [];
     musicHold = 0; raceEarned = 0; lostLifeThisRace = false; raceStats = { ufos: 0, rivals: 0, cats: 0, boost: 0, lives: 0 }; weather = null; nextWeatherAt = time + 22 + Math.random() * 10; lives = startLives(); raceRespawnAt = 0; raceInvulnUntil = 0; clearFinale(); keys.clear(); resetGesture(); $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('pause-screen').classList.add('hidden');
     $('hud').classList.remove('hidden'); document.body.classList.add('racing'); document.body.classList.remove('paused', 'destroyed');
     $('hud-track').textContent = tracks[trackIndex].name; $('best-label').textContent = bestLap ? `BEST ${formatTime(bestLap)}` : 'BEST — —:—';
@@ -77,6 +77,9 @@
         r.hull -= 1; createExplosion(r.distance, r.x * track.width, r.color, r.hull > 0 ? .3 : .45);
         if (r.hull <= 0) knockOut(r);
       }
+    }
+    if (target && target.bubbleUntil > time && !hyper()) {
+      target.bubbleUntil = 0; createExplosion(target.distance, lane, '#4df8ff', .35); showMessage('RIVAL SHIELD POPPED', .8); playToneSweep(900, 1500, .2, 'sine', .05); return;
     }
     if (target) {
       target.hull = hyper() ? 0 : target.hull - 1; target.stunnedUntil = time + .32;
@@ -241,4 +244,43 @@
     if (cup) showCupResults();
     else if (rank === 1) { launchConfetti(); playFanfare(); robotSay('First place. Flawless victory', 'first-place'); }
     checkDaily();
+  }
+  // ---- Rival AI: dodge hazards ahead, block the player (aggressive pilots), and use power-ups of their own.
+  let rivalMissiles = [];
+  function rivalAI(r, dt, track) {
+    if (r.baseLane === undefined) r.baseLane = r.lane;
+    let target = r.baseLane; r.dodging = false; r.blocking = false;
+    const at = Math.floor(mod(r.distance, LENGTH) / SEG);
+    for (let k = 2; k < 14; k++) {
+      const h = segments[mod(at + k, COUNT)].hazard;
+      if (!h || h.type === 'cat') continue;
+      const hl = hazardLane(h);
+      if (Math.abs(hl - r.lane) < h.radius + .16) { target = hl > 0 ? hl - h.radius - .28 : hl + h.radius + .28; r.dodging = true; break; }
+    }
+    const ahead = r.distance - (distance + 1050);
+    if (!r.dodging && !r.nemesis && r.seed % 3 === 0 && ahead > 250 && ahead < 2600 && mode === 'racing') { target = clamp(playerX / track.width, -.7, .7); r.blocking = true; }
+    r.lane = lerp(r.lane, clamp(target, -.75, .75), Math.min(1, dt * (r.dodging ? 4 : r.blocking ? 1.8 : 1)));
+    // Power-ups: a homing missile at the player from behind, or a protective bubble when ahead.
+    if (r.powerCooldown === undefined) r.powerCooldown = 15 + random(r.seed + 600) * 25;
+    r.powerCooldown -= dt * worldPace();
+    if (r.powerCooldown <= 0 && mode === 'racing' && empSlow(r) === 1) {
+      r.powerCooldown = 22 + random(Math.floor(time) + r.seed) * 20;
+      if (ahead < -300 && ahead > -7000 && (r.nemesis || r.seed % 4 === 1)) {
+        rivalMissiles.push({ distance: r.distance, lane: r.x, from: r, started: time, speed: Math.max(speed, 7000) + 5200 });
+        showMessage('INCOMING MISSILE  /  DODGE OR JUMP!', 1.2); playToneSweep(1400, 700, .5, 'square', .04);
+      } else if (ahead > 0 && ahead < 15000) r.bubbleUntil = time + 8;
+    }
+  }
+  function updateRivalMissiles(dt, track) {
+    for (const m of rivalMissiles) {
+      m.distance += m.speed * dt;
+      m.lane = lerp(m.lane, playerX / track.width, Math.min(1, dt * 1.4)); // limited turn rate: a sharp swerve shakes it off
+      if (m.distance < distance + 1050) continue;
+      m.done = true;
+      if (jumpHeight < 90 && Math.abs(m.lane * track.width - playerX) < .16 * track.width) {
+        createExplosion(distance + 1100, playerX, '#ff8a2e', 1); shake = Math.max(shake, .8); screenFlash = Math.max(screenFlash, .3);
+        showMessage('MISSILE HIT  /  ' + shieldText(14), 1); playExplosionSound(1); damageShield(14);
+      } else { showMessage('MISSILE DODGED!', .8); createExplosion(distance + 2600, m.lane * track.width, '#ff8a2e', .7); }
+    }
+    rivalMissiles = rivalMissiles.filter(m => !m.done && time - m.started < 6);
   }

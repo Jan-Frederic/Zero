@@ -215,7 +215,8 @@
         }
       }
       r.distance += r.speed * (r.boosting ? 1.55 : 1) * (1 + .06 * Math.sin(time * .55 + r.seed)) * dt * worldPace() * empSlow(r);
-      r.x = r.lane + .13 * Math.sin(time * .8 + r.seed * 2);
+      rivalAI(r, dt, track);
+      r.x = r.lane + .13 * (r.dodging ? .25 : 1) * Math.sin(time * .8 + r.seed * 2);
       if (r.nemesis) {
         // Hunt the player: drift towards the player's lane when close, and taunt when overtaking.
         const gap = r.distance - distance;
@@ -243,7 +244,7 @@
         }
       }
     }
-    updateAttacks(dt, track); updateSlipstream(dt, track);
+    updateAttacks(dt, track); updateSlipstream(dt, track); updateRivalMissiles(dt, track);
     for (const shot of enemyShots) {
       if (shot.resolved || time < shot.impactAt) continue;
       shot.resolved = true;
@@ -297,8 +298,9 @@
     $('lap').textContent = String(lap).padStart(2, '0'); $('timer').textContent = formatTime(elapsed);
     $('progress').style.width = Math.min(100, distance / (LENGTH * LAP_COUNT) * 100) + '%';
     const laserIncoming = enemyShots.some(shot => !shot.resolved && shot.impactAt - time < .55);
+    const missileIncoming = rivalMissiles.length > 0;
     const bombIncoming = bombs.some(bomb => !bomb.exploded && bomb.distance - (distance + 1050) < 4200);
-    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : slip > .5 ? 'SLIPSTREAM  /  BOOST CHARGING' : drift > .5 ? `DRIFT  ${driftTime.toFixed(1)} S` : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
-    document.body.classList.toggle('air-raid', laserIncoming || bombIncoming);
+    $('boost-label').textContent = jumpHeight > 80 ? 'AIRBORNE  /  TRAMPOLINE BOOST' : missileIncoming ? 'WARNING  /  MISSILE ON YOUR TAIL' : laserIncoming ? 'WARNING  /  RIVAL LASER LOCK' : bombIncoming ? 'UFO BOMB RUN  /  DODGE!' : boosting ? 'ϟ OVERDRIVE ENGAGED ϟ' : slip > .5 ? 'SLIPSTREAM  /  BOOST CHARGING' : drift > .5 ? `DRIFT  ${driftTime.toFixed(1)} S` : energy < 20 ? 'LOW ENERGY / RECHARGING' : 'ANTI-GRAVITY DRIVE ONLINE';
+    document.body.classList.toggle('air-raid', laserIncoming || bombIncoming || missileIncoming);
     drawMap();
   }

@@ -247,6 +247,7 @@
               drawSmoke(rx, ry, rw * .115, r);
             } else {
               drawShip(rx, ry, rw * .115, r.color, r.dark || '#393156', Math.sin(time + r.seed) * .1, false, r.boosting);
+              if (r.bubbleUntil > time) { ctx.save(); ctx.strokeStyle = '#4df8ff'; ctx.globalAlpha = .55 + .25 * Math.sin(time * 8); ctx.lineWidth = Math.max(1.5, rw * .006); ctx.beginPath(); ctx.ellipse(rx, ry - rw * .03, rw * .16, rw * .1, 0, 0, TAU); ctx.stroke(); ctx.restore(); }
               if (r.nemesis && rw * .115 > 26) {
                 const fs = Math.max(11, Math.min(15, rw * .03)); ctx.save(); ctx.font = `${fs}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center';
                 const label = `☠ ${r.nemesis.name}  ${'▮'.repeat(Math.max(0, r.hull))}`; const w = ((ctx.measureText(label) || {}).width || label.length * fs * .6) + 12, ty = ry - rw * .115 * .95;
