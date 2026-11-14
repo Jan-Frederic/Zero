@@ -34,7 +34,9 @@
     profile.daily.streak = profile.daily.last === yesterday ? profile.daily.streak + 1 : 1;
     profile.daily.last = d.key; profile.daily.done = d.key; saveProfile();
     addCredits(dailyReward() - 50, 'DAILY CHALLENGE');
-    $('result-record').textContent = `📅 DAILY CHALLENGE COMPLETE!  🔥 ${profile.daily.streak}-DAY STREAK`;
+    // Append, so an unlock or lap-record message on the same results card stays visible.
+    const daily = `📅 DAILY CHALLENGE COMPLETE!  🔥 ${profile.daily.streak}-DAY STREAK`, prev = $('result-record').textContent;
+    $('result-record').textContent = prev ? `${prev}  ·  ${daily}` : daily;
     renderDaily();
   }
   // ---- Weekly missions: three per calendar week (same for everyone), progress counts across all races and modes.
