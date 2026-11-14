@@ -20,7 +20,7 @@ const HOOKS = "  window.__smoke = { mode: () => mode, win: () => { ufos = []; bo
   const server = await serve();
   let failures = 0;
   try {
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
     for (const vp of VIEWPORTS) {
       const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, hasTouch: !!vp.mobile, isMobile: !!vp.mobile, serviceWorkers: 'block', locale: 'en-GB' });
       const page = await ctx.newPage(), errors = [], lines = [];

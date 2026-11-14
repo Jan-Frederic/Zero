@@ -17,7 +17,7 @@ const MIN = { performance: .7, accessibility: .9, 'best-practices': .9, seo: .9 
   try {
     execFileSync('npx', ['--yes', 'lighthouse@12.8.2', server.url, '--quiet', '--output=json', '--output=html', `--output-path=${path.join(out, 'report')}`,
       `--only-categories=${Object.keys(MIN).join(',')}`, '--chrome-flags=--headless=new --no-sandbox --disable-gpu'],
-    { stdio: 'inherit', env: { ...process.env, CHROME_PATH: chromium.executablePath() } });
+    { stdio: 'inherit', env: { ...process.env, CHROME_PATH: process.env.PW_CHROMIUM || chromium.executablePath() } });
     const report = JSON.parse(fs.readFileSync(path.join(out, 'report.report.json'), 'utf8'));
     for (const [id, min] of Object.entries(MIN)) {
       const score = report.categories[id].score;

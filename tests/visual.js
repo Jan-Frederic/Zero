@@ -10,7 +10,8 @@ const serve = require('./serve');
 const fs = require('node:fs');
 const path = require('node:path');
 const { PNG } = require('pngjs');
-const pixelmatch = require('pixelmatch');
+// pixelmatch 6+ is an ES module; require() returns its namespace.
+const pixelmatchModule = require('pixelmatch'), pixelmatch = pixelmatchModule.default || pixelmatchModule;
 
 const root = path.join(__dirname, '..'), baseDir = path.join(__dirname, 'visual'), diffDir = path.join(root, 'visual-diff');
 const update = process.argv.includes('--update');
@@ -81,7 +82,7 @@ const LAYOUT = (root, skip = '#boot,#app-version,#music-status') => {
   const results = [];
   try {
     // Font hinting decides glyph advances; machines default to different settings (the CI runner uses 'medium'), so pin it.
-    const browser = await chromium.launch({ args: ['--font-render-hinting=none'] });
+    const browser = await chromium.launch({ args: ['--font-render-hinting=none'], executablePath: process.env.PW_CHROMIUM || undefined });
     for (const vp of VIEWPORTS) {
       const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1, hasTouch: !!vp.mobile, isMobile: !!vp.mobile, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'UTC' });
       const page = await ctx.newPage();
