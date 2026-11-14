@@ -1,5 +1,22 @@
 # Changelog
 
+# [1.18.0](https://github.com/Jan-Frederic/Zero/compare/v1.17.0...v1.18.0) (2026-11-14)
+
+
+### Bug Fixes
+
+* keep the unlock message when the daily challenge completes too ([7909994](https://github.com/Jan-Frederic/Zero/commit/7909994f170917e96d5bd1a47d9b2c9d816b1d0e))
+
+
+### Features
+
+* drifting through tight curves charges boost ([9385078](https://github.com/Jan-Frederic/Zero/commit/9385078fbd621555124d61d64eacbf49e8101009))
+* HUD size setting (small, normal, large) ([bc85b42](https://github.com/Jan-Frederic/Zero/commit/bc85b4207d829fb6cd08cc3d8c1b65360044a70a))
+* pilot level and ranks ([1d5b841](https://github.com/Jan-Frederic/Zero/commit/1d5b841bd264ea601838364b87656e2f2780d7cc))
+* smarter rivals that dodge, block and use power-ups ([41db2f3](https://github.com/Jan-Frederic/Zero/commit/41db2f3c4dad44ab551b4098fc0408e50c068f44))
+* survival mode ([0264b15](https://github.com/Jan-Frederic/Zero/commit/0264b15173e3f09656a37d52737077466a21a214))
+* weekly missions ([fd6a4c0](https://github.com/Jan-Frederic/Zero/commit/fd6a4c06aae5a2901b5c6df688cdaf8abfe6cca7))
+
 # [1.17.0](https://github.com/Jan-Frederic/Zero/compare/v1.16.0...v1.17.0) (2026-11-13)
 
 
