@@ -2,11 +2,11 @@
 // home screen dialogs, races to the results screen and checks the German UI. Fails on any page error.
 // Screenshots land in smoke-shots/ (uploaded as a CI artifact). Run: npm run smoke
 const { chromium } = require('playwright');
-const { spawn } = require('node:child_process');
+const serve = require('./serve');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const root = path.join(__dirname, '..'), shots = path.join(root, 'smoke-shots'), port = 4173 + Math.floor(Math.random() * 500);
+const root = path.join(__dirname, '..'), shots = path.join(root, 'smoke-shots');
 const VIEWPORTS = [
   { name: 'desktop', width: 1280, height: 760 },
   { name: 'phone-portrait', width: 390, height: 844, mobile: true },
@@ -15,20 +15,11 @@ const VIEWPORTS = [
 // Test hooks injected into the served game.js: read state and jump to the end of a won race.
 const HOOKS = "  window.__smoke = { mode: () => mode, win: () => { ufos = []; bombs = []; rivals.forEach(r => { r.distance = -1e7; r.speed = 0; }); laps = [30, 31, 32, 30, 29]; distance = LENGTH * LAP_COUNT - 30; position = mod(distance, LENGTH); } };\n";
 
-async function waitForServer() {
-  for (let i = 0; i < 50; i++) {
-    try { const r = await fetch(`http://localhost:${port}/`); if (r.ok) return; } catch { /* not up yet */ }
-    await new Promise(r => setTimeout(r, 100));
-  }
-  throw new Error('server did not start');
-}
-
 (async () => {
   fs.mkdirSync(shots, { recursive: true });
-  const server = spawn(process.execPath, [path.join(root, 'server.js')], { stdio: 'ignore', env: { ...process.env, PORT: String(port) } });
+  const server = await serve();
   let failures = 0;
   try {
-    await waitForServer();
     const browser = await chromium.launch();
     for (const vp of VIEWPORTS) {
       const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, hasTouch: !!vp.mobile, isMobile: !!vp.mobile, serviceWorkers: 'block', locale: 'en-GB' });
@@ -39,7 +30,7 @@ async function waitForServer() {
       const step = async (label, fn) => {
         try { await fn(); lines.push(`  ✓ ${label}`); } catch (e) { failures++; lines.push(`  ✗ ${label}: ${String(e.message).split('\n')[0]}`); }
       };
-      await page.goto(`http://localhost:${port}/`); await page.waitForTimeout(400);
+      await page.goto(server.url); await page.waitForTimeout(400);
       if (await page.isVisible('#rotate-overlay')) await tap('#rotate-switch');
       await step('health warning is shown and accepted', async () => {
         if (!await page.isVisible('#health-screen')) throw new Error('not visible');
@@ -80,7 +71,7 @@ async function waitForServer() {
       await ctx.close();
     }
     await browser.close();
-  } finally { server.kill(); }
+  } finally { server.stop(); }
   console.log(failures ? `\n${failures} smoke check(s) failed` : '\nall smoke checks passed');
   process.exit(failures ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

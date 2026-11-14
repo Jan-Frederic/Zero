@@ -30,4 +30,4 @@ http.createServer((req, res) => {
       }
     }
   });
-}).listen(Number(process.env.PORT) || 3000, '0.0.0.0', function () { console.log(`MORBID RACERS → http://localhost:${this.address().port}`); });
+}).listen(process.env.PORT !== undefined ? Number(process.env.PORT) : 3000, '0.0.0.0', function () { console.log(`MORBID RACERS → http://localhost:${this.address().port}`); });
