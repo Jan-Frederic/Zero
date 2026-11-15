@@ -146,6 +146,7 @@
     { title: "GRAVITY WARS", panels: [{ art: "🕳️🌙", text: "Beyond the moon, gravity bends. The track pulls you sideways." }, { art: "👁️🌑", text: "Something huge watches from the void. A cyclops? A commander?" }, { art: "🏁👀", text: "Only a winner gets close enough to find out." }] },
     { title: "NO BRAKES", panels: [{ art: "🔴🌪️", text: "Plasma storms. Laser gates. The aliens raise the stakes." }, { art: "💬😎", text: "BLAZE: “Whoever wins here gets the invitation. It's mine.”" }, { art: "🎟️🌌", text: "The invitation: a seat at the final fight above the galaxy." }] },
     { title: "THE LAST LINE", panels: [{ art: "🌀⚫", text: "The singularity. The final, impossible line." }, { art: "👾👾", text: "Win, and the invasion comes for you. Bosses wait in the dark." }, { art: "🪩💃", text: "And if you beat them too… the whole galaxy will dance." }] },
+    { title: "THE DEEP", panels: [{ art: "🌊🕳️", text: "Below the singularity, the track dives into an ocean nobody has charted." }, { art: "🪼⚡", text: "Glowing jellyfish drift across the line. One touch and your hull sparks." }, { art: "🫧🏁", text: "The currents pull you sideways. Ride them — and the deep is yours." }] },
   ];
   let storyChapter = 0;
   const storyUnlocked = () => Math.min(STORY.length, profile.unlocked || 1);

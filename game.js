@@ -471,6 +471,10 @@
     'PILOT LEVEL': 'PILOTENLEVEL', 'CREDIT BONUS': 'CREDIT-BONUS', 'ROOKIE': 'ROOKIE', 'STREET RACER': 'STRASSENRENNER', 'PRO PILOT': 'PROFI-PILOT', 'ACE': 'ASS', 'STAR PILOT': 'STAR-PILOT', 'HYPERDRIVER': 'HYPERFAHRER', 'GALAXY HERO': 'GALAXIE-HELD', 'SINGULARITY LEGEND': 'SINGULARITÄTS-LEGENDE',
     'HUD SIZE': 'HUD-GRÖSSE', 'RACE INSTRUMENTS': 'RENN-ANZEIGEN', 'SMALL': 'KLEIN', 'LARGE': 'GROSS',
     'SWARM SCATTERED!': 'SCHWARM ZERSTREUT!', 'ARCHITECT DEMOLISHED!': 'ARCHITEKT ABGERISSEN!', 'THROUGH THE GAP!': 'DURCH DIE LÜCKE!', 'DRONE STRIKE!': 'DROHNEN-TREFFER!', 'LASER WALL!': 'LASERWAND!',
+    'CURRENTS / JELLYFISH / NO SKY': 'STRÖMUNGEN / QUALLEN / KEIN HIMMEL', 'JELLYFISH STING': 'QUALLENSTICH', 'CURRENT ≫': 'STRÖMUNG ≫', '≪ CURRENT': '≪ STRÖMUNG', 'THE DEEP': 'DIE TIEFE',
+    'Below the singularity, the track dives into an ocean nobody has charted.': 'Unter der Singularität taucht die Strecke in einen Ozean, den noch niemand kartiert hat.',
+    'Glowing jellyfish drift across the line. One touch and your hull sparks.': 'Leuchtende Quallen treiben über die Linie. Eine Berührung, und dein Rumpf sprüht Funken.',
+    'The currents pull you sideways. Ride them — and the deep is yours.': 'Die Strömungen ziehen dich zur Seite. Reite sie — und die Tiefe gehört dir.',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -581,7 +585,8 @@
     { name: 'CRYO CANYON', type: 'LOW GRIP / ZERO MARGIN', feed: 'CRYO DEEP // 2097', sector: 'SECTOR 22 / FROSTBITE', class: 'CRYO', difficulty: 6, sky: ['#04172b', '#126c93', '#6de4e8'], fog: '#297e99', road: '#102a40', edge: '#7cf8ff', second: '#99ffdb', sun: '#e6ffff', curve: 2.05, hill: 2.15, width: .86, grip: .67, bends: [[2, .48], [7, .31], [13, .14]], padEvery: 330, padStart: 202, padLength: 11, recharge: 61, hazards: 8, hazardTypes: ['mine', 'drone'], rivalPace: 1.08, hazardPenalty: .28 },
     { name: 'VOID CIRCUIT', type: 'RIDE THE GRAVITY SHEAR', feed: 'DARK MATTER // 2097', sector: 'SECTOR 31 / EVENT HORIZON', class: 'VOID', difficulty: 7, sky: ['#07031b', '#23105b', '#5430a6'], fog: '#382365', road: '#12102b', edge: '#ab5bff', second: '#ff4fd8', sun: '#ffb752', curve: 2.3, hill: 2.35, width: .82, grip: .86, bends: [[2, .48], [5, .29], [10, .17], [15, .08]], padEvery: 360, padStart: 228, padLength: 10, recharge: 55, hazards: 10, hazardTypes: ['drone', 'mine'], rivalPace: 1.1, hazardPenalty: .31 },
     { name: 'PLASMA MAELSTROM', type: 'LASER GATES / NO BRAKES', feed: 'PLASMA BELT // 2097', sector: 'SECTOR 44 / REDLINE', class: 'CHAOS', difficulty: 7, sky: ['#250521', '#76184e', '#ff4c36'], fog: '#b33562', road: '#291026', edge: '#ff364f', second: '#ffdd35', sun: '#ffdf67', curve: 2.5, hill: 2.2, width: .78, grip: .79, bends: [[3, .43], [7, .3], [12, .2], [17, .09]], padEvery: 400, padStart: 257, padLength: 9, recharge: 49, hazards: 12, hazardTypes: ['gate', 'drone'], rivalPace: 1.13, hazardPenalty: .34 },
-    { name: 'SINGULARITY RUN', type: 'THE FINAL IMPOSSIBLE LINE', feed: 'SINGULARITY // 2097', sector: 'SECTOR 99 / POINT OF NO RETURN', class: 'OMEGA', difficulty: 8, sky: ['#030611', '#121a42', '#43227d'], fog: '#311d69', road: '#0e1028', edge: '#f03bff', second: '#54fbff', sun: '#e1ff57', curve: 2.75, hill: 2.8, width: .74, grip: .73, bends: [[2, .47], [5, .3], [9, .19], [14, .1]], padEvery: 480, padStart: 316, padLength: 8, recharge: 43, hazards: 15, hazardTypes: ['gate', 'mine', 'drone'], rivalPace: 1.16, hazardPenalty: .38 }
+    { name: 'SINGULARITY RUN', type: 'THE FINAL IMPOSSIBLE LINE', feed: 'SINGULARITY // 2097', sector: 'SECTOR 99 / POINT OF NO RETURN', class: 'OMEGA', difficulty: 8, sky: ['#030611', '#121a42', '#43227d'], fog: '#311d69', road: '#0e1028', edge: '#f03bff', second: '#54fbff', sun: '#e1ff57', curve: 2.75, hill: 2.8, width: .74, grip: .73, bends: [[2, .47], [5, .3], [9, .19], [14, .1]], padEvery: 480, padStart: 316, padLength: 8, recharge: 43, hazards: 15, hazardTypes: ['gate', 'mine', 'drone'], rivalPace: 1.16, hazardPenalty: .38 },
+    { name: 'ABYSS TUNNEL', type: 'CURRENTS / JELLYFISH / NO SKY', feed: 'DEEP SEA // 2097', sector: 'SECTOR 00 / THE DEEP', class: 'ABYSS', difficulty: 8, sky: ['#010c1c', '#04304f', '#0b6f8a'], fog: '#0a4a66', road: '#061a2c', edge: '#2ef2ff', second: '#7dffb0', sun: '#bff8ff', curve: 2.2, hill: 2, width: .8, grip: .82, bends: [[2, .5], [6, .32], [11, .14]], padEvery: 420, padStart: 280, padLength: 10, recharge: 52, hazards: 13, hazardTypes: ['jelly', 'jelly', 'mine'], rivalPace: 1.12, hazardPenalty: .3, current: .55, underwater: true }
   ];
   const machines = [
     { color: '#44f7ff', dark: '#09627d', name: 'PHANTOM', info: 'BALANCED / PRECISION HANDLING', handling: 1, top: 1, drain: 22 },
@@ -2232,6 +2237,7 @@
     }
     const seg = segments[Math.floor(mod(position + 1050, LENGTH) / SEG)];
     playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip * (weather && weather.type === 'snow' ? .62 : 1);
+    if (track.current) playerX += Math.sin(distance / 9000) * dt * track.current * track.width;
     if (weather && weather.type === 'gravity') playerX += Math.sin((time - weather.started) * 1.4) * dt * .55 * track.width;
     playerX -= seg.curve * dt * speed / 10700 * .62;
     updateDrift(dt, steer, seg);
@@ -2283,7 +2289,7 @@
             speed = Math.max(2500, speed * (1 - (track.hazardPenalty || .24)));
             energy = Math.max(0, energy - (12 + trackIndex * 1.4)); shake = .9; screenFlash = Math.max(screenFlash, .3);
             if (energy <= 0 && boostHeld) boostLocked = true;
-            showMessage(hazard.type === 'gate' ? 'LASER GATE HIT  /  ' + shieldText(17 + trackIndex * 1.5) : hazard.type === 'drone' ? 'DRONE COLLISION  /  ' + shieldText(17 + trackIndex * 1.5) : 'MINE STRIKE  /  ' + shieldText(17 + trackIndex * 1.5), 1.1);
+            showMessage(hazard.type === 'jelly' ? 'JELLYFISH STING  /  ' + shieldText(17 + trackIndex * 1.5) : hazard.type === 'gate' ? 'LASER GATE HIT  /  ' + shieldText(17 + trackIndex * 1.5) : hazard.type === 'drone' ? 'DRONE COLLISION  /  ' + shieldText(17 + trackIndex * 1.5) : 'MINE STRIKE  /  ' + shieldText(17 + trackIndex * 1.5), 1.1);
             playImpactSound(1 + trackIndex * .055); playExplosionSound(.85); collisionCooldown = Math.max(collisionCooldown, .55);
             createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, hazard.type === 'gate' ? '#ff456d' : track.edge, .75);
             if (damageShield(17 + trackIndex * 1.5)) { updateHUD(); return; }
@@ -3358,7 +3364,7 @@
   }
   function hazardLane(hazard) {
     if (hazard.type === 'cat') return Math.sin(time * 1.55 + hazard.phase) * .64;
-    return hazard.lane + (hazard.type === 'drone' ? Math.sin(time * 1.7 + hazard.phase) * .17 : 0);
+    return hazard.lane + (hazard.type === 'drone' ? Math.sin(time * 1.7 + hazard.phase) * .17 : hazard.type === 'jelly' ? Math.sin(time * .9 + hazard.phase) * .24 : 0);
   }
   function drawCat(s) {
     const a = s.p1, b = s.p2, width = lerp(a.w, b.w, .5), hazard = s.hazard;
@@ -3387,7 +3393,7 @@
     if (hazard.type === 'cat') { drawCat(s); return; }
     const x = lerp(a.x, b.x, .5) + width * hazardLane(hazard), size = width * (hazard.type === 'gate' ? .17 : .135);
     if (size < 2) return;
-    const color = hazard.type === 'gate' ? '#ff456d' : hazard.type === 'drone' ? '#eaff55' : '#ff783e';
+    const color = hazard.type === 'gate' ? '#ff456d' : hazard.type === 'drone' ? '#eaff55' : hazard.type === 'jelly' ? '#ff7ae6' : '#ff783e';
     ctx.save(); ctx.translate(x, y); ctx.shadowColor = color; ctx.shadowBlur = Math.min(28, size * .45);
     if (hazard.type === 'gate') {
       line(-size, 0, size, 0, '#60184b', size * .24);
@@ -3397,6 +3403,16 @@
         ctx.fillStyle = '#fff4a3'; ctx.fillRect(side * size * .86 - size * .08, -size * 1.5, size * .16, size * .12);
       }
       line(-size * .8, -size * .72, size * .8, -size * .72, '#ffd7ea', size * .055);
+    } else if (hazard.type === 'jelly') {
+      // A glowing jellyfish bobbing above the road, trailing stinging tentacles.
+      const bob = Math.sin(time * 2 + hazard.phase) * size * .25; ctx.translate(0, -size * .9 + bob);
+      for (let i = 0; i < 6; i++) {
+        ctx.beginPath(); ctx.moveTo((i - 2.5) * size * .22, 0);
+        for (let k = 1; k <= 6; k++) ctx.lineTo((i - 2.5) * size * .22 + Math.sin(time * 4 + i + k * .8) * size * .12, k * size * .2);
+        ctx.strokeStyle = 'rgba(255,170,240,.8)'; ctx.lineWidth = Math.max(1, size * .05); ctx.stroke();
+      }
+      const g = ctx.createRadialGradient(0, -size * .2, size * .1, 0, 0, size * 1.1); g.addColorStop(0, '#ffe6fb'); g.addColorStop(.5, 'rgba(255,122,230,.85)'); g.addColorStop(1, 'rgba(160,60,255,.4)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, size * (1 + Math.sin(time * 3 + hazard.phase) * .08), size * .7, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
     } else if (hazard.type === 'drone') {
       const spin = time * 2.5 + hazard.phase;
       ctx.rotate(spin * .15);
@@ -3728,7 +3744,7 @@
       const glow = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .7); glow.addColorStop(0, '#6d29ff00'); glow.addColorStop(1, '#7644ff40'); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
     }
     for (const p of particles) { ctx.globalAlpha = Math.min(1, p.life * 3); line(p.x, p.y, p.x - p.vx * .03, p.y - p.vy * .03, p.color, 2); } ctx.globalAlpha = 1;
-    drawWeather(); drawSlipstream();
+    drawWeather(); drawSlipstream(); if (tracks[trackIndex].underwater && mode !== 'menu') drawUnderwater();
     if (hyperTime > 0 && mode !== 'menu') drawWarpOverlay();
     if (mode !== 'menu') drawCrashLayer();
     if (flashAmount(screenFlash) > .015) {
@@ -3741,6 +3757,25 @@
     if (mode === 'invasion' && finale) drawAlarm();
     // A light scanline texture ties the entire scene together.
     ctx.fillStyle = '#05051b12'; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+    ctx.restore();
+  }
+  // Underwater circuit: light shafts from the surface, drifting bubbles that show the current, a blue tint.
+  function drawUnderwater() {
+    const t = tracks[trackIndex];
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++) {
+      const x = W * (.1 + i * .17) + Math.sin(time * .3 + i) * W * .05, w = W * (.04 + (i % 3) * .02);
+      const g = ctx.createLinearGradient(0, 0, 0, H * .7); g.addColorStop(0, 'rgba(160,240,255,.16)'); g.addColorStop(1, 'rgba(160,240,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - w, 0); ctx.lineTo(x + w, 0); ctx.lineTo(x + w * 3, H * .7); ctx.lineTo(x - w * 1.5, H * .7); ctx.fill();
+    }
+    const push = Math.sin(distance / 9000), drift = push * W * .12;
+    ctx.fillStyle = 'rgba(200,250,255,.5)';
+    for (let i = 0; i < 40; i++) {
+      const k = mod(time * (.15 + random(i) * .2) + random(i + 3), 1), x = mod(random(i + 50) * W + drift * k * 3 + Math.sin(time + i) * 8, W), y = H * (1 - k);
+      ctx.beginPath(); ctx.arc(x, y, 1.5 + random(i + 7) * 3, 0, TAU); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0,40,70,.18)'; ctx.fillRect(0, 0, W, H);
+    if (Math.abs(push) > .5 && mode === 'racing') { ctx.fillStyle = t.edge; ctx.font = `bold ${Math.max(14, W * .022)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.globalAlpha = .55 + .25 * Math.sin(time * 6); ctx.fillText(push > 0 ? 'CURRENT ≫' : '≪ CURRENT', W / 2, H * .64); }
     ctx.restore();
   }
   // Night mutator: darkness everywhere except the cone of the ship's headlights.
@@ -4003,6 +4038,7 @@
     { title: "GRAVITY WARS", panels: [{ art: "🕳️🌙", text: "Beyond the moon, gravity bends. The track pulls you sideways." }, { art: "👁️🌑", text: "Something huge watches from the void. A cyclops? A commander?" }, { art: "🏁👀", text: "Only a winner gets close enough to find out." }] },
     { title: "NO BRAKES", panels: [{ art: "🔴🌪️", text: "Plasma storms. Laser gates. The aliens raise the stakes." }, { art: "💬😎", text: "BLAZE: “Whoever wins here gets the invitation. It's mine.”" }, { art: "🎟️🌌", text: "The invitation: a seat at the final fight above the galaxy." }] },
     { title: "THE LAST LINE", panels: [{ art: "🌀⚫", text: "The singularity. The final, impossible line." }, { art: "👾👾", text: "Win, and the invasion comes for you. Bosses wait in the dark." }, { art: "🪩💃", text: "And if you beat them too… the whole galaxy will dance." }] },
+    { title: "THE DEEP", panels: [{ art: "🌊🕳️", text: "Below the singularity, the track dives into an ocean nobody has charted." }, { art: "🪼⚡", text: "Glowing jellyfish drift across the line. One touch and your hull sparks." }, { art: "🫧🏁", text: "The currents pull you sideways. Ride them — and the deep is yours." }] },
   ];
   let storyChapter = 0;
   const storyUnlocked = () => Math.min(STORY.length, profile.unlocked || 1);

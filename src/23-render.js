@@ -58,7 +58,7 @@
   }
   function hazardLane(hazard) {
     if (hazard.type === 'cat') return Math.sin(time * 1.55 + hazard.phase) * .64;
-    return hazard.lane + (hazard.type === 'drone' ? Math.sin(time * 1.7 + hazard.phase) * .17 : 0);
+    return hazard.lane + (hazard.type === 'drone' ? Math.sin(time * 1.7 + hazard.phase) * .17 : hazard.type === 'jelly' ? Math.sin(time * .9 + hazard.phase) * .24 : 0);
   }
   function drawCat(s) {
     const a = s.p1, b = s.p2, width = lerp(a.w, b.w, .5), hazard = s.hazard;
@@ -87,7 +87,7 @@
     if (hazard.type === 'cat') { drawCat(s); return; }
     const x = lerp(a.x, b.x, .5) + width * hazardLane(hazard), size = width * (hazard.type === 'gate' ? .17 : .135);
     if (size < 2) return;
-    const color = hazard.type === 'gate' ? '#ff456d' : hazard.type === 'drone' ? '#eaff55' : '#ff783e';
+    const color = hazard.type === 'gate' ? '#ff456d' : hazard.type === 'drone' ? '#eaff55' : hazard.type === 'jelly' ? '#ff7ae6' : '#ff783e';
     ctx.save(); ctx.translate(x, y); ctx.shadowColor = color; ctx.shadowBlur = Math.min(28, size * .45);
     if (hazard.type === 'gate') {
       line(-size, 0, size, 0, '#60184b', size * .24);
@@ -97,6 +97,16 @@
         ctx.fillStyle = '#fff4a3'; ctx.fillRect(side * size * .86 - size * .08, -size * 1.5, size * .16, size * .12);
       }
       line(-size * .8, -size * .72, size * .8, -size * .72, '#ffd7ea', size * .055);
+    } else if (hazard.type === 'jelly') {
+      // A glowing jellyfish bobbing above the road, trailing stinging tentacles.
+      const bob = Math.sin(time * 2 + hazard.phase) * size * .25; ctx.translate(0, -size * .9 + bob);
+      for (let i = 0; i < 6; i++) {
+        ctx.beginPath(); ctx.moveTo((i - 2.5) * size * .22, 0);
+        for (let k = 1; k <= 6; k++) ctx.lineTo((i - 2.5) * size * .22 + Math.sin(time * 4 + i + k * .8) * size * .12, k * size * .2);
+        ctx.strokeStyle = 'rgba(255,170,240,.8)'; ctx.lineWidth = Math.max(1, size * .05); ctx.stroke();
+      }
+      const g = ctx.createRadialGradient(0, -size * .2, size * .1, 0, 0, size * 1.1); g.addColorStop(0, '#ffe6fb'); g.addColorStop(.5, 'rgba(255,122,230,.85)'); g.addColorStop(1, 'rgba(160,60,255,.4)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, size * (1 + Math.sin(time * 3 + hazard.phase) * .08), size * .7, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
     } else if (hazard.type === 'drone') {
       const spin = time * 2.5 + hazard.phase;
       ctx.rotate(spin * .15);
@@ -428,7 +438,7 @@
       const glow = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .7); glow.addColorStop(0, '#6d29ff00'); glow.addColorStop(1, '#7644ff40'); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
     }
     for (const p of particles) { ctx.globalAlpha = Math.min(1, p.life * 3); line(p.x, p.y, p.x - p.vx * .03, p.y - p.vy * .03, p.color, 2); } ctx.globalAlpha = 1;
-    drawWeather(); drawSlipstream();
+    drawWeather(); drawSlipstream(); if (tracks[trackIndex].underwater && mode !== 'menu') drawUnderwater();
     if (hyperTime > 0 && mode !== 'menu') drawWarpOverlay();
     if (mode !== 'menu') drawCrashLayer();
     if (flashAmount(screenFlash) > .015) {
@@ -441,6 +451,25 @@
     if (mode === 'invasion' && finale) drawAlarm();
     // A light scanline texture ties the entire scene together.
     ctx.fillStyle = '#05051b12'; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+    ctx.restore();
+  }
+  // Underwater circuit: light shafts from the surface, drifting bubbles that show the current, a blue tint.
+  function drawUnderwater() {
+    const t = tracks[trackIndex];
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++) {
+      const x = W * (.1 + i * .17) + Math.sin(time * .3 + i) * W * .05, w = W * (.04 + (i % 3) * .02);
+      const g = ctx.createLinearGradient(0, 0, 0, H * .7); g.addColorStop(0, 'rgba(160,240,255,.16)'); g.addColorStop(1, 'rgba(160,240,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - w, 0); ctx.lineTo(x + w, 0); ctx.lineTo(x + w * 3, H * .7); ctx.lineTo(x - w * 1.5, H * .7); ctx.fill();
+    }
+    const push = Math.sin(distance / 9000), drift = push * W * .12;
+    ctx.fillStyle = 'rgba(200,250,255,.5)';
+    for (let i = 0; i < 40; i++) {
+      const k = mod(time * (.15 + random(i) * .2) + random(i + 3), 1), x = mod(random(i + 50) * W + drift * k * 3 + Math.sin(time + i) * 8, W), y = H * (1 - k);
+      ctx.beginPath(); ctx.arc(x, y, 1.5 + random(i + 7) * 3, 0, TAU); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0,40,70,.18)'; ctx.fillRect(0, 0, W, H);
+    if (Math.abs(push) > .5 && mode === 'racing') { ctx.fillStyle = t.edge; ctx.font = `bold ${Math.max(14, W * .022)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.globalAlpha = .55 + .25 * Math.sin(time * 6); ctx.fillText(push > 0 ? 'CURRENT ≫' : '≪ CURRENT', W / 2, H * .64); }
     ctx.restore();
   }
   // Night mutator: darkness everywhere except the cone of the ship's headlights.

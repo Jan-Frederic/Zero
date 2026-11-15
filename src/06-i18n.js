@@ -156,6 +156,10 @@
     'PILOT LEVEL': 'PILOTENLEVEL', 'CREDIT BONUS': 'CREDIT-BONUS', 'ROOKIE': 'ROOKIE', 'STREET RACER': 'STRASSENRENNER', 'PRO PILOT': 'PROFI-PILOT', 'ACE': 'ASS', 'STAR PILOT': 'STAR-PILOT', 'HYPERDRIVER': 'HYPERFAHRER', 'GALAXY HERO': 'GALAXIE-HELD', 'SINGULARITY LEGEND': 'SINGULARITÄTS-LEGENDE',
     'HUD SIZE': 'HUD-GRÖSSE', 'RACE INSTRUMENTS': 'RENN-ANZEIGEN', 'SMALL': 'KLEIN', 'LARGE': 'GROSS',
     'SWARM SCATTERED!': 'SCHWARM ZERSTREUT!', 'ARCHITECT DEMOLISHED!': 'ARCHITEKT ABGERISSEN!', 'THROUGH THE GAP!': 'DURCH DIE LÜCKE!', 'DRONE STRIKE!': 'DROHNEN-TREFFER!', 'LASER WALL!': 'LASERWAND!',
+    'CURRENTS / JELLYFISH / NO SKY': 'STRÖMUNGEN / QUALLEN / KEIN HIMMEL', 'JELLYFISH STING': 'QUALLENSTICH', 'CURRENT ≫': 'STRÖMUNG ≫', '≪ CURRENT': '≪ STRÖMUNG', 'THE DEEP': 'DIE TIEFE',
+    'Below the singularity, the track dives into an ocean nobody has charted.': 'Unter der Singularität taucht die Strecke in einen Ozean, den noch niemand kartiert hat.',
+    'Glowing jellyfish drift across the line. One touch and your hull sparks.': 'Leuchtende Quallen treiben über die Linie. Eine Berührung, und dein Rumpf sprüht Funken.',
+    'The currents pull you sideways. Ride them — and the deep is yours.': 'Die Strömungen ziehen dich zur Seite. Reite sie — und die Tiefe gehört dir.',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',

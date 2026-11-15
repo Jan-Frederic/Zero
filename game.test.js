@@ -48,7 +48,7 @@ test('circuit selection, driving, boost, pause, full race, records and restart',
   el('prev-track').fire('click'); assert.equal(el('track-name').textContent, 'NEON HORIZON');
   const laterLevels = ['SOLAR RIOT', 'ION DREAM', 'GLITCH SPIRE', 'CRYO CANYON', 'VOID CIRCUIT', 'PLASMA MAELSTROM', 'SINGULARITY RUN'];
   for (const name of laterLevels) { el('next-track').fire('click'); assert.equal(el('track-name').textContent, name); }
-  assert.equal(el('.pill').textContent, '08 — 08');
+  assert.equal(el('.pill').textContent, '08 — 09');
   assert.equal((el('difficulty').innerHTML.match(/▰/g) || []).length, 8, 'difficulty meter scales through eight ranks');
   for (let i = 0; i < laterLevels.length; i++) el('prev-track').fire('click');
   assert.equal(el('track-name').textContent, 'NEON HORIZON');
@@ -543,7 +543,7 @@ test('campaign: later circuits unlock with a podium on the previous one', () => 
   for (let lap = 0; lap < 6 && inspect().mode === 'racing'; lap++) { setRacePosition((lap + 1) * 240000 - 60, 0); step(.5); }
   assert.match(el('result-record').textContent, /UNLOCKED: SOLAR RIOT/);
   el('garage').fire('click'); el('next-track').fire('click');
-  assert.match(el('track-lock').textContent, /UNLOCKED: 2\/8/);
+  assert.match(el('track-lock').textContent, /UNLOCKED: 2\/9/);
   el('start').fire('click');
   assert.equal(inspect().mode, 'countdown', 'the unlocked circuit starts');
 });
@@ -842,7 +842,7 @@ test('special machines: BLINK teleports, TWIN hits two rivals, both need a troph
 test('story: one comic chapter per unlocked circuit, a new one after unlocking a circuit', () => {
   const { element: el, step, key, inspect, sandbox, setRacePosition, disableAirRaid, eliminateRivals, storage } = harness({ profile: { unlocked: 2, tutorialDone: true } });
   el('open-story').fire('click');
-  assert.match(el('story-chapter').textContent, /CHAPTER 2 \/ 8/);
+  assert.match(el('story-chapter').textContent, /CHAPTER 2 \/ 9/);
   assert.equal(el('story-title').textContent, 'FIRST CONTACT');
   assert.match(el('story-panels').innerHTML, /comic-panel/);
   assert.equal(el('story-next').disabled, true, 'chapter 3 is still locked');
@@ -1022,4 +1022,15 @@ test('new bosses: the swarm sends homing drones, the architect builds laser wall
   sandbox.__wave(4); assert.equal(finaleState().kind, 'architect');
   step(4); assert.ok(finaleState().attacks.includes('wall'), 'laser wall built');
   void finaleAim;
+});
+
+test('abyss tunnel: the ninth circuit has currents and jellyfish', () => {
+  const { element: el, step, key, inspect, disableAirRaid, eliminateRivals, setRacePosition } = harness({ profile: { unlocked: 9, tutorialDone: true } });
+  for (let i = 0; i < 8; i++) el('next-track').fire('click');
+  assert.equal(el('track-name').textContent, 'ABYSS TUNNEL');
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid(); eliminateRivals();
+  assert.ok(inspect().hazardsAt.some(h => h.type === 'jelly'), 'jellyfish on the track');
+  // Without steering, the current carries the ship sideways.
+  setRacePosition(9000 * Math.PI / 2, 0); step(.5);
+  assert.ok(Math.abs(inspect().playerX) > .1, 'pushed by the current');
 });
