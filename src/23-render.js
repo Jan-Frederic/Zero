@@ -29,24 +29,39 @@
       for (let i = 0; i <= 24; i++) pts.push([i / 24 * W, horizon - random(i + layer * 60) * H * .12 + layer * 34]);
       pts.push([W, H * .64]); polygon(pts, layer ? '#19143e' : '#30205b', layer ? '#7e37a660' : '#a257b860');
     }
-    for (let i = 0; i < 65; i++) {
-      const x = mod(i / 65 * (W + 70) - playerX * 45 + Math.sin(position / LENGTH * TAU) * 75, W + 70) - 35;
-      const width = 10 + random(i + 12) * 37, height = 25 + random(i + 5) ** 2 * H * .26;
-      const y = horizon + H * .09 - height;
-      ctx.fillStyle = i % 2 ? '#11102e' : '#181336'; ctx.fillRect(x, y, width, height + H * .1);
-      const color = i % 3 === 0 ? t.edge : t.second;
-      line(x, y, x + width, y, color + '60');
-      if (i % 4 === 0) { line(x + width / 2, y, x + width / 2, y - 18, color + '90'); ctx.fillStyle = color; ctx.fillRect(x + width / 2 - 1, y - 20, 2, 2); }
-      for (let row = 0; row < height / 10; row++) for (let col = 0; col < width / 7 - 1; col++) {
-        if (random(i * 400 + row * 17 + col) > .48) { ctx.fillStyle = color + (row % 3 === 0 ? '90' : '38'); ctx.fillRect(x + 4 + col * 7, y + 6 + row * 10, 2, 3); }
-      }
-    }
+    // The megacity skyline scrolls as one strip, so it is drawn once into an offscreen canvas and placed twice per frame.
+    const sky2 = skylineLayer(t, horizon), shift = mod(-playerX * 45 + Math.sin(position / LENGTH * TAU) * 75, sky2.span) - 35;
+    for (const x of [shift - sky2.span, shift]) ctx.drawImage(sky2.canvas, x, sky2.top, sky2.span, sky2.height);
     if (hyperTime > 0 && mode !== 'menu') drawHyperSpace();
     const ground = ctx.createLinearGradient(0, H * .5, 0, H); ground.addColorStop(0, t.fog); ground.addColorStop(.12, '#311248'); ground.addColorStop(1, '#0e0925');
     ctx.fillStyle = ground; ctx.fillRect(0, H * .55, W, H * .45);
     const gridHorizon = H * .51;
     for (let i = -14; i <= 14; i++) line(W / 2 + i * 22 - playerX * 15, gridHorizon, W / 2 + i * W / 7 - playerX * 130, H, t.edge + '28');
     for (let i = 0; i < 22; i++) { const q = mod(i / 22 + position / 50000, 1); const y = gridHorizon + q ** 3 * (H - gridHorizon); line(0, y, W, y, t.edge + '35'); }
+  }
+  let skylineCache = null;
+  function skylineLayer(t, horizon) {
+    const key = `${trackIndex}|${W}|${H}|${dpr}`;
+    if (skylineCache && skylineCache.key === key) return skylineCache;
+    const span = W + 70, top = Math.floor(horizon + H * .09 - (25 + H * .26) - 22), bottom = Math.ceil(horizon + H * .19), height = bottom - top;
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(span * dpr)); c.height = Math.max(1, Math.round(height * dpr));
+    const g = c.getContext('2d');
+    if (g) {
+      g.scale(dpr, dpr); g.translate(0, -top);
+      const stroke = (x1, y1, x2, y2, color) => { g.strokeStyle = color; g.lineWidth = 1; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); };
+      for (let i = 0; i < 65; i++) {
+        const x = i / 65 * span, width = 10 + random(i + 12) * 37, height2 = 25 + random(i + 5) ** 2 * H * .26, y = horizon + H * .09 - height2;
+        g.fillStyle = i % 2 ? '#11102e' : '#181336'; g.fillRect(x, y, width, height2 + H * .1);
+        const color = i % 3 === 0 ? t.edge : t.second;
+        stroke(x, y, x + width, y, color + '60');
+        if (i % 4 === 0) { stroke(x + width / 2, y, x + width / 2, y - 18, color + '90'); g.fillStyle = color; g.fillRect(x + width / 2 - 1, y - 20, 2, 2); }
+        for (let row = 0; row < height2 / 10; row++) for (let col = 0; col < width / 7 - 1; col++) {
+          if (random(i * 400 + row * 17 + col) > .48) { g.fillStyle = color + (row % 3 === 0 ? '90' : '38'); g.fillRect(x + 4 + col * 7, y + 6 + row * 10, 2, 3); }
+        }
+      }
+    }
+    skylineCache = { key, canvas: c, span, top, height };
+    return skylineCache;
   }
   function project(p, worldX, worldY, z, cameraY) {
     p.scale = DEPTH / Math.max(1, z); p.x = W * .5 + p.scale * worldX * W * .5;
@@ -58,7 +73,7 @@
   }
   function hazardLane(hazard) {
     if (hazard.type === 'cat') return Math.sin(time * 1.55 + hazard.phase) * .64;
-    return hazard.lane + (hazard.type === 'drone' ? Math.sin(time * 1.7 + hazard.phase) * .17 : 0);
+    return hazard.lane + (hazard.type === 'drone' ? Math.sin(time * 1.7 + hazard.phase) * .17 : hazard.type === 'jelly' ? Math.sin(time * .9 + hazard.phase) * .24 : 0);
   }
   function drawCat(s) {
     const a = s.p1, b = s.p2, width = lerp(a.w, b.w, .5), hazard = s.hazard;
@@ -87,7 +102,7 @@
     if (hazard.type === 'cat') { drawCat(s); return; }
     const x = lerp(a.x, b.x, .5) + width * hazardLane(hazard), size = width * (hazard.type === 'gate' ? .17 : .135);
     if (size < 2) return;
-    const color = hazard.type === 'gate' ? '#ff456d' : hazard.type === 'drone' ? '#eaff55' : '#ff783e';
+    const color = hazard.type === 'gate' ? '#ff456d' : hazard.type === 'drone' ? '#eaff55' : hazard.type === 'jelly' ? '#ff7ae6' : '#ff783e';
     ctx.save(); ctx.translate(x, y); ctx.shadowColor = color; ctx.shadowBlur = Math.min(28, size * .45);
     if (hazard.type === 'gate') {
       line(-size, 0, size, 0, '#60184b', size * .24);
@@ -97,6 +112,16 @@
         ctx.fillStyle = '#fff4a3'; ctx.fillRect(side * size * .86 - size * .08, -size * 1.5, size * .16, size * .12);
       }
       line(-size * .8, -size * .72, size * .8, -size * .72, '#ffd7ea', size * .055);
+    } else if (hazard.type === 'jelly') {
+      // A glowing jellyfish bobbing above the road, trailing stinging tentacles.
+      const bob = Math.sin(time * 2 + hazard.phase) * size * .25; ctx.translate(0, -size * .9 + bob);
+      for (let i = 0; i < 6; i++) {
+        ctx.beginPath(); ctx.moveTo((i - 2.5) * size * .22, 0);
+        for (let k = 1; k <= 6; k++) ctx.lineTo((i - 2.5) * size * .22 + Math.sin(time * 4 + i + k * .8) * size * .12, k * size * .2);
+        ctx.strokeStyle = 'rgba(255,170,240,.8)'; ctx.lineWidth = Math.max(1, size * .05); ctx.stroke();
+      }
+      const g = ctx.createRadialGradient(0, -size * .2, size * .1, 0, 0, size * 1.1); g.addColorStop(0, '#ffe6fb'); g.addColorStop(.5, 'rgba(255,122,230,.85)'); g.addColorStop(1, 'rgba(160,60,255,.4)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, size * (1 + Math.sin(time * 3 + hazard.phase) * .08), size * .7, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
     } else if (hazard.type === 'drone') {
       const spin = time * 2.5 + hazard.phase;
       ctx.rotate(spin * .15);
@@ -428,7 +453,7 @@
       const glow = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .7); glow.addColorStop(0, '#6d29ff00'); glow.addColorStop(1, '#7644ff40'); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
     }
     for (const p of particles) { ctx.globalAlpha = Math.min(1, p.life * 3); line(p.x, p.y, p.x - p.vx * .03, p.y - p.vy * .03, p.color, 2); } ctx.globalAlpha = 1;
-    drawWeather(); drawSlipstream();
+    drawWeather(); drawSlipstream(); if (tracks[trackIndex].underwater && mode !== 'menu') drawUnderwater();
     if (hyperTime > 0 && mode !== 'menu') drawWarpOverlay();
     if (mode !== 'menu') drawCrashLayer();
     if (flashAmount(screenFlash) > .015) {
@@ -441,6 +466,25 @@
     if (mode === 'invasion' && finale) drawAlarm();
     // A light scanline texture ties the entire scene together.
     ctx.fillStyle = '#05051b12'; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+    ctx.restore();
+  }
+  // Underwater circuit: light shafts from the surface, drifting bubbles that show the current, a blue tint.
+  function drawUnderwater() {
+    const t = tracks[trackIndex];
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++) {
+      const x = W * (.1 + i * .17) + Math.sin(time * .3 + i) * W * .05, w = W * (.04 + (i % 3) * .02);
+      const g = ctx.createLinearGradient(0, 0, 0, H * .7); g.addColorStop(0, 'rgba(160,240,255,.16)'); g.addColorStop(1, 'rgba(160,240,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - w, 0); ctx.lineTo(x + w, 0); ctx.lineTo(x + w * 3, H * .7); ctx.lineTo(x - w * 1.5, H * .7); ctx.fill();
+    }
+    const push = Math.sin(distance / 9000), drift = push * W * .12;
+    ctx.fillStyle = 'rgba(200,250,255,.5)';
+    for (let i = 0; i < 40; i++) {
+      const k = mod(time * (.15 + random(i) * .2) + random(i + 3), 1), x = mod(random(i + 50) * W + drift * k * 3 + Math.sin(time + i) * 8, W), y = H * (1 - k);
+      ctx.beginPath(); ctx.arc(x, y, 1.5 + random(i + 7) * 3, 0, TAU); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0,40,70,.18)'; ctx.fillRect(0, 0, W, H);
+    if (Math.abs(push) > .5 && mode === 'racing') { ctx.fillStyle = t.edge; ctx.font = `bold ${Math.max(14, W * .022)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.globalAlpha = .55 + .25 * Math.sin(time * 6); ctx.fillText(push > 0 ? 'CURRENT ≫' : '≪ CURRENT', W / 2, H * .64); }
     ctx.restore();
   }
   // Night mutator: darkness everywhere except the cone of the ship's headlights.
@@ -456,5 +500,7 @@
   function frame(now) {
     frameClock = now / 1000; pollGamepad();
     const dt = previousTime ? Math.min((now - previousTime) / 1000, .05) : 1 / 60; previousTime = now;
-    measureFps(dt); update(dt); render(); updateConfetti(dt); requestAnimationFrame(frame);
+    // One broken frame must not freeze the game: log the error and keep the loop running.
+    try { measureFps(dt); update(dt); render(); updateConfetti(dt); } catch (err) { recordError(err && err.message, `frame (${mode})`, err && err.stack); }
+    requestAnimationFrame(frame);
   }

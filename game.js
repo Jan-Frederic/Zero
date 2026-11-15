@@ -3,6 +3,20 @@
   'use strict';
   /** DOM lookup. Typed loosely on purpose: elements are used as inputs, media, canvases and buttons. @type {(id: string) => any} */
   const $ = id => document.getElementById(id);
+  // ---- Error log: crashes are kept on the device (last 20, repeats counted) and can be copied from the stats page.
+  const ERROR_KEY = 'morbid-errors-v1';
+  function readErrors() { try { return JSON.parse(localStorage.getItem(ERROR_KEY) || '[]'); } catch { return []; } }
+  function recordError(message, where = '', stack = '') {
+    try {
+      const list = readErrors(), msg = String(message || 'Unknown error').slice(0, 300), same = list.find(e => e.message === msg && e.where === where);
+      if (same) { same.count = (same.count || 1) + 1; same.last = new Date().toISOString(); }
+      else list.push({ message: msg, where: String(where).slice(0, 200), stack: String(stack || '').split('\n').slice(0, 6).join('\n').slice(0, 900), at: new Date().toISOString(), count: 1 });
+      localStorage.setItem(ERROR_KEY, JSON.stringify(list.slice(-20)));
+      if (typeof renderErrorLog === 'function') renderErrorLog();
+    } catch { /* storage full or blocked: nothing to do */ }
+  }
+  window.addEventListener('error', e => recordError(e.message || (e.error && e.error.message), e.filename ? `${String(e.filename).split('/').pop()}:${e.lineno}:${e.colno}` : '', e.error && e.error.stack));
+  window.addEventListener('unhandledrejection', e => { const r = e.reason; recordError(r && r.message ? r.message : String(r), 'promise', r && r.stack); });
   /** @type {HTMLCanvasElement} */
   const canvas = $('game');
   const ctx = canvas.getContext('2d', { alpha: false });
@@ -470,6 +484,12 @@
     'MISSIONS': 'MISSIONEN', '🎯 MISSION COMPLETE': '🎯 MISSION ERFÜLLT', 'WIN A CHAMPIONSHIP': 'GEWINNE EINE MEISTERSCHAFT',
     'PILOT LEVEL': 'PILOTENLEVEL', 'CREDIT BONUS': 'CREDIT-BONUS', 'ROOKIE': 'ROOKIE', 'STREET RACER': 'STRASSENRENNER', 'PRO PILOT': 'PROFI-PILOT', 'ACE': 'ASS', 'STAR PILOT': 'STAR-PILOT', 'HYPERDRIVER': 'HYPERFAHRER', 'GALAXY HERO': 'GALAXIE-HELD', 'SINGULARITY LEGEND': 'SINGULARITÄTS-LEGENDE',
     'HUD SIZE': 'HUD-GRÖSSE', 'RACE INSTRUMENTS': 'RENN-ANZEIGEN', 'SMALL': 'KLEIN', 'LARGE': 'GROSS',
+    'SWARM SCATTERED!': 'SCHWARM ZERSTREUT!', 'ARCHITECT DEMOLISHED!': 'ARCHITEKT ABGERISSEN!', 'THROUGH THE GAP!': 'DURCH DIE LÜCKE!', 'DRONE STRIKE!': 'DROHNEN-TREFFER!', 'LASER WALL!': 'LASERWAND!',
+    'CURRENTS / JELLYFISH / NO SKY': 'STRÖMUNGEN / QUALLEN / KEIN HIMMEL', 'JELLYFISH STING': 'QUALLENSTICH', 'CURRENT ≫': 'STRÖMUNG ≫', '≪ CURRENT': '≪ STRÖMUNG', 'THE DEEP': 'DIE TIEFE',
+    'Below the singularity, the track dives into an ocean nobody has charted.': 'Unter der Singularität taucht die Strecke in einen Ozean, den noch niemand kartiert hat.',
+    'Glowing jellyfish drift across the line. One touch and your hull sparks.': 'Leuchtende Quallen treiben über die Linie. Eine Berührung, und dein Rumpf sprüht Funken.',
+    'The currents pull you sideways. Ride them — and the deep is yours.': 'Die Strömungen ziehen dich zur Seite. Reite sie — und die Tiefe gehört dir.',
+    '🐞 ERROR LOG': '🐞 FEHLERPROTOKOLL', 'NO ERRORS RECORDED': 'KEINE FEHLER AUFGEZEICHNET', '⧉ COPY REPORT': '⧉ BERICHT KOPIEREN', '✕ CLEAR': '✕ LEEREN', 'REPORT COPIED — PASTE IT INTO A MESSAGE': 'BERICHT KOPIERT — IN EINE NACHRICHT EINFÜGEN',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -515,6 +535,7 @@
     [/^(\d+) \/ (\d+)  ·  (\d+) CR$/, '$1 / $2  ·  $3 CR'], [/^ALL THREE: \+(\d+) CR BONUS$/, 'ALLE DREI: +$1 CR BONUS'],
     [/^★ LV (\d+)$/, '★ LV $1'], [/^★ LEVEL (\d+)$/, '★ LEVEL $1'], [/^★ (.+)$/, (m, r) => `★ ${tr(r)}`], [/^NEW RANK  \/  \+(\d+) CR$/, 'NEUER RANG  /  +$1 CR'],
     [/^\+(\d+) XP  ·  LEVEL (\d+) (.+)  ·  (\d+) %$/, (m, x, l, r, p) => `+${x} XP  ·  LEVEL ${l} ${tr(r)}  ·  ${p} %`], [/^(\d+) · (.+)$/, (m, l, r) => `${l} · ${tr(r)}`], [/^\+(\d+) %$/, '+$1 %'],
+    [/^(\d+) ERRORS? RECORDED$/, (m, n) => `${n} ${n === '1' ? 'FEHLER' : 'FEHLER'} AUFGEZEICHNET`],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
@@ -580,7 +601,8 @@
     { name: 'CRYO CANYON', type: 'LOW GRIP / ZERO MARGIN', feed: 'CRYO DEEP // 2097', sector: 'SECTOR 22 / FROSTBITE', class: 'CRYO', difficulty: 6, sky: ['#04172b', '#126c93', '#6de4e8'], fog: '#297e99', road: '#102a40', edge: '#7cf8ff', second: '#99ffdb', sun: '#e6ffff', curve: 2.05, hill: 2.15, width: .86, grip: .67, bends: [[2, .48], [7, .31], [13, .14]], padEvery: 330, padStart: 202, padLength: 11, recharge: 61, hazards: 8, hazardTypes: ['mine', 'drone'], rivalPace: 1.08, hazardPenalty: .28 },
     { name: 'VOID CIRCUIT', type: 'RIDE THE GRAVITY SHEAR', feed: 'DARK MATTER // 2097', sector: 'SECTOR 31 / EVENT HORIZON', class: 'VOID', difficulty: 7, sky: ['#07031b', '#23105b', '#5430a6'], fog: '#382365', road: '#12102b', edge: '#ab5bff', second: '#ff4fd8', sun: '#ffb752', curve: 2.3, hill: 2.35, width: .82, grip: .86, bends: [[2, .48], [5, .29], [10, .17], [15, .08]], padEvery: 360, padStart: 228, padLength: 10, recharge: 55, hazards: 10, hazardTypes: ['drone', 'mine'], rivalPace: 1.1, hazardPenalty: .31 },
     { name: 'PLASMA MAELSTROM', type: 'LASER GATES / NO BRAKES', feed: 'PLASMA BELT // 2097', sector: 'SECTOR 44 / REDLINE', class: 'CHAOS', difficulty: 7, sky: ['#250521', '#76184e', '#ff4c36'], fog: '#b33562', road: '#291026', edge: '#ff364f', second: '#ffdd35', sun: '#ffdf67', curve: 2.5, hill: 2.2, width: .78, grip: .79, bends: [[3, .43], [7, .3], [12, .2], [17, .09]], padEvery: 400, padStart: 257, padLength: 9, recharge: 49, hazards: 12, hazardTypes: ['gate', 'drone'], rivalPace: 1.13, hazardPenalty: .34 },
-    { name: 'SINGULARITY RUN', type: 'THE FINAL IMPOSSIBLE LINE', feed: 'SINGULARITY // 2097', sector: 'SECTOR 99 / POINT OF NO RETURN', class: 'OMEGA', difficulty: 8, sky: ['#030611', '#121a42', '#43227d'], fog: '#311d69', road: '#0e1028', edge: '#f03bff', second: '#54fbff', sun: '#e1ff57', curve: 2.75, hill: 2.8, width: .74, grip: .73, bends: [[2, .47], [5, .3], [9, .19], [14, .1]], padEvery: 480, padStart: 316, padLength: 8, recharge: 43, hazards: 15, hazardTypes: ['gate', 'mine', 'drone'], rivalPace: 1.16, hazardPenalty: .38 }
+    { name: 'SINGULARITY RUN', type: 'THE FINAL IMPOSSIBLE LINE', feed: 'SINGULARITY // 2097', sector: 'SECTOR 99 / POINT OF NO RETURN', class: 'OMEGA', difficulty: 8, sky: ['#030611', '#121a42', '#43227d'], fog: '#311d69', road: '#0e1028', edge: '#f03bff', second: '#54fbff', sun: '#e1ff57', curve: 2.75, hill: 2.8, width: .74, grip: .73, bends: [[2, .47], [5, .3], [9, .19], [14, .1]], padEvery: 480, padStart: 316, padLength: 8, recharge: 43, hazards: 15, hazardTypes: ['gate', 'mine', 'drone'], rivalPace: 1.16, hazardPenalty: .38 },
+    { name: 'ABYSS TUNNEL', type: 'CURRENTS / JELLYFISH / NO SKY', feed: 'DEEP SEA // 2097', sector: 'SECTOR 00 / THE DEEP', class: 'ABYSS', difficulty: 8, sky: ['#010c1c', '#04304f', '#0b6f8a'], fog: '#0a4a66', road: '#061a2c', edge: '#2ef2ff', second: '#7dffb0', sun: '#bff8ff', curve: 2.2, hill: 2, width: .8, grip: .82, bends: [[2, .5], [6, .32], [11, .14]], padEvery: 420, padStart: 280, padLength: 10, recharge: 52, hazards: 13, hazardTypes: ['jelly', 'jelly', 'mine'], rivalPace: 1.12, hazardPenalty: .3, current: .55, underwater: true }
   ];
   const machines = [
     { color: '#44f7ff', dark: '#09627d', name: 'PHANTOM', info: 'BALANCED / PRECISION HANDLING', handling: 1, top: 1, drain: 22 },
@@ -2231,6 +2253,7 @@
     }
     const seg = segments[Math.floor(mod(position + 1050, LENGTH) / SEG)];
     playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip * (weather && weather.type === 'snow' ? .62 : 1);
+    if (track.current) playerX += Math.sin(distance / 9000) * dt * track.current * track.width;
     if (weather && weather.type === 'gravity') playerX += Math.sin((time - weather.started) * 1.4) * dt * .55 * track.width;
     playerX -= seg.curve * dt * speed / 10700 * .62;
     updateDrift(dt, steer, seg);
@@ -2282,7 +2305,7 @@
             speed = Math.max(2500, speed * (1 - (track.hazardPenalty || .24)));
             energy = Math.max(0, energy - (12 + trackIndex * 1.4)); shake = .9; screenFlash = Math.max(screenFlash, .3);
             if (energy <= 0 && boostHeld) boostLocked = true;
-            showMessage(hazard.type === 'gate' ? 'LASER GATE HIT  /  ' + shieldText(17 + trackIndex * 1.5) : hazard.type === 'drone' ? 'DRONE COLLISION  /  ' + shieldText(17 + trackIndex * 1.5) : 'MINE STRIKE  /  ' + shieldText(17 + trackIndex * 1.5), 1.1);
+            showMessage(hazard.type === 'jelly' ? 'JELLYFISH STING  /  ' + shieldText(17 + trackIndex * 1.5) : hazard.type === 'gate' ? 'LASER GATE HIT  /  ' + shieldText(17 + trackIndex * 1.5) : hazard.type === 'drone' ? 'DRONE COLLISION  /  ' + shieldText(17 + trackIndex * 1.5) : 'MINE STRIKE  /  ' + shieldText(17 + trackIndex * 1.5), 1.1);
             playImpactSound(1 + trackIndex * .055); playExplosionSound(.85); collisionCooldown = Math.max(collisionCooldown, .55);
             createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, hazard.type === 'gate' ? '#ff456d' : track.edge, .75);
             if (damageShield(17 + trackIndex * 1.5)) { updateHUD(); return; }
@@ -2500,7 +2523,9 @@
   const BOSS_TYPES = [
     { kind: 'overlord', name: 'ALIEN OVERLORD', attack: 'slime', color: '#7dff3a', blood: ['#7dff3a', '#3fc21f'], guts: ['#ff6fa8', '#b8417a'], splat: '#4fd31f', down: 'OVERLORD SPLATTERED!' },
     { kind: 'cyclops', name: 'CYCLOPS COMMANDER', attack: 'eyebeam', color: '#c38bff', blood: ['#b06bff', '#7a2fd0'], guts: ['#ffb0d8', '#d05a9a'], splat: '#8f45e0', down: 'CYCLOPS POPPED!' },
+    { kind: 'swarm', name: 'SWARM HIVE', attack: 'drones', color: '#ffb020', blood: ['#ffcf4a', '#e08a10'], guts: ['#fff2a8', '#c9a020'], splat: '#d99a18', down: 'SWARM SCATTERED!' },
     { kind: 'maggot', name: 'MAGGOT QUEEN', attack: 'acid', color: '#f2e85a', blood: ['#e8e04a', '#b8b020'], guts: ['#ff8a6a', '#c9503a'], splat: '#cfc23a', down: 'MAGGOT SQUASHED!' },
+    { kind: 'architect', name: 'THE ARCHITECT', attack: 'walls', color: '#4dffb8', blood: ['#4dffb8', '#1fb07a'], guts: ['#d6fff0', '#7af0c8'], splat: '#22c48a', down: 'ARCHITECT DEMOLISHED!' },
     { kind: 'robot', name: 'ROBO-TYRANT', attack: 'missiles', color: '#ff3b3b', blood: ['#26262c', '#4a4a52'], guts: ['#9aa3b5', '#c8ced8'], splat: '#1d1d22', down: 'ROBOT SCRAPPED!' },
     { kind: 'spider', name: 'CRYSTAL SPIDER', attack: 'web', color: '#7dfcff', blood: ['#bff8ff', '#5fd8ff'], guts: ['#e6fbff', '#8fe9ff'], splat: '#7dd8f0', down: 'SPIDER SHATTERED!' },
     { kind: 'shark', name: 'WORMHOLE SHARK', attack: 'portal', color: '#ff6a3d', blood: ['#ff3b3b', '#b0102a'], guts: ['#ff8aa2', '#c4566f'], splat: '#c0142e', down: 'SHARK SPLATTERED!' },
@@ -2527,7 +2552,9 @@
     } else showCallout(f.endless ? 'ENDLESS BOSS RUSH — WAVE 1!' : f.waves > 1 ? `FINAL BOSS 1/${f.waves}!` : 'FINAL BOSS!', cfg.type.color);
   }
   function playDeathScream(kind) {
-    robotSay('', `scream-${{ spider: 'cyclops', shark: 'overlord' }[kind] || kind}`);
+    robotSay('', `scream-${{ spider: 'cyclops', shark: 'overlord', swarm: 'maggot', architect: 'robot' }[kind] || kind}`);
+    if (kind === 'swarm') { for (let i = 0; i < 4; i++) playToneSweep(1800 + i * 300, 200, 1 + i * .2, 'sawtooth', .03); playNoiseBurst(1, .16, 4000, 400); return; }
+    if (kind === 'architect') { playToneSweep(600, 40, 2.4, 'square', .07); playToneSweep(1200, 80, 2, 'triangle', .05); playNoiseBurst(1.4, .2, 2000, 100); return; }
     if (kind === 'spider') { playToneSweep(3200, 600, 1.4, 'triangle', .05); playNoiseBurst(1.2, .2, 9000, 3000); playToneSweep(4400, 2000, .6, 'sine', .04); return; }
     if (kind === 'shark') { playToneSweep(160, 30, 2.2, 'sawtooth', .12); playToneSweep(90, 20, 2.4, 'square', .07); playNoiseBurst(1.4, .2, 1200, 80); return; }
     if (kind === 'overlord') { playToneSweep(220, 40, 2.4, 'sawtooth', .09); playNoiseBurst(1.6, .14, 900, 60); }
@@ -2548,6 +2575,17 @@
       f.bolts.push({ kind: 'bite', x: shipPx, y: L.shipY, vx: 0, vy: 0, dmg: 16, warnUntil: time + 1, until: time + 1.45 });
       f.boss.hidden = time + 1.5;
       playToneSweep(400, 60, 1, 'sine', .08); playNoiseBurst(.9, .1, 300, 2000); return;
+    }
+    if (attack === 'drones') {
+      // The hive launches kamikaze drones that home in on the player (they turn slowly: keep moving).
+      for (let i = 0; i < 4; i++) f.bolts.push({ kind: 'drone', x: mx + (i - 1.5) * L.bs * .25, y: my, vx: (i - 1.5) * H * .12, vy: H * .2, dmg: 6, color: '#ffb020' });
+      playToneSweep(1600, 2400, .4, 'sawtooth', .03); return;
+    }
+    if (attack === 'walls') {
+      // The architect rebuilds the arena: a laser wall sweeps down the whole width, with one gap to slip through.
+      const gap = clamp(.15 + Math.random() * .7, .12, .88) * W;
+      f.bolts.push({ kind: 'wall', x: W / 2, y: my, vx: 0, vy: H * .26, dmg: 12, gap, gapW: L.ship * 3.4 });
+      playToneSweep(200, 900, .6, 'square', .04); return;
     }
     if (attack === 'eyebeam') {
       // Telegraphed death ray from the monocle eye straight down at the player's position.
@@ -2740,6 +2778,16 @@
         }
         continue;
       }
+      if (bolt.kind === 'drone') bolt.vx = clamp(bolt.vx + Math.sign(shipPx - bolt.x) * H * .9 * dt, -H * .35, H * .35);
+      if (bolt.kind === 'wall') {
+        if (!bolt.passed && bolt.y >= L.shipY - L.ship * .2) {
+          bolt.passed = true;
+          if (time > f.invulnUntil && Math.abs(shipPx - bolt.gap) > bolt.gapW / 2) {
+            shield = Math.max(0, shield - bolt.dmg * diff().dmg); shake = Math.max(shake, 1); screenFlash = Math.max(screenFlash, .3); playImpactSound(1); finaleMsg(`LASER WALL!  SHIELD -${bolt.dmg}`);
+          } else finaleMsg('THROUGH THE GAP!');
+        }
+        continue;
+      }
       if (bolt.kind === 'web' && time > f.invulnUntil && Math.abs(bolt.x - shipPx) < bolt.r && Math.abs(bolt.y - L.shipY) < L.ship * .6) {
         bolt.hit = true; f.webbedUntil = time + 2.2; shield = Math.max(0, shield - bolt.dmg * diff().dmg); playNoiseBurst(.3, .1, 2000, 400); finaleMsg('WEBBED!  SLOWED DOWN'); continue;
       }
@@ -2753,7 +2801,7 @@
       }
       if (time > f.invulnUntil && Math.abs(bolt.x - shipPx) < L.ship * .9 && Math.abs(bolt.y - L.shipY) < L.ship * .5) {
         bolt.hit = true; shield = Math.max(0, shield - bolt.dmg * diff().dmg); shake = Math.max(shake, .8); screenFlash = Math.max(screenFlash, .25);
-        playImpactSound(.8); finaleMsg(`${{ slime: 'SLIMED!', acid: 'ACID BURN!', missile: 'MISSILE HIT!', shard: 'CRYSTAL SHARD!' }[bolt.kind] || 'ZAPPED!'}  SHIELD -${bolt.dmg}`);
+        playImpactSound(.8); finaleMsg(`${{ slime: 'SLIMED!', acid: 'ACID BURN!', missile: 'MISSILE HIT!', shard: 'CRYSTAL SHARD!', drone: 'DRONE STRIKE!' }[bolt.kind] || 'ZAPPED!'}  SHIELD -${bolt.dmg}`);
       }
     }
     f.bolts = f.bolts.filter(bolt => bolt.kind === 'eyebeam' || bolt.kind === 'bite' ? !bolt.hit && time < bolt.until : !bolt.hit && bolt.y < H + 40 && bolt.x > -40 && bolt.x < W + 40);
@@ -2941,6 +2989,8 @@
     else if (kind === 'robot') drawRobot(L.bossX, y, L.bs, f.boss.flash, look);
     else if (kind === 'spider') drawSpider(L.bossX, y, L.bs, f.boss.flash, look);
     else if (kind === 'shark') drawShark(L.bossX, y, L.bs, f.boss.flash, look);
+    else if (kind === 'swarm') drawSwarm(L.bossX, y, L.bs, f.boss.flash, f.boss.hp / f.boss.maxHp);
+    else if (kind === 'architect') drawArchitect(L.bossX, y, L.bs, f.boss.flash, look);
     else drawOverlord(L.bossX, y, L.bs, f.boss.flash, look);
   }
   // ---------- finale drawing
@@ -3209,6 +3259,13 @@
         else { ctx.globalCompositeOperation = 'lighter'; line(b.fromX, b.fromY, b.x, H, 'rgba(255,60,90,.55)', L.ship * 1.2); line(b.fromX, b.fromY, b.x, H, '#ff9aa8', L.ship * .45); line(b.fromX, b.fromY, b.x, H, '#ffffff', 4); }
         ctx.restore(); continue;
       }
+      if (b.kind === 'drone') { drawDrone(b.x, b.y, L.ship * .45, Math.atan2(b.vy, b.vx)); continue; }
+      if (b.kind === 'wall') {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; const h = L.ship * .22, a = b.gap - b.gapW / 2, c = b.gap + b.gapW / 2;
+        for (const [x0, x1] of [[0, a], [c, W]]) { ctx.fillStyle = 'rgba(77,255,184,.28)'; ctx.fillRect(x0, b.y - h * 2, x1 - x0, h * 4); ctx.fillStyle = '#b8ffe4'; ctx.fillRect(x0, b.y - h / 2, x1 - x0, h); }
+        ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = '#4dffb8'; ctx.font = `bold ${Math.max(12, L.ship * .4)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center';
+        ctx.fillText('▼', b.gap, b.y - h * 2.4); cbMark(a, b.y, h * 2); cbMark(c, b.y, h * 2); ctx.restore(); continue;
+      }
       if (b.kind === 'missile') {
         const a = Math.atan2(b.vy, b.vx); ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(a);
         ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.moveTo(-L.ship * .5, 0); ctx.lineTo(-L.ship * (.8 + Math.random() * .3), -L.ship * .07); ctx.lineTo(-L.ship * (.8 + Math.random() * .3), L.ship * .07); ctx.fill();
@@ -3225,6 +3282,43 @@
     drawFinaleHud(L);
     if (flashAmount(screenFlash) > .015) { ctx.fillStyle = `rgba(255,255,240,${flashAmount(screenFlash) * .55})`; ctx.fillRect(-60, -60, W + 120, H + 120); }
     ctx.restore();
+  }
+  // A honeycomb hive guarded by a cloud of drones; every hit knocks one drone out of the sky.
+  function drawSwarm(x, y, s, flash, health) {
+    ctx.save(); ctx.translate(x, y);
+    const drones = 3 + Math.ceil(health * 11);
+    for (let i = 0; i < drones; i++) {
+      const a = time * (1.2 + (i % 3) * .3) + i / drones * TAU, r = s * (.42 + (i % 4) * .07);
+      drawDrone(Math.cos(a) * r, Math.sin(a) * r * .55, s * .09, a + Math.PI / 2);
+    }
+    ctx.shadowColor = '#ffb020'; ctx.shadowBlur = 26;
+    for (let k = 0; k < 7; k++) { // honeycomb core
+      const a = k / 6 * TAU, cx = k === 6 ? 0 : Math.cos(a) * s * .15, cy = k === 6 ? 0 : Math.sin(a) * s * .15, r = s * .085;
+      ctx.fillStyle = k === 6 ? '#ff7a1a' : k % 2 ? '#ffcf4a' : '#e8a020'; ctx.strokeStyle = '#5a3a08'; ctx.lineWidth = Math.max(1, s * .012);
+      ctx.beginPath(); for (let j = 0; j < 6; j++) { const b = j / 6 * TAU + Math.PI / 6; ctx[j ? 'lineTo' : 'moveTo'](cx + Math.cos(b) * r, cy + Math.sin(b) * r); } ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    ctx.shadowBlur = 0; ctx.fillStyle = '#1a0f02'; ctx.beginPath(); ctx.arc(0, 0, s * .03 + Math.sin(time * 6) * s * .008, 0, TAU); ctx.fill();
+    drawHitFlash(s, flash, .3, .25); ctx.restore();
+  }
+  function drawDrone(x, y, s, angle) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; for (const side of [-1, 1]) { ctx.beginPath(); ctx.ellipse(side * s * .55, -s * .15, s * .45, s * .2 + Math.abs(Math.sin(time * 40)) * s * .1, side * .5, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = '#ffb020'; ctx.beginPath(); ctx.ellipse(0, 0, s * .35, s * .6, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#2a1a04'; for (let i = -1; i <= 1; i++) ctx.fillRect(-s * .35, i * s * .22 - s * .05, s * .7, s * .1);
+    ctx.fillStyle = '#ff3b3b'; ctx.beginPath(); ctx.arc(0, s * .45, s * .12, 0, TAU); ctx.fill(); ctx.restore();
+  }
+  // A rotating geometric construct that rebuilds the arena with laser walls.
+  function drawArchitect(x, y, s, flash, look) {
+    ctx.save(); ctx.translate(x, y);
+    ctx.strokeStyle = '#4dffb8'; ctx.shadowColor = '#4dffb8'; ctx.shadowBlur = 22; ctx.lineWidth = Math.max(1.5, s * .015);
+    for (let ring = 0; ring < 3; ring++) { ctx.save(); ctx.rotate(time * (ring % 2 ? -.6 : .8) + ring); ctx.globalAlpha = .7 - ring * .15; ctx.beginPath(); ctx.ellipse(0, 0, s * (.5 + ring * .1), s * (.18 + ring * .05), 0, 0, TAU); ctx.stroke(); ctx.restore(); }
+    const spin = time * .9, pts = [0, 1, 2, 3].map(k => [Math.cos(spin + k * Math.PI / 2) * s * .28, Math.sin(spin + k * Math.PI / 2) * s * .1]);
+    ctx.fillStyle = '#0c2a22'; ctx.beginPath(); ctx.moveTo(0, -s * .38); for (const [px, py] of pts) ctx.lineTo(px, py); ctx.closePath(); ctx.fill(); ctx.stroke();
+    for (const [px, py] of pts) { ctx.beginPath(); ctx.moveTo(0, -s * .38); ctx.lineTo(px, py); ctx.lineTo(0, s * .3); ctx.stroke(); }
+    ctx.shadowBlur = 0; ctx.fillStyle = '#eafff6'; ctx.beginPath(); ctx.arc(look * s * .04, -s * .04, s * .06, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#ff3b6b'; ctx.beginPath(); ctx.arc(look * s * .06, -s * .04, s * .025, 0, TAU); ctx.fill();
+    for (const side of [-1, 1]) { ctx.strokeStyle = 'rgba(77,255,184,.6)'; ctx.beginPath(); ctx.moveTo(side * s * .28, 0); ctx.lineTo(side * s * .45, s * .35 + Math.sin(time * 3 + side) * s * .05); ctx.stroke(); }
+    drawHitFlash(s, flash, .35, .3); ctx.restore();
   }
   // ==== Race rendering and the frame loop.
   function polygon(points, fill, stroke, lineWidth = 1) {
@@ -3257,24 +3351,39 @@
       for (let i = 0; i <= 24; i++) pts.push([i / 24 * W, horizon - random(i + layer * 60) * H * .12 + layer * 34]);
       pts.push([W, H * .64]); polygon(pts, layer ? '#19143e' : '#30205b', layer ? '#7e37a660' : '#a257b860');
     }
-    for (let i = 0; i < 65; i++) {
-      const x = mod(i / 65 * (W + 70) - playerX * 45 + Math.sin(position / LENGTH * TAU) * 75, W + 70) - 35;
-      const width = 10 + random(i + 12) * 37, height = 25 + random(i + 5) ** 2 * H * .26;
-      const y = horizon + H * .09 - height;
-      ctx.fillStyle = i % 2 ? '#11102e' : '#181336'; ctx.fillRect(x, y, width, height + H * .1);
-      const color = i % 3 === 0 ? t.edge : t.second;
-      line(x, y, x + width, y, color + '60');
-      if (i % 4 === 0) { line(x + width / 2, y, x + width / 2, y - 18, color + '90'); ctx.fillStyle = color; ctx.fillRect(x + width / 2 - 1, y - 20, 2, 2); }
-      for (let row = 0; row < height / 10; row++) for (let col = 0; col < width / 7 - 1; col++) {
-        if (random(i * 400 + row * 17 + col) > .48) { ctx.fillStyle = color + (row % 3 === 0 ? '90' : '38'); ctx.fillRect(x + 4 + col * 7, y + 6 + row * 10, 2, 3); }
-      }
-    }
+    // The megacity skyline scrolls as one strip, so it is drawn once into an offscreen canvas and placed twice per frame.
+    const sky2 = skylineLayer(t, horizon), shift = mod(-playerX * 45 + Math.sin(position / LENGTH * TAU) * 75, sky2.span) - 35;
+    for (const x of [shift - sky2.span, shift]) ctx.drawImage(sky2.canvas, x, sky2.top, sky2.span, sky2.height);
     if (hyperTime > 0 && mode !== 'menu') drawHyperSpace();
     const ground = ctx.createLinearGradient(0, H * .5, 0, H); ground.addColorStop(0, t.fog); ground.addColorStop(.12, '#311248'); ground.addColorStop(1, '#0e0925');
     ctx.fillStyle = ground; ctx.fillRect(0, H * .55, W, H * .45);
     const gridHorizon = H * .51;
     for (let i = -14; i <= 14; i++) line(W / 2 + i * 22 - playerX * 15, gridHorizon, W / 2 + i * W / 7 - playerX * 130, H, t.edge + '28');
     for (let i = 0; i < 22; i++) { const q = mod(i / 22 + position / 50000, 1); const y = gridHorizon + q ** 3 * (H - gridHorizon); line(0, y, W, y, t.edge + '35'); }
+  }
+  let skylineCache = null;
+  function skylineLayer(t, horizon) {
+    const key = `${trackIndex}|${W}|${H}|${dpr}`;
+    if (skylineCache && skylineCache.key === key) return skylineCache;
+    const span = W + 70, top = Math.floor(horizon + H * .09 - (25 + H * .26) - 22), bottom = Math.ceil(horizon + H * .19), height = bottom - top;
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(span * dpr)); c.height = Math.max(1, Math.round(height * dpr));
+    const g = c.getContext('2d');
+    if (g) {
+      g.scale(dpr, dpr); g.translate(0, -top);
+      const stroke = (x1, y1, x2, y2, color) => { g.strokeStyle = color; g.lineWidth = 1; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); };
+      for (let i = 0; i < 65; i++) {
+        const x = i / 65 * span, width = 10 + random(i + 12) * 37, height2 = 25 + random(i + 5) ** 2 * H * .26, y = horizon + H * .09 - height2;
+        g.fillStyle = i % 2 ? '#11102e' : '#181336'; g.fillRect(x, y, width, height2 + H * .1);
+        const color = i % 3 === 0 ? t.edge : t.second;
+        stroke(x, y, x + width, y, color + '60');
+        if (i % 4 === 0) { stroke(x + width / 2, y, x + width / 2, y - 18, color + '90'); g.fillStyle = color; g.fillRect(x + width / 2 - 1, y - 20, 2, 2); }
+        for (let row = 0; row < height2 / 10; row++) for (let col = 0; col < width / 7 - 1; col++) {
+          if (random(i * 400 + row * 17 + col) > .48) { g.fillStyle = color + (row % 3 === 0 ? '90' : '38'); g.fillRect(x + 4 + col * 7, y + 6 + row * 10, 2, 3); }
+        }
+      }
+    }
+    skylineCache = { key, canvas: c, span, top, height };
+    return skylineCache;
   }
   function project(p, worldX, worldY, z, cameraY) {
     p.scale = DEPTH / Math.max(1, z); p.x = W * .5 + p.scale * worldX * W * .5;
@@ -3286,7 +3395,7 @@
   }
   function hazardLane(hazard) {
     if (hazard.type === 'cat') return Math.sin(time * 1.55 + hazard.phase) * .64;
-    return hazard.lane + (hazard.type === 'drone' ? Math.sin(time * 1.7 + hazard.phase) * .17 : 0);
+    return hazard.lane + (hazard.type === 'drone' ? Math.sin(time * 1.7 + hazard.phase) * .17 : hazard.type === 'jelly' ? Math.sin(time * .9 + hazard.phase) * .24 : 0);
   }
   function drawCat(s) {
     const a = s.p1, b = s.p2, width = lerp(a.w, b.w, .5), hazard = s.hazard;
@@ -3315,7 +3424,7 @@
     if (hazard.type === 'cat') { drawCat(s); return; }
     const x = lerp(a.x, b.x, .5) + width * hazardLane(hazard), size = width * (hazard.type === 'gate' ? .17 : .135);
     if (size < 2) return;
-    const color = hazard.type === 'gate' ? '#ff456d' : hazard.type === 'drone' ? '#eaff55' : '#ff783e';
+    const color = hazard.type === 'gate' ? '#ff456d' : hazard.type === 'drone' ? '#eaff55' : hazard.type === 'jelly' ? '#ff7ae6' : '#ff783e';
     ctx.save(); ctx.translate(x, y); ctx.shadowColor = color; ctx.shadowBlur = Math.min(28, size * .45);
     if (hazard.type === 'gate') {
       line(-size, 0, size, 0, '#60184b', size * .24);
@@ -3325,6 +3434,16 @@
         ctx.fillStyle = '#fff4a3'; ctx.fillRect(side * size * .86 - size * .08, -size * 1.5, size * .16, size * .12);
       }
       line(-size * .8, -size * .72, size * .8, -size * .72, '#ffd7ea', size * .055);
+    } else if (hazard.type === 'jelly') {
+      // A glowing jellyfish bobbing above the road, trailing stinging tentacles.
+      const bob = Math.sin(time * 2 + hazard.phase) * size * .25; ctx.translate(0, -size * .9 + bob);
+      for (let i = 0; i < 6; i++) {
+        ctx.beginPath(); ctx.moveTo((i - 2.5) * size * .22, 0);
+        for (let k = 1; k <= 6; k++) ctx.lineTo((i - 2.5) * size * .22 + Math.sin(time * 4 + i + k * .8) * size * .12, k * size * .2);
+        ctx.strokeStyle = 'rgba(255,170,240,.8)'; ctx.lineWidth = Math.max(1, size * .05); ctx.stroke();
+      }
+      const g = ctx.createRadialGradient(0, -size * .2, size * .1, 0, 0, size * 1.1); g.addColorStop(0, '#ffe6fb'); g.addColorStop(.5, 'rgba(255,122,230,.85)'); g.addColorStop(1, 'rgba(160,60,255,.4)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, size * (1 + Math.sin(time * 3 + hazard.phase) * .08), size * .7, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
     } else if (hazard.type === 'drone') {
       const spin = time * 2.5 + hazard.phase;
       ctx.rotate(spin * .15);
@@ -3656,7 +3775,7 @@
       const glow = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .7); glow.addColorStop(0, '#6d29ff00'); glow.addColorStop(1, '#7644ff40'); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
     }
     for (const p of particles) { ctx.globalAlpha = Math.min(1, p.life * 3); line(p.x, p.y, p.x - p.vx * .03, p.y - p.vy * .03, p.color, 2); } ctx.globalAlpha = 1;
-    drawWeather(); drawSlipstream();
+    drawWeather(); drawSlipstream(); if (tracks[trackIndex].underwater && mode !== 'menu') drawUnderwater();
     if (hyperTime > 0 && mode !== 'menu') drawWarpOverlay();
     if (mode !== 'menu') drawCrashLayer();
     if (flashAmount(screenFlash) > .015) {
@@ -3669,6 +3788,25 @@
     if (mode === 'invasion' && finale) drawAlarm();
     // A light scanline texture ties the entire scene together.
     ctx.fillStyle = '#05051b12'; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+    ctx.restore();
+  }
+  // Underwater circuit: light shafts from the surface, drifting bubbles that show the current, a blue tint.
+  function drawUnderwater() {
+    const t = tracks[trackIndex];
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++) {
+      const x = W * (.1 + i * .17) + Math.sin(time * .3 + i) * W * .05, w = W * (.04 + (i % 3) * .02);
+      const g = ctx.createLinearGradient(0, 0, 0, H * .7); g.addColorStop(0, 'rgba(160,240,255,.16)'); g.addColorStop(1, 'rgba(160,240,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - w, 0); ctx.lineTo(x + w, 0); ctx.lineTo(x + w * 3, H * .7); ctx.lineTo(x - w * 1.5, H * .7); ctx.fill();
+    }
+    const push = Math.sin(distance / 9000), drift = push * W * .12;
+    ctx.fillStyle = 'rgba(200,250,255,.5)';
+    for (let i = 0; i < 40; i++) {
+      const k = mod(time * (.15 + random(i) * .2) + random(i + 3), 1), x = mod(random(i + 50) * W + drift * k * 3 + Math.sin(time + i) * 8, W), y = H * (1 - k);
+      ctx.beginPath(); ctx.arc(x, y, 1.5 + random(i + 7) * 3, 0, TAU); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0,40,70,.18)'; ctx.fillRect(0, 0, W, H);
+    if (Math.abs(push) > .5 && mode === 'racing') { ctx.fillStyle = t.edge; ctx.font = `bold ${Math.max(14, W * .022)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.globalAlpha = .55 + .25 * Math.sin(time * 6); ctx.fillText(push > 0 ? 'CURRENT ≫' : '≪ CURRENT', W / 2, H * .64); }
     ctx.restore();
   }
   // Night mutator: darkness everywhere except the cone of the ship's headlights.
@@ -3684,7 +3822,9 @@
   function frame(now) {
     frameClock = now / 1000; pollGamepad();
     const dt = previousTime ? Math.min((now - previousTime) / 1000, .05) : 1 / 60; previousTime = now;
-    measureFps(dt); update(dt); render(); updateConfetti(dt); requestAnimationFrame(frame);
+    // One broken frame must not freeze the game: log the error and keep the loop running.
+    try { measureFps(dt); update(dt); render(); updateConfetti(dt); } catch (err) { recordError(err && err.message, `frame (${mode})`, err && err.stack); }
+    requestAnimationFrame(frame);
   }
   // ==== Gamepad polling.
   // ---- Gamepad (standard mapping): stick/D-pad steer, A/RT accelerate, B/LT brake, X/RB laser, Y/LB boost,
@@ -3810,7 +3950,7 @@
       ['TROPHIES', `${Object.keys(profile.achievements).length}/${ACHIEVEMENTS.length}`], ['CREDITS', `${profile.credits} CR`],
     ];
     $('stats-list').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
-    $('profile-code').value = ''; $('profile-note').textContent = '';
+    $('profile-code').value = ''; $('profile-note').textContent = ''; renderErrorLog();
   }
   const exportCode = () => 'MR1-' + btoa(unescape(encodeURIComponent(JSON.stringify({ profile, settings, best: Object.fromEntries(tracks.map((_, i) => { try { return [i, localStorage.getItem(`chroma-best-${i}`)]; } catch { return [i, null]; } })) }))));
   function importCode(code) {
@@ -3931,6 +4071,7 @@
     { title: "GRAVITY WARS", panels: [{ art: "🕳️🌙", text: "Beyond the moon, gravity bends. The track pulls you sideways." }, { art: "👁️🌑", text: "Something huge watches from the void. A cyclops? A commander?" }, { art: "🏁👀", text: "Only a winner gets close enough to find out." }] },
     { title: "NO BRAKES", panels: [{ art: "🔴🌪️", text: "Plasma storms. Laser gates. The aliens raise the stakes." }, { art: "💬😎", text: "BLAZE: “Whoever wins here gets the invitation. It's mine.”" }, { art: "🎟️🌌", text: "The invitation: a seat at the final fight above the galaxy." }] },
     { title: "THE LAST LINE", panels: [{ art: "🌀⚫", text: "The singularity. The final, impossible line." }, { art: "👾👾", text: "Win, and the invasion comes for you. Bosses wait in the dark." }, { art: "🪩💃", text: "And if you beat them too… the whole galaxy will dance." }] },
+    { title: "THE DEEP", panels: [{ art: "🌊🕳️", text: "Below the singularity, the track dives into an ocean nobody has charted." }, { art: "🪼⚡", text: "Glowing jellyfish drift across the line. One touch and your hull sparks." }, { art: "🫧🏁", text: "The currents pull you sideways. Ride them — and the deep is yours." }] },
   ];
   let storyChapter = 0;
   const storyUnlocked = () => Math.min(STORY.length, profile.unlocked || 1);
@@ -3955,6 +4096,25 @@
   renderStoryButton(); renderPilot(); window.morbidStory = { open: openStory };
   $('open-missions').addEventListener('click', () => { renderMissions(); openDialog('missions-screen'); });
   renderMissionsButton(); window.morbidMissions = { list: () => weeklyMissions().map(m => ({ id: m.id, target: m.target })), week: weekKey };
+  // ---- Error log on the stats page.
+  function renderErrorLog() {
+    const list = readErrors(), n = list.reduce((sum, e) => sum + (e.count || 1), 0);
+    if ($('error-count')) $('error-count').textContent = n ? `${n} ${n === 1 ? 'ERROR' : 'ERRORS'} RECORDED` : 'NO ERRORS RECORDED';
+    if ($('error-copy')) $('error-copy').disabled = !n; if ($('error-clear')) $('error-clear').disabled = !n;
+  }
+  function errorReport() {
+    const lines = [`Morbid Racers ${($('app-version') && $('app-version').textContent) || 'dev'} — error report ${new Date().toISOString()}`,
+      `Device: ${navigator.userAgent || '?'} · screen ${typeof screen !== 'undefined' ? `${screen.width}x${screen.height}` : '?'} · window ${innerWidth}x${innerHeight}`,
+      `Settings: lang ${settings.lang}, perf ${settings.perf}${settings.perfAuto ? ' (auto low)' : ''}, steering ${settings.steering}, screen ${settings.screen}`, ''];
+    for (const e of readErrors()) lines.push(`[${e.at}${e.count > 1 ? ` · ${e.count}x, last ${e.last}` : ''}] ${e.message}${e.where ? ` @ ${e.where}` : ''}`, ...(e.stack ? [e.stack, ''] : ['']));
+    return lines.join('\n');
+  }
+  $('error-copy').addEventListener('click', async () => {
+    const text = errorReport(); $('error-report').value = text; $('error-report').classList.remove('hidden');
+    try { await navigator.clipboard.writeText(text); $('error-count').textContent = 'REPORT COPIED — PASTE IT INTO A MESSAGE'; } catch { $('error-report').select && $('error-report').select(); }
+  });
+  $('error-clear').addEventListener('click', () => { try { localStorage.removeItem(ERROR_KEY); } catch { /* ignore */ } $('error-report').classList.add('hidden'); renderErrorLog(); });
+  renderErrorLog(); window.morbidErrors = { report: errorReport, list: readErrors };
   // ==== Upgrade and paint shop.
   // ---- Upgrade shop in the garage.
   function renderShop() {

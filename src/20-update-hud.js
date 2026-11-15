@@ -101,6 +101,7 @@
     }
     const seg = segments[Math.floor(mod(position + 1050, LENGTH) / SEG)];
     playerX += steer * dt * (1.08 + speed / 16000) * machine.handling * track.grip * (weather && weather.type === 'snow' ? .62 : 1);
+    if (track.current) playerX += Math.sin(distance / 9000) * dt * track.current * track.width;
     if (weather && weather.type === 'gravity') playerX += Math.sin((time - weather.started) * 1.4) * dt * .55 * track.width;
     playerX -= seg.curve * dt * speed / 10700 * .62;
     updateDrift(dt, steer, seg);
@@ -152,7 +153,7 @@
             speed = Math.max(2500, speed * (1 - (track.hazardPenalty || .24)));
             energy = Math.max(0, energy - (12 + trackIndex * 1.4)); shake = .9; screenFlash = Math.max(screenFlash, .3);
             if (energy <= 0 && boostHeld) boostLocked = true;
-            showMessage(hazard.type === 'gate' ? 'LASER GATE HIT  /  ' + shieldText(17 + trackIndex * 1.5) : hazard.type === 'drone' ? 'DRONE COLLISION  /  ' + shieldText(17 + trackIndex * 1.5) : 'MINE STRIKE  /  ' + shieldText(17 + trackIndex * 1.5), 1.1);
+            showMessage(hazard.type === 'jelly' ? 'JELLYFISH STING  /  ' + shieldText(17 + trackIndex * 1.5) : hazard.type === 'gate' ? 'LASER GATE HIT  /  ' + shieldText(17 + trackIndex * 1.5) : hazard.type === 'drone' ? 'DRONE COLLISION  /  ' + shieldText(17 + trackIndex * 1.5) : 'MINE STRIKE  /  ' + shieldText(17 + trackIndex * 1.5), 1.1);
             playImpactSound(1 + trackIndex * .055); playExplosionSound(.85); collisionCooldown = Math.max(collisionCooldown, .55);
             createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, hazard.type === 'gate' ? '#ff456d' : track.edge, .75);
             if (damageShield(17 + trackIndex * 1.5)) { updateHUD(); return; }

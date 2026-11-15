@@ -25,7 +25,7 @@
       ['TROPHIES', `${Object.keys(profile.achievements).length}/${ACHIEVEMENTS.length}`], ['CREDITS', `${profile.credits} CR`],
     ];
     $('stats-list').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
-    $('profile-code').value = ''; $('profile-note').textContent = '';
+    $('profile-code').value = ''; $('profile-note').textContent = ''; renderErrorLog();
   }
   const exportCode = () => 'MR1-' + btoa(unescape(encodeURIComponent(JSON.stringify({ profile, settings, best: Object.fromEntries(tracks.map((_, i) => { try { return [i, localStorage.getItem(`chroma-best-${i}`)]; } catch { return [i, null]; } })) }))));
   function importCode(code) {
@@ -146,6 +146,7 @@
     { title: "GRAVITY WARS", panels: [{ art: "🕳️🌙", text: "Beyond the moon, gravity bends. The track pulls you sideways." }, { art: "👁️🌑", text: "Something huge watches from the void. A cyclops? A commander?" }, { art: "🏁👀", text: "Only a winner gets close enough to find out." }] },
     { title: "NO BRAKES", panels: [{ art: "🔴🌪️", text: "Plasma storms. Laser gates. The aliens raise the stakes." }, { art: "💬😎", text: "BLAZE: “Whoever wins here gets the invitation. It's mine.”" }, { art: "🎟️🌌", text: "The invitation: a seat at the final fight above the galaxy." }] },
     { title: "THE LAST LINE", panels: [{ art: "🌀⚫", text: "The singularity. The final, impossible line." }, { art: "👾👾", text: "Win, and the invasion comes for you. Bosses wait in the dark." }, { art: "🪩💃", text: "And if you beat them too… the whole galaxy will dance." }] },
+    { title: "THE DEEP", panels: [{ art: "🌊🕳️", text: "Below the singularity, the track dives into an ocean nobody has charted." }, { art: "🪼⚡", text: "Glowing jellyfish drift across the line. One touch and your hull sparks." }, { art: "🫧🏁", text: "The currents pull you sideways. Ride them — and the deep is yours." }] },
   ];
   let storyChapter = 0;
   const storyUnlocked = () => Math.min(STORY.length, profile.unlocked || 1);
@@ -170,3 +171,22 @@
   renderStoryButton(); renderPilot(); window.morbidStory = { open: openStory };
   $('open-missions').addEventListener('click', () => { renderMissions(); openDialog('missions-screen'); });
   renderMissionsButton(); window.morbidMissions = { list: () => weeklyMissions().map(m => ({ id: m.id, target: m.target })), week: weekKey };
+  // ---- Error log on the stats page.
+  function renderErrorLog() {
+    const list = readErrors(), n = list.reduce((sum, e) => sum + (e.count || 1), 0);
+    if ($('error-count')) $('error-count').textContent = n ? `${n} ${n === 1 ? 'ERROR' : 'ERRORS'} RECORDED` : 'NO ERRORS RECORDED';
+    if ($('error-copy')) $('error-copy').disabled = !n; if ($('error-clear')) $('error-clear').disabled = !n;
+  }
+  function errorReport() {
+    const lines = [`Morbid Racers ${($('app-version') && $('app-version').textContent) || 'dev'} — error report ${new Date().toISOString()}`,
+      `Device: ${navigator.userAgent || '?'} · screen ${typeof screen !== 'undefined' ? `${screen.width}x${screen.height}` : '?'} · window ${innerWidth}x${innerHeight}`,
+      `Settings: lang ${settings.lang}, perf ${settings.perf}${settings.perfAuto ? ' (auto low)' : ''}, steering ${settings.steering}, screen ${settings.screen}`, ''];
+    for (const e of readErrors()) lines.push(`[${e.at}${e.count > 1 ? ` · ${e.count}x, last ${e.last}` : ''}] ${e.message}${e.where ? ` @ ${e.where}` : ''}`, ...(e.stack ? [e.stack, ''] : ['']));
+    return lines.join('\n');
+  }
+  $('error-copy').addEventListener('click', async () => {
+    const text = errorReport(); $('error-report').value = text; $('error-report').classList.remove('hidden');
+    try { await navigator.clipboard.writeText(text); $('error-count').textContent = 'REPORT COPIED — PASTE IT INTO A MESSAGE'; } catch { $('error-report').select && $('error-report').select(); }
+  });
+  $('error-clear').addEventListener('click', () => { try { localStorage.removeItem(ERROR_KEY); } catch { /* ignore */ } $('error-report').classList.add('hidden'); renderErrorLog(); });
+  renderErrorLog(); window.morbidErrors = { report: errorReport, list: readErrors };

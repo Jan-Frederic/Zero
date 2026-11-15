@@ -3,6 +3,20 @@
   'use strict';
   /** DOM lookup. Typed loosely on purpose: elements are used as inputs, media, canvases and buttons. @type {(id: string) => any} */
   const $ = id => document.getElementById(id);
+  // ---- Error log: crashes are kept on the device (last 20, repeats counted) and can be copied from the stats page.
+  const ERROR_KEY = 'morbid-errors-v1';
+  function readErrors() { try { return JSON.parse(localStorage.getItem(ERROR_KEY) || '[]'); } catch { return []; } }
+  function recordError(message, where = '', stack = '') {
+    try {
+      const list = readErrors(), msg = String(message || 'Unknown error').slice(0, 300), same = list.find(e => e.message === msg && e.where === where);
+      if (same) { same.count = (same.count || 1) + 1; same.last = new Date().toISOString(); }
+      else list.push({ message: msg, where: String(where).slice(0, 200), stack: String(stack || '').split('\n').slice(0, 6).join('\n').slice(0, 900), at: new Date().toISOString(), count: 1 });
+      localStorage.setItem(ERROR_KEY, JSON.stringify(list.slice(-20)));
+      if (typeof renderErrorLog === 'function') renderErrorLog();
+    } catch { /* storage full or blocked: nothing to do */ }
+  }
+  window.addEventListener('error', e => recordError(e.message || (e.error && e.error.message), e.filename ? `${String(e.filename).split('/').pop()}:${e.lineno}:${e.colno}` : '', e.error && e.error.stack));
+  window.addEventListener('unhandledrejection', e => { const r = e.reason; recordError(r && r.message ? r.message : String(r), 'promise', r && r.stack); });
   /** @type {HTMLCanvasElement} */
   const canvas = $('game');
   const ctx = canvas.getContext('2d', { alpha: false });
