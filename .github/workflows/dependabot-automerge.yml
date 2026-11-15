@@ -1,0 +1,43 @@
+name: Dependabot auto-merge
+
+# Merges Dependabot pull requests for minor and patch updates once the full CI run (tests, smoke, visual,
+# Lighthouse) has passed for exactly that commit. Major updates are left open for a manual review.
+# Runs after CI instead of using GitHub's auto-merge, so nothing is merged before the checks are done.
+on:
+  workflow_run:
+    workflows: ["Release and deploy to GitHub Pages"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]' &&
+      startsWith(github.event.workflow_run.head_branch, 'dependabot/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge minor and patch updates
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          pr=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number,author \
+            --jq '.[] | select(.author.login == "app/dependabot") | .number' | head -n 1)
+          if [ -z "$pr" ]; then echo "No open Dependabot pull request for $BRANCH."; exit 0; fi
+          # Dependabot writes the update type of every dependency into the commit message.
+          msg=$(gh api "repos/$REPO/commits/$SHA" --jq .commit.message)
+          if ! printf '%s' "$msg" | grep -q 'update-type: version-update:semver-'; then
+            echo "#$pr: no update metadata, left for a manual review."; exit 0
+          fi
+          if printf '%s' "$msg" | grep -q 'update-type: version-update:semver-major'; then
+            echo "#$pr: contains a major update, left for a manual review."; exit 0
+          fi
+          gh pr merge "$pr" --repo "$REPO" --merge --match-head-commit "$SHA"
+          echo "#$pr merged (minor/patch, CI green)."
