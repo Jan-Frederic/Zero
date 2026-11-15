@@ -1,5 +1,19 @@
 # Changelog
 
+# [1.19.0](https://github.com/Jan-Frederic/Zero/compare/v1.18.0...v1.19.0) (2026-11-15)
+
+
+### Features
+
+* local error log with a copyable report; one broken frame no longer freezes the game ([f123987](https://github.com/Jan-Frederic/Zero/commit/f123987ff987eadbbd9b729803138640045bb7fc))
+* ninth circuit Abyss Tunnel under the sea ([fc41f3d](https://github.com/Jan-Frederic/Zero/commit/fc41f3db613055694216e6aa98595060d09a7a7b))
+* two new bosses, the Swarm Hive and the Architect ([6fe34fa](https://github.com/Jan-Frederic/Zero/commit/6fe34fa5f8bc0fe043bead5d33e0f59e3ba3ec1b))
+
+
+### Performance Improvements
+
+* draw the city skyline once into an offscreen canvas ([69fb823](https://github.com/Jan-Frederic/Zero/commit/69fb823cc97a50beecb351f28b0d2a2022790ac8))
+
 # [1.18.0](https://github.com/Jan-Frederic/Zero/compare/v1.17.0...v1.18.0) (2026-11-14)
 
 
