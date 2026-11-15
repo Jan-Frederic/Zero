@@ -29,24 +29,39 @@
       for (let i = 0; i <= 24; i++) pts.push([i / 24 * W, horizon - random(i + layer * 60) * H * .12 + layer * 34]);
       pts.push([W, H * .64]); polygon(pts, layer ? '#19143e' : '#30205b', layer ? '#7e37a660' : '#a257b860');
     }
-    for (let i = 0; i < 65; i++) {
-      const x = mod(i / 65 * (W + 70) - playerX * 45 + Math.sin(position / LENGTH * TAU) * 75, W + 70) - 35;
-      const width = 10 + random(i + 12) * 37, height = 25 + random(i + 5) ** 2 * H * .26;
-      const y = horizon + H * .09 - height;
-      ctx.fillStyle = i % 2 ? '#11102e' : '#181336'; ctx.fillRect(x, y, width, height + H * .1);
-      const color = i % 3 === 0 ? t.edge : t.second;
-      line(x, y, x + width, y, color + '60');
-      if (i % 4 === 0) { line(x + width / 2, y, x + width / 2, y - 18, color + '90'); ctx.fillStyle = color; ctx.fillRect(x + width / 2 - 1, y - 20, 2, 2); }
-      for (let row = 0; row < height / 10; row++) for (let col = 0; col < width / 7 - 1; col++) {
-        if (random(i * 400 + row * 17 + col) > .48) { ctx.fillStyle = color + (row % 3 === 0 ? '90' : '38'); ctx.fillRect(x + 4 + col * 7, y + 6 + row * 10, 2, 3); }
-      }
-    }
+    // The megacity skyline scrolls as one strip, so it is drawn once into an offscreen canvas and placed twice per frame.
+    const sky2 = skylineLayer(t, horizon), shift = mod(-playerX * 45 + Math.sin(position / LENGTH * TAU) * 75, sky2.span) - 35;
+    for (const x of [shift - sky2.span, shift]) ctx.drawImage(sky2.canvas, x, sky2.top, sky2.span, sky2.height);
     if (hyperTime > 0 && mode !== 'menu') drawHyperSpace();
     const ground = ctx.createLinearGradient(0, H * .5, 0, H); ground.addColorStop(0, t.fog); ground.addColorStop(.12, '#311248'); ground.addColorStop(1, '#0e0925');
     ctx.fillStyle = ground; ctx.fillRect(0, H * .55, W, H * .45);
     const gridHorizon = H * .51;
     for (let i = -14; i <= 14; i++) line(W / 2 + i * 22 - playerX * 15, gridHorizon, W / 2 + i * W / 7 - playerX * 130, H, t.edge + '28');
     for (let i = 0; i < 22; i++) { const q = mod(i / 22 + position / 50000, 1); const y = gridHorizon + q ** 3 * (H - gridHorizon); line(0, y, W, y, t.edge + '35'); }
+  }
+  let skylineCache = null;
+  function skylineLayer(t, horizon) {
+    const key = `${trackIndex}|${W}|${H}|${dpr}`;
+    if (skylineCache && skylineCache.key === key) return skylineCache;
+    const span = W + 70, top = Math.floor(horizon + H * .09 - (25 + H * .26) - 22), bottom = Math.ceil(horizon + H * .19), height = bottom - top;
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(span * dpr)); c.height = Math.max(1, Math.round(height * dpr));
+    const g = c.getContext('2d');
+    if (g) {
+      g.scale(dpr, dpr); g.translate(0, -top);
+      const stroke = (x1, y1, x2, y2, color) => { g.strokeStyle = color; g.lineWidth = 1; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); };
+      for (let i = 0; i < 65; i++) {
+        const x = i / 65 * span, width = 10 + random(i + 12) * 37, height2 = 25 + random(i + 5) ** 2 * H * .26, y = horizon + H * .09 - height2;
+        g.fillStyle = i % 2 ? '#11102e' : '#181336'; g.fillRect(x, y, width, height2 + H * .1);
+        const color = i % 3 === 0 ? t.edge : t.second;
+        stroke(x, y, x + width, y, color + '60');
+        if (i % 4 === 0) { stroke(x + width / 2, y, x + width / 2, y - 18, color + '90'); g.fillStyle = color; g.fillRect(x + width / 2 - 1, y - 20, 2, 2); }
+        for (let row = 0; row < height2 / 10; row++) for (let col = 0; col < width / 7 - 1; col++) {
+          if (random(i * 400 + row * 17 + col) > .48) { g.fillStyle = color + (row % 3 === 0 ? '90' : '38'); g.fillRect(x + 4 + col * 7, y + 6 + row * 10, 2, 3); }
+        }
+      }
+    }
+    skylineCache = { key, canvas: c, span, top, height };
+    return skylineCache;
   }
   function project(p, worldX, worldY, z, cameraY) {
     p.scale = DEPTH / Math.max(1, z); p.x = W * .5 + p.scale * worldX * W * .5;
