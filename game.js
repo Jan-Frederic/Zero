@@ -3,6 +3,20 @@
   'use strict';
   /** DOM lookup. Typed loosely on purpose: elements are used as inputs, media, canvases and buttons. @type {(id: string) => any} */
   const $ = id => document.getElementById(id);
+  // ---- Error log: crashes are kept on the device (last 20, repeats counted) and can be copied from the stats page.
+  const ERROR_KEY = 'morbid-errors-v1';
+  function readErrors() { try { return JSON.parse(localStorage.getItem(ERROR_KEY) || '[]'); } catch { return []; } }
+  function recordError(message, where = '', stack = '') {
+    try {
+      const list = readErrors(), msg = String(message || 'Unknown error').slice(0, 300), same = list.find(e => e.message === msg && e.where === where);
+      if (same) { same.count = (same.count || 1) + 1; same.last = new Date().toISOString(); }
+      else list.push({ message: msg, where: String(where).slice(0, 200), stack: String(stack || '').split('\n').slice(0, 6).join('\n').slice(0, 900), at: new Date().toISOString(), count: 1 });
+      localStorage.setItem(ERROR_KEY, JSON.stringify(list.slice(-20)));
+      if (typeof renderErrorLog === 'function') renderErrorLog();
+    } catch { /* storage full or blocked: nothing to do */ }
+  }
+  window.addEventListener('error', e => recordError(e.message || (e.error && e.error.message), e.filename ? `${String(e.filename).split('/').pop()}:${e.lineno}:${e.colno}` : '', e.error && e.error.stack));
+  window.addEventListener('unhandledrejection', e => { const r = e.reason; recordError(r && r.message ? r.message : String(r), 'promise', r && r.stack); });
   /** @type {HTMLCanvasElement} */
   const canvas = $('game');
   const ctx = canvas.getContext('2d', { alpha: false });
@@ -475,6 +489,7 @@
     'Below the singularity, the track dives into an ocean nobody has charted.': 'Unter der Singularität taucht die Strecke in einen Ozean, den noch niemand kartiert hat.',
     'Glowing jellyfish drift across the line. One touch and your hull sparks.': 'Leuchtende Quallen treiben über die Linie. Eine Berührung, und dein Rumpf sprüht Funken.',
     'The currents pull you sideways. Ride them — and the deep is yours.': 'Die Strömungen ziehen dich zur Seite. Reite sie — und die Tiefe gehört dir.',
+    '🐞 ERROR LOG': '🐞 FEHLERPROTOKOLL', 'NO ERRORS RECORDED': 'KEINE FEHLER AUFGEZEICHNET', '⧉ COPY REPORT': '⧉ BERICHT KOPIEREN', '✕ CLEAR': '✕ LEEREN', 'REPORT COPIED — PASTE IT INTO A MESSAGE': 'BERICHT KOPIERT — IN EINE NACHRICHT EINFÜGEN',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -520,6 +535,7 @@
     [/^(\d+) \/ (\d+)  ·  (\d+) CR$/, '$1 / $2  ·  $3 CR'], [/^ALL THREE: \+(\d+) CR BONUS$/, 'ALLE DREI: +$1 CR BONUS'],
     [/^★ LV (\d+)$/, '★ LV $1'], [/^★ LEVEL (\d+)$/, '★ LEVEL $1'], [/^★ (.+)$/, (m, r) => `★ ${tr(r)}`], [/^NEW RANK  \/  \+(\d+) CR$/, 'NEUER RANG  /  +$1 CR'],
     [/^\+(\d+) XP  ·  LEVEL (\d+) (.+)  ·  (\d+) %$/, (m, x, l, r, p) => `+${x} XP  ·  LEVEL ${l} ${tr(r)}  ·  ${p} %`], [/^(\d+) · (.+)$/, (m, l, r) => `${l} · ${tr(r)}`], [/^\+(\d+) %$/, '+$1 %'],
+    [/^(\d+) ERRORS? RECORDED$/, (m, n) => `${n} ${n === '1' ? 'FEHLER' : 'FEHLER'} AUFGEZEICHNET`],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
@@ -3791,7 +3807,9 @@
   function frame(now) {
     frameClock = now / 1000; pollGamepad();
     const dt = previousTime ? Math.min((now - previousTime) / 1000, .05) : 1 / 60; previousTime = now;
-    measureFps(dt); update(dt); render(); updateConfetti(dt); requestAnimationFrame(frame);
+    // One broken frame must not freeze the game: log the error and keep the loop running.
+    try { measureFps(dt); update(dt); render(); updateConfetti(dt); } catch (err) { recordError(err && err.message, `frame (${mode})`, err && err.stack); }
+    requestAnimationFrame(frame);
   }
   // ==== Gamepad polling.
   // ---- Gamepad (standard mapping): stick/D-pad steer, A/RT accelerate, B/LT brake, X/RB laser, Y/LB boost,
@@ -3917,7 +3935,7 @@
       ['TROPHIES', `${Object.keys(profile.achievements).length}/${ACHIEVEMENTS.length}`], ['CREDITS', `${profile.credits} CR`],
     ];
     $('stats-list').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
-    $('profile-code').value = ''; $('profile-note').textContent = '';
+    $('profile-code').value = ''; $('profile-note').textContent = ''; renderErrorLog();
   }
   const exportCode = () => 'MR1-' + btoa(unescape(encodeURIComponent(JSON.stringify({ profile, settings, best: Object.fromEntries(tracks.map((_, i) => { try { return [i, localStorage.getItem(`chroma-best-${i}`)]; } catch { return [i, null]; } })) }))));
   function importCode(code) {
@@ -4063,6 +4081,25 @@
   renderStoryButton(); renderPilot(); window.morbidStory = { open: openStory };
   $('open-missions').addEventListener('click', () => { renderMissions(); openDialog('missions-screen'); });
   renderMissionsButton(); window.morbidMissions = { list: () => weeklyMissions().map(m => ({ id: m.id, target: m.target })), week: weekKey };
+  // ---- Error log on the stats page.
+  function renderErrorLog() {
+    const list = readErrors(), n = list.reduce((sum, e) => sum + (e.count || 1), 0);
+    if ($('error-count')) $('error-count').textContent = n ? `${n} ${n === 1 ? 'ERROR' : 'ERRORS'} RECORDED` : 'NO ERRORS RECORDED';
+    if ($('error-copy')) $('error-copy').disabled = !n; if ($('error-clear')) $('error-clear').disabled = !n;
+  }
+  function errorReport() {
+    const lines = [`Morbid Racers ${($('app-version') && $('app-version').textContent) || 'dev'} — error report ${new Date().toISOString()}`,
+      `Device: ${navigator.userAgent || '?'} · screen ${typeof screen !== 'undefined' ? `${screen.width}x${screen.height}` : '?'} · window ${innerWidth}x${innerHeight}`,
+      `Settings: lang ${settings.lang}, perf ${settings.perf}${settings.perfAuto ? ' (auto low)' : ''}, steering ${settings.steering}, screen ${settings.screen}`, ''];
+    for (const e of readErrors()) lines.push(`[${e.at}${e.count > 1 ? ` · ${e.count}x, last ${e.last}` : ''}] ${e.message}${e.where ? ` @ ${e.where}` : ''}`, ...(e.stack ? [e.stack, ''] : ['']));
+    return lines.join('\n');
+  }
+  $('error-copy').addEventListener('click', async () => {
+    const text = errorReport(); $('error-report').value = text; $('error-report').classList.remove('hidden');
+    try { await navigator.clipboard.writeText(text); $('error-count').textContent = 'REPORT COPIED — PASTE IT INTO A MESSAGE'; } catch { $('error-report').select && $('error-report').select(); }
+  });
+  $('error-clear').addEventListener('click', () => { try { localStorage.removeItem(ERROR_KEY); } catch { /* ignore */ } $('error-report').classList.add('hidden'); renderErrorLog(); });
+  renderErrorLog(); window.morbidErrors = { report: errorReport, list: readErrors };
   // ==== Upgrade and paint shop.
   // ---- Upgrade shop in the garage.
   function renderShop() {

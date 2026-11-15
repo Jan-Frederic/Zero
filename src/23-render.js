@@ -485,5 +485,7 @@
   function frame(now) {
     frameClock = now / 1000; pollGamepad();
     const dt = previousTime ? Math.min((now - previousTime) / 1000, .05) : 1 / 60; previousTime = now;
-    measureFps(dt); update(dt); render(); updateConfetti(dt); requestAnimationFrame(frame);
+    // One broken frame must not freeze the game: log the error and keep the loop running.
+    try { measureFps(dt); update(dt); render(); updateConfetti(dt); } catch (err) { recordError(err && err.message, `frame (${mode})`, err && err.stack); }
+    requestAnimationFrame(frame);
   }

@@ -29,7 +29,7 @@ function harness(opts = {}) {
   const sandbox = {
     console, Math, Uint8Array, btoa: s => Buffer.from(s, 'binary').toString('base64'), atob: s => Buffer.from(s, 'base64').toString('binary'), escape, unescape, navigator: { vibrate: pattern => { vibrations.push(pattern); return true; } }, innerWidth: 1280, innerHeight: 800, devicePixelRatio: 1,
     document: { getElementById: element, querySelector: element, querySelectorAll: query => query === '[data-ship]' ? ships : query === '[data-haptics]' ? hapticButtons : [], body: element('body'), addEventListener() {} },
-    localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
+    localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
     requestAnimationFrame: fn => { frame = fn; },
     addEventListener: (event, fn) => (windowEvents[event] ||= []).push(fn),
   };
@@ -39,6 +39,7 @@ function harness(opts = {}) {
   vm.runInNewContext(source, sandbox);
   const step = seconds => { for (let i = 0; i < Math.ceil(seconds * 20); i++) { now += 50; frame(now); } };
   const key = (code, type = 'keydown') => (windowEvents[type] || []).forEach(fn => fn({ code, repeat: false, target: element('body'), preventDefault() {} }));
+  sandbox.__fireWindow = (type, event) => (windowEvents[type] || []).forEach(fn => fn(event));
   return { sandbox, vibrations, element, step, key, storage, inspect: () => sandbox.__testState(), setRacePosition: (d, x) => sandbox.__setRacePosition(d, x), disableAirRaid: () => sandbox.__disableAirRaid(), setReserves: (h, c, b) => sandbox.__setReserves(h, c, b), eliminateRivals: () => sandbox.__eliminateRivals(), weatherNow: () => sandbox.__weatherNow(), finaleAim: c => sandbox.__finaleAim(c), finaleState: () => sandbox.__finale(), finaleOpen: c => sandbox.__finaleOpen(c), finaleKillShip: () => sandbox.__finaleKillShip(), musicLoading: p => sandbox.__musicLoading(p), musicLoaded: () => sandbox.__musicLoaded(), setUfoKills: n => sandbox.__setUfoKills(n), setBossHp: n => sandbox.__setBossHp(n), placeRival: (g, l) => sandbox.__placeRival(g, l) };
 }
 
@@ -1033,4 +1034,21 @@ test('abyss tunnel: the ninth circuit has currents and jellyfish', () => {
   // Without steering, the current carries the ship sideways.
   setRacePosition(9000 * Math.PI / 2, 0); step(.5);
   assert.ok(Math.abs(inspect().playerX) > .1, 'pushed by the current');
+});
+
+test('error log: crashes are recorded on the device and can be copied as a report', () => {
+  const { element: el, sandbox, storage } = harness();
+  el('open-stats').fire('click');
+  assert.equal(el('error-count').textContent, 'NO ERRORS RECORDED');
+  sandbox.__fireWindow('error', { message: 'Boom', filename: 'https://x/game.js', lineno: 12, colno: 3, error: { message: 'Boom', stack: 'Error: Boom\n  at f (game.js:12:3)' } });
+  sandbox.__fireWindow('error', { message: 'Boom', filename: 'https://x/game.js', lineno: 12, colno: 3, error: { message: 'Boom', stack: '' } });
+  sandbox.__fireWindow('unhandledrejection', { reason: { message: 'Nope', stack: '' } });
+  const log = JSON.parse(storage.get('morbid-errors-v1'));
+  assert.equal(log.length, 2, 'repeats are counted, not duplicated'); assert.equal(log[0].count, 2); assert.equal(log[0].where, 'game.js:12:3');
+  assert.equal(el('error-count').textContent, '3 ERRORS RECORDED');
+  assert.match(sandbox.morbidErrors.report(), /Boom @ game.js:12:3/);
+  el('error-copy').fire('click');
+  assert.match(el('error-report').value, /error report/);
+  el('error-clear').fire('click');
+  assert.equal(el('error-count').textContent, 'NO ERRORS RECORDED');
 });

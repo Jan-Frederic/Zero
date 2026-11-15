@@ -160,6 +160,7 @@
     'Below the singularity, the track dives into an ocean nobody has charted.': 'Unter der Singularität taucht die Strecke in einen Ozean, den noch niemand kartiert hat.',
     'Glowing jellyfish drift across the line. One touch and your hull sparks.': 'Leuchtende Quallen treiben über die Linie. Eine Berührung, und dein Rumpf sprüht Funken.',
     'The currents pull you sideways. Ride them — and the deep is yours.': 'Die Strömungen ziehen dich zur Seite. Reite sie — und die Tiefe gehört dir.',
+    '🐞 ERROR LOG': '🐞 FEHLERPROTOKOLL', 'NO ERRORS RECORDED': 'KEINE FEHLER AUFGEZEICHNET', '⧉ COPY REPORT': '⧉ BERICHT KOPIEREN', '✕ CLEAR': '✕ LEEREN', 'REPORT COPIED — PASTE IT INTO A MESSAGE': 'BERICHT KOPIERT — IN EINE NACHRICHT EINFÜGEN',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -205,6 +206,7 @@
     [/^(\d+) \/ (\d+)  ·  (\d+) CR$/, '$1 / $2  ·  $3 CR'], [/^ALL THREE: \+(\d+) CR BONUS$/, 'ALLE DREI: +$1 CR BONUS'],
     [/^★ LV (\d+)$/, '★ LV $1'], [/^★ LEVEL (\d+)$/, '★ LEVEL $1'], [/^★ (.+)$/, (m, r) => `★ ${tr(r)}`], [/^NEW RANK  \/  \+(\d+) CR$/, 'NEUER RANG  /  +$1 CR'],
     [/^\+(\d+) XP  ·  LEVEL (\d+) (.+)  ·  (\d+) %$/, (m, x, l, r, p) => `+${x} XP  ·  LEVEL ${l} ${tr(r)}  ·  ${p} %`], [/^(\d+) · (.+)$/, (m, l, r) => `${l} · ${tr(r)}`], [/^\+(\d+) %$/, '+$1 %'],
+    [/^(\d+) ERRORS? RECORDED$/, (m, n) => `${n} ${n === '1' ? 'FEHLER' : 'FEHLER'} AUFGEZEICHNET`],
     [/^NEMESIS (.+) DESTROYED!$/, 'ERZFEIND $1 ZERSTÖRT!'], [/^(.+) IS OUT!$/, '$1 IST RAUS!'], [/^(.+) HIT YOU$/, '$1 HAT DICH ERWISCHT'], [/^BUBBLE ABSORBED IT  \/  (\d+) LEFT$/, 'DIE BLASE HAT ES ABGEFANGEN  /  NOCH $1'],
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],

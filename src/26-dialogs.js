@@ -25,7 +25,7 @@
       ['TROPHIES', `${Object.keys(profile.achievements).length}/${ACHIEVEMENTS.length}`], ['CREDITS', `${profile.credits} CR`],
     ];
     $('stats-list').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
-    $('profile-code').value = ''; $('profile-note').textContent = '';
+    $('profile-code').value = ''; $('profile-note').textContent = ''; renderErrorLog();
   }
   const exportCode = () => 'MR1-' + btoa(unescape(encodeURIComponent(JSON.stringify({ profile, settings, best: Object.fromEntries(tracks.map((_, i) => { try { return [i, localStorage.getItem(`chroma-best-${i}`)]; } catch { return [i, null]; } })) }))));
   function importCode(code) {
@@ -171,3 +171,22 @@
   renderStoryButton(); renderPilot(); window.morbidStory = { open: openStory };
   $('open-missions').addEventListener('click', () => { renderMissions(); openDialog('missions-screen'); });
   renderMissionsButton(); window.morbidMissions = { list: () => weeklyMissions().map(m => ({ id: m.id, target: m.target })), week: weekKey };
+  // ---- Error log on the stats page.
+  function renderErrorLog() {
+    const list = readErrors(), n = list.reduce((sum, e) => sum + (e.count || 1), 0);
+    if ($('error-count')) $('error-count').textContent = n ? `${n} ${n === 1 ? 'ERROR' : 'ERRORS'} RECORDED` : 'NO ERRORS RECORDED';
+    if ($('error-copy')) $('error-copy').disabled = !n; if ($('error-clear')) $('error-clear').disabled = !n;
+  }
+  function errorReport() {
+    const lines = [`Morbid Racers ${($('app-version') && $('app-version').textContent) || 'dev'} — error report ${new Date().toISOString()}`,
+      `Device: ${navigator.userAgent || '?'} · screen ${typeof screen !== 'undefined' ? `${screen.width}x${screen.height}` : '?'} · window ${innerWidth}x${innerHeight}`,
+      `Settings: lang ${settings.lang}, perf ${settings.perf}${settings.perfAuto ? ' (auto low)' : ''}, steering ${settings.steering}, screen ${settings.screen}`, ''];
+    for (const e of readErrors()) lines.push(`[${e.at}${e.count > 1 ? ` · ${e.count}x, last ${e.last}` : ''}] ${e.message}${e.where ? ` @ ${e.where}` : ''}`, ...(e.stack ? [e.stack, ''] : ['']));
+    return lines.join('\n');
+  }
+  $('error-copy').addEventListener('click', async () => {
+    const text = errorReport(); $('error-report').value = text; $('error-report').classList.remove('hidden');
+    try { await navigator.clipboard.writeText(text); $('error-count').textContent = 'REPORT COPIED — PASTE IT INTO A MESSAGE'; } catch { $('error-report').select && $('error-report').select(); }
+  });
+  $('error-clear').addEventListener('click', () => { try { localStorage.removeItem(ERROR_KEY); } catch { /* ignore */ } $('error-report').classList.add('hidden'); renderErrorLog(); });
+  renderErrorLog(); window.morbidErrors = { report: errorReport, list: readErrors };
