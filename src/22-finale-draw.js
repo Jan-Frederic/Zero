@@ -176,6 +176,8 @@
     else if (kind === 'robot') drawRobot(L.bossX, y, L.bs, f.boss.flash, look);
     else if (kind === 'spider') drawSpider(L.bossX, y, L.bs, f.boss.flash, look);
     else if (kind === 'shark') drawShark(L.bossX, y, L.bs, f.boss.flash, look);
+    else if (kind === 'swarm') drawSwarm(L.bossX, y, L.bs, f.boss.flash, f.boss.hp / f.boss.maxHp);
+    else if (kind === 'architect') drawArchitect(L.bossX, y, L.bs, f.boss.flash, look);
     else drawOverlord(L.bossX, y, L.bs, f.boss.flash, look);
   }
   // ---------- finale drawing
@@ -444,6 +446,13 @@
         else { ctx.globalCompositeOperation = 'lighter'; line(b.fromX, b.fromY, b.x, H, 'rgba(255,60,90,.55)', L.ship * 1.2); line(b.fromX, b.fromY, b.x, H, '#ff9aa8', L.ship * .45); line(b.fromX, b.fromY, b.x, H, '#ffffff', 4); }
         ctx.restore(); continue;
       }
+      if (b.kind === 'drone') { drawDrone(b.x, b.y, L.ship * .45, Math.atan2(b.vy, b.vx)); continue; }
+      if (b.kind === 'wall') {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; const h = L.ship * .22, a = b.gap - b.gapW / 2, c = b.gap + b.gapW / 2;
+        for (const [x0, x1] of [[0, a], [c, W]]) { ctx.fillStyle = 'rgba(77,255,184,.28)'; ctx.fillRect(x0, b.y - h * 2, x1 - x0, h * 4); ctx.fillStyle = '#b8ffe4'; ctx.fillRect(x0, b.y - h / 2, x1 - x0, h); }
+        ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = '#4dffb8'; ctx.font = `bold ${Math.max(12, L.ship * .4)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center';
+        ctx.fillText('▼', b.gap, b.y - h * 2.4); cbMark(a, b.y, h * 2); cbMark(c, b.y, h * 2); ctx.restore(); continue;
+      }
       if (b.kind === 'missile') {
         const a = Math.atan2(b.vy, b.vx); ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(a);
         ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.moveTo(-L.ship * .5, 0); ctx.lineTo(-L.ship * (.8 + Math.random() * .3), -L.ship * .07); ctx.lineTo(-L.ship * (.8 + Math.random() * .3), L.ship * .07); ctx.fill();
@@ -460,4 +469,41 @@
     drawFinaleHud(L);
     if (flashAmount(screenFlash) > .015) { ctx.fillStyle = `rgba(255,255,240,${flashAmount(screenFlash) * .55})`; ctx.fillRect(-60, -60, W + 120, H + 120); }
     ctx.restore();
+  }
+  // A honeycomb hive guarded by a cloud of drones; every hit knocks one drone out of the sky.
+  function drawSwarm(x, y, s, flash, health) {
+    ctx.save(); ctx.translate(x, y);
+    const drones = 3 + Math.ceil(health * 11);
+    for (let i = 0; i < drones; i++) {
+      const a = time * (1.2 + (i % 3) * .3) + i / drones * TAU, r = s * (.42 + (i % 4) * .07);
+      drawDrone(Math.cos(a) * r, Math.sin(a) * r * .55, s * .09, a + Math.PI / 2);
+    }
+    ctx.shadowColor = '#ffb020'; ctx.shadowBlur = 26;
+    for (let k = 0; k < 7; k++) { // honeycomb core
+      const a = k / 6 * TAU, cx = k === 6 ? 0 : Math.cos(a) * s * .15, cy = k === 6 ? 0 : Math.sin(a) * s * .15, r = s * .085;
+      ctx.fillStyle = k === 6 ? '#ff7a1a' : k % 2 ? '#ffcf4a' : '#e8a020'; ctx.strokeStyle = '#5a3a08'; ctx.lineWidth = Math.max(1, s * .012);
+      ctx.beginPath(); for (let j = 0; j < 6; j++) { const b = j / 6 * TAU + Math.PI / 6; ctx[j ? 'lineTo' : 'moveTo'](cx + Math.cos(b) * r, cy + Math.sin(b) * r); } ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    ctx.shadowBlur = 0; ctx.fillStyle = '#1a0f02'; ctx.beginPath(); ctx.arc(0, 0, s * .03 + Math.sin(time * 6) * s * .008, 0, TAU); ctx.fill();
+    drawHitFlash(s, flash, .3, .25); ctx.restore();
+  }
+  function drawDrone(x, y, s, angle) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; for (const side of [-1, 1]) { ctx.beginPath(); ctx.ellipse(side * s * .55, -s * .15, s * .45, s * .2 + Math.abs(Math.sin(time * 40)) * s * .1, side * .5, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = '#ffb020'; ctx.beginPath(); ctx.ellipse(0, 0, s * .35, s * .6, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#2a1a04'; for (let i = -1; i <= 1; i++) ctx.fillRect(-s * .35, i * s * .22 - s * .05, s * .7, s * .1);
+    ctx.fillStyle = '#ff3b3b'; ctx.beginPath(); ctx.arc(0, s * .45, s * .12, 0, TAU); ctx.fill(); ctx.restore();
+  }
+  // A rotating geometric construct that rebuilds the arena with laser walls.
+  function drawArchitect(x, y, s, flash, look) {
+    ctx.save(); ctx.translate(x, y);
+    ctx.strokeStyle = '#4dffb8'; ctx.shadowColor = '#4dffb8'; ctx.shadowBlur = 22; ctx.lineWidth = Math.max(1.5, s * .015);
+    for (let ring = 0; ring < 3; ring++) { ctx.save(); ctx.rotate(time * (ring % 2 ? -.6 : .8) + ring); ctx.globalAlpha = .7 - ring * .15; ctx.beginPath(); ctx.ellipse(0, 0, s * (.5 + ring * .1), s * (.18 + ring * .05), 0, 0, TAU); ctx.stroke(); ctx.restore(); }
+    const spin = time * .9, pts = [0, 1, 2, 3].map(k => [Math.cos(spin + k * Math.PI / 2) * s * .28, Math.sin(spin + k * Math.PI / 2) * s * .1]);
+    ctx.fillStyle = '#0c2a22'; ctx.beginPath(); ctx.moveTo(0, -s * .38); for (const [px, py] of pts) ctx.lineTo(px, py); ctx.closePath(); ctx.fill(); ctx.stroke();
+    for (const [px, py] of pts) { ctx.beginPath(); ctx.moveTo(0, -s * .38); ctx.lineTo(px, py); ctx.lineTo(0, s * .3); ctx.stroke(); }
+    ctx.shadowBlur = 0; ctx.fillStyle = '#eafff6'; ctx.beginPath(); ctx.arc(look * s * .04, -s * .04, s * .06, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#ff3b6b'; ctx.beginPath(); ctx.arc(look * s * .06, -s * .04, s * .025, 0, TAU); ctx.fill();
+    for (const side of [-1, 1]) { ctx.strokeStyle = 'rgba(77,255,184,.6)'; ctx.beginPath(); ctx.moveTo(side * s * .28, 0); ctx.lineTo(side * s * .45, s * .35 + Math.sin(time * 3 + side) * s * .05); ctx.stroke(); }
+    drawHitFlash(s, flash, .35, .3); ctx.restore();
   }

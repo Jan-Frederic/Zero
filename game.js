@@ -470,6 +470,7 @@
     'MISSIONS': 'MISSIONEN', '🎯 MISSION COMPLETE': '🎯 MISSION ERFÜLLT', 'WIN A CHAMPIONSHIP': 'GEWINNE EINE MEISTERSCHAFT',
     'PILOT LEVEL': 'PILOTENLEVEL', 'CREDIT BONUS': 'CREDIT-BONUS', 'ROOKIE': 'ROOKIE', 'STREET RACER': 'STRASSENRENNER', 'PRO PILOT': 'PROFI-PILOT', 'ACE': 'ASS', 'STAR PILOT': 'STAR-PILOT', 'HYPERDRIVER': 'HYPERFAHRER', 'GALAXY HERO': 'GALAXIE-HELD', 'SINGULARITY LEGEND': 'SINGULARITÄTS-LEGENDE',
     'HUD SIZE': 'HUD-GRÖSSE', 'RACE INSTRUMENTS': 'RENN-ANZEIGEN', 'SMALL': 'KLEIN', 'LARGE': 'GROSS',
+    'SWARM SCATTERED!': 'SCHWARM ZERSTREUT!', 'ARCHITECT DEMOLISHED!': 'ARCHITEKT ABGERISSEN!', 'THROUGH THE GAP!': 'DURCH DIE LÜCKE!', 'DRONE STRIKE!': 'DROHNEN-TREFFER!', 'LASER WALL!': 'LASERWAND!',
     // Tutorial
     'TILT YOUR DEVICE TO STEER': 'KIPPE DEIN GERÄT ZUM LENKEN', 'DRAG LEFT / RIGHT ON THE TRACK TO STEER': 'ZIEH AUF DER STRECKE NACH LINKS / RECHTS ZUM LENKEN',
     'STEER WITH  A / D  OR  ◀ ▶': 'LENKEN MIT  A / D  ODER  ◀ ▶', 'SLIDE UP (OR TAP ϟ) TO BOOST': 'NACH OBEN WISCHEN (ODER ϟ TIPPEN) FÜR BOOST', 'HOLD  SPACE  TO BOOST': 'HALTE  LEERTASTE  FÜR BOOST',
@@ -2500,7 +2501,9 @@
   const BOSS_TYPES = [
     { kind: 'overlord', name: 'ALIEN OVERLORD', attack: 'slime', color: '#7dff3a', blood: ['#7dff3a', '#3fc21f'], guts: ['#ff6fa8', '#b8417a'], splat: '#4fd31f', down: 'OVERLORD SPLATTERED!' },
     { kind: 'cyclops', name: 'CYCLOPS COMMANDER', attack: 'eyebeam', color: '#c38bff', blood: ['#b06bff', '#7a2fd0'], guts: ['#ffb0d8', '#d05a9a'], splat: '#8f45e0', down: 'CYCLOPS POPPED!' },
+    { kind: 'swarm', name: 'SWARM HIVE', attack: 'drones', color: '#ffb020', blood: ['#ffcf4a', '#e08a10'], guts: ['#fff2a8', '#c9a020'], splat: '#d99a18', down: 'SWARM SCATTERED!' },
     { kind: 'maggot', name: 'MAGGOT QUEEN', attack: 'acid', color: '#f2e85a', blood: ['#e8e04a', '#b8b020'], guts: ['#ff8a6a', '#c9503a'], splat: '#cfc23a', down: 'MAGGOT SQUASHED!' },
+    { kind: 'architect', name: 'THE ARCHITECT', attack: 'walls', color: '#4dffb8', blood: ['#4dffb8', '#1fb07a'], guts: ['#d6fff0', '#7af0c8'], splat: '#22c48a', down: 'ARCHITECT DEMOLISHED!' },
     { kind: 'robot', name: 'ROBO-TYRANT', attack: 'missiles', color: '#ff3b3b', blood: ['#26262c', '#4a4a52'], guts: ['#9aa3b5', '#c8ced8'], splat: '#1d1d22', down: 'ROBOT SCRAPPED!' },
     { kind: 'spider', name: 'CRYSTAL SPIDER', attack: 'web', color: '#7dfcff', blood: ['#bff8ff', '#5fd8ff'], guts: ['#e6fbff', '#8fe9ff'], splat: '#7dd8f0', down: 'SPIDER SHATTERED!' },
     { kind: 'shark', name: 'WORMHOLE SHARK', attack: 'portal', color: '#ff6a3d', blood: ['#ff3b3b', '#b0102a'], guts: ['#ff8aa2', '#c4566f'], splat: '#c0142e', down: 'SHARK SPLATTERED!' },
@@ -2527,7 +2530,9 @@
     } else showCallout(f.endless ? 'ENDLESS BOSS RUSH — WAVE 1!' : f.waves > 1 ? `FINAL BOSS 1/${f.waves}!` : 'FINAL BOSS!', cfg.type.color);
   }
   function playDeathScream(kind) {
-    robotSay('', `scream-${{ spider: 'cyclops', shark: 'overlord' }[kind] || kind}`);
+    robotSay('', `scream-${{ spider: 'cyclops', shark: 'overlord', swarm: 'maggot', architect: 'robot' }[kind] || kind}`);
+    if (kind === 'swarm') { for (let i = 0; i < 4; i++) playToneSweep(1800 + i * 300, 200, 1 + i * .2, 'sawtooth', .03); playNoiseBurst(1, .16, 4000, 400); return; }
+    if (kind === 'architect') { playToneSweep(600, 40, 2.4, 'square', .07); playToneSweep(1200, 80, 2, 'triangle', .05); playNoiseBurst(1.4, .2, 2000, 100); return; }
     if (kind === 'spider') { playToneSweep(3200, 600, 1.4, 'triangle', .05); playNoiseBurst(1.2, .2, 9000, 3000); playToneSweep(4400, 2000, .6, 'sine', .04); return; }
     if (kind === 'shark') { playToneSweep(160, 30, 2.2, 'sawtooth', .12); playToneSweep(90, 20, 2.4, 'square', .07); playNoiseBurst(1.4, .2, 1200, 80); return; }
     if (kind === 'overlord') { playToneSweep(220, 40, 2.4, 'sawtooth', .09); playNoiseBurst(1.6, .14, 900, 60); }
@@ -2548,6 +2553,17 @@
       f.bolts.push({ kind: 'bite', x: shipPx, y: L.shipY, vx: 0, vy: 0, dmg: 16, warnUntil: time + 1, until: time + 1.45 });
       f.boss.hidden = time + 1.5;
       playToneSweep(400, 60, 1, 'sine', .08); playNoiseBurst(.9, .1, 300, 2000); return;
+    }
+    if (attack === 'drones') {
+      // The hive launches kamikaze drones that home in on the player (they turn slowly: keep moving).
+      for (let i = 0; i < 4; i++) f.bolts.push({ kind: 'drone', x: mx + (i - 1.5) * L.bs * .25, y: my, vx: (i - 1.5) * H * .12, vy: H * .2, dmg: 6, color: '#ffb020' });
+      playToneSweep(1600, 2400, .4, 'sawtooth', .03); return;
+    }
+    if (attack === 'walls') {
+      // The architect rebuilds the arena: a laser wall sweeps down the whole width, with one gap to slip through.
+      const gap = clamp(.15 + Math.random() * .7, .12, .88) * W;
+      f.bolts.push({ kind: 'wall', x: W / 2, y: my, vx: 0, vy: H * .26, dmg: 12, gap, gapW: L.ship * 3.4 });
+      playToneSweep(200, 900, .6, 'square', .04); return;
     }
     if (attack === 'eyebeam') {
       // Telegraphed death ray from the monocle eye straight down at the player's position.
@@ -2740,6 +2756,16 @@
         }
         continue;
       }
+      if (bolt.kind === 'drone') bolt.vx = clamp(bolt.vx + Math.sign(shipPx - bolt.x) * H * .9 * dt, -H * .35, H * .35);
+      if (bolt.kind === 'wall') {
+        if (!bolt.passed && bolt.y >= L.shipY - L.ship * .2) {
+          bolt.passed = true;
+          if (time > f.invulnUntil && Math.abs(shipPx - bolt.gap) > bolt.gapW / 2) {
+            shield = Math.max(0, shield - bolt.dmg * diff().dmg); shake = Math.max(shake, 1); screenFlash = Math.max(screenFlash, .3); playImpactSound(1); finaleMsg(`LASER WALL!  SHIELD -${bolt.dmg}`);
+          } else finaleMsg('THROUGH THE GAP!');
+        }
+        continue;
+      }
       if (bolt.kind === 'web' && time > f.invulnUntil && Math.abs(bolt.x - shipPx) < bolt.r && Math.abs(bolt.y - L.shipY) < L.ship * .6) {
         bolt.hit = true; f.webbedUntil = time + 2.2; shield = Math.max(0, shield - bolt.dmg * diff().dmg); playNoiseBurst(.3, .1, 2000, 400); finaleMsg('WEBBED!  SLOWED DOWN'); continue;
       }
@@ -2753,7 +2779,7 @@
       }
       if (time > f.invulnUntil && Math.abs(bolt.x - shipPx) < L.ship * .9 && Math.abs(bolt.y - L.shipY) < L.ship * .5) {
         bolt.hit = true; shield = Math.max(0, shield - bolt.dmg * diff().dmg); shake = Math.max(shake, .8); screenFlash = Math.max(screenFlash, .25);
-        playImpactSound(.8); finaleMsg(`${{ slime: 'SLIMED!', acid: 'ACID BURN!', missile: 'MISSILE HIT!', shard: 'CRYSTAL SHARD!' }[bolt.kind] || 'ZAPPED!'}  SHIELD -${bolt.dmg}`);
+        playImpactSound(.8); finaleMsg(`${{ slime: 'SLIMED!', acid: 'ACID BURN!', missile: 'MISSILE HIT!', shard: 'CRYSTAL SHARD!', drone: 'DRONE STRIKE!' }[bolt.kind] || 'ZAPPED!'}  SHIELD -${bolt.dmg}`);
       }
     }
     f.bolts = f.bolts.filter(bolt => bolt.kind === 'eyebeam' || bolt.kind === 'bite' ? !bolt.hit && time < bolt.until : !bolt.hit && bolt.y < H + 40 && bolt.x > -40 && bolt.x < W + 40);
@@ -2941,6 +2967,8 @@
     else if (kind === 'robot') drawRobot(L.bossX, y, L.bs, f.boss.flash, look);
     else if (kind === 'spider') drawSpider(L.bossX, y, L.bs, f.boss.flash, look);
     else if (kind === 'shark') drawShark(L.bossX, y, L.bs, f.boss.flash, look);
+    else if (kind === 'swarm') drawSwarm(L.bossX, y, L.bs, f.boss.flash, f.boss.hp / f.boss.maxHp);
+    else if (kind === 'architect') drawArchitect(L.bossX, y, L.bs, f.boss.flash, look);
     else drawOverlord(L.bossX, y, L.bs, f.boss.flash, look);
   }
   // ---------- finale drawing
@@ -3209,6 +3237,13 @@
         else { ctx.globalCompositeOperation = 'lighter'; line(b.fromX, b.fromY, b.x, H, 'rgba(255,60,90,.55)', L.ship * 1.2); line(b.fromX, b.fromY, b.x, H, '#ff9aa8', L.ship * .45); line(b.fromX, b.fromY, b.x, H, '#ffffff', 4); }
         ctx.restore(); continue;
       }
+      if (b.kind === 'drone') { drawDrone(b.x, b.y, L.ship * .45, Math.atan2(b.vy, b.vx)); continue; }
+      if (b.kind === 'wall') {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; const h = L.ship * .22, a = b.gap - b.gapW / 2, c = b.gap + b.gapW / 2;
+        for (const [x0, x1] of [[0, a], [c, W]]) { ctx.fillStyle = 'rgba(77,255,184,.28)'; ctx.fillRect(x0, b.y - h * 2, x1 - x0, h * 4); ctx.fillStyle = '#b8ffe4'; ctx.fillRect(x0, b.y - h / 2, x1 - x0, h); }
+        ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = '#4dffb8'; ctx.font = `bold ${Math.max(12, L.ship * .4)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center';
+        ctx.fillText('▼', b.gap, b.y - h * 2.4); cbMark(a, b.y, h * 2); cbMark(c, b.y, h * 2); ctx.restore(); continue;
+      }
       if (b.kind === 'missile') {
         const a = Math.atan2(b.vy, b.vx); ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(a);
         ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.moveTo(-L.ship * .5, 0); ctx.lineTo(-L.ship * (.8 + Math.random() * .3), -L.ship * .07); ctx.lineTo(-L.ship * (.8 + Math.random() * .3), L.ship * .07); ctx.fill();
@@ -3225,6 +3260,43 @@
     drawFinaleHud(L);
     if (flashAmount(screenFlash) > .015) { ctx.fillStyle = `rgba(255,255,240,${flashAmount(screenFlash) * .55})`; ctx.fillRect(-60, -60, W + 120, H + 120); }
     ctx.restore();
+  }
+  // A honeycomb hive guarded by a cloud of drones; every hit knocks one drone out of the sky.
+  function drawSwarm(x, y, s, flash, health) {
+    ctx.save(); ctx.translate(x, y);
+    const drones = 3 + Math.ceil(health * 11);
+    for (let i = 0; i < drones; i++) {
+      const a = time * (1.2 + (i % 3) * .3) + i / drones * TAU, r = s * (.42 + (i % 4) * .07);
+      drawDrone(Math.cos(a) * r, Math.sin(a) * r * .55, s * .09, a + Math.PI / 2);
+    }
+    ctx.shadowColor = '#ffb020'; ctx.shadowBlur = 26;
+    for (let k = 0; k < 7; k++) { // honeycomb core
+      const a = k / 6 * TAU, cx = k === 6 ? 0 : Math.cos(a) * s * .15, cy = k === 6 ? 0 : Math.sin(a) * s * .15, r = s * .085;
+      ctx.fillStyle = k === 6 ? '#ff7a1a' : k % 2 ? '#ffcf4a' : '#e8a020'; ctx.strokeStyle = '#5a3a08'; ctx.lineWidth = Math.max(1, s * .012);
+      ctx.beginPath(); for (let j = 0; j < 6; j++) { const b = j / 6 * TAU + Math.PI / 6; ctx[j ? 'lineTo' : 'moveTo'](cx + Math.cos(b) * r, cy + Math.sin(b) * r); } ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    ctx.shadowBlur = 0; ctx.fillStyle = '#1a0f02'; ctx.beginPath(); ctx.arc(0, 0, s * .03 + Math.sin(time * 6) * s * .008, 0, TAU); ctx.fill();
+    drawHitFlash(s, flash, .3, .25); ctx.restore();
+  }
+  function drawDrone(x, y, s, angle) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; for (const side of [-1, 1]) { ctx.beginPath(); ctx.ellipse(side * s * .55, -s * .15, s * .45, s * .2 + Math.abs(Math.sin(time * 40)) * s * .1, side * .5, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = '#ffb020'; ctx.beginPath(); ctx.ellipse(0, 0, s * .35, s * .6, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#2a1a04'; for (let i = -1; i <= 1; i++) ctx.fillRect(-s * .35, i * s * .22 - s * .05, s * .7, s * .1);
+    ctx.fillStyle = '#ff3b3b'; ctx.beginPath(); ctx.arc(0, s * .45, s * .12, 0, TAU); ctx.fill(); ctx.restore();
+  }
+  // A rotating geometric construct that rebuilds the arena with laser walls.
+  function drawArchitect(x, y, s, flash, look) {
+    ctx.save(); ctx.translate(x, y);
+    ctx.strokeStyle = '#4dffb8'; ctx.shadowColor = '#4dffb8'; ctx.shadowBlur = 22; ctx.lineWidth = Math.max(1.5, s * .015);
+    for (let ring = 0; ring < 3; ring++) { ctx.save(); ctx.rotate(time * (ring % 2 ? -.6 : .8) + ring); ctx.globalAlpha = .7 - ring * .15; ctx.beginPath(); ctx.ellipse(0, 0, s * (.5 + ring * .1), s * (.18 + ring * .05), 0, 0, TAU); ctx.stroke(); ctx.restore(); }
+    const spin = time * .9, pts = [0, 1, 2, 3].map(k => [Math.cos(spin + k * Math.PI / 2) * s * .28, Math.sin(spin + k * Math.PI / 2) * s * .1]);
+    ctx.fillStyle = '#0c2a22'; ctx.beginPath(); ctx.moveTo(0, -s * .38); for (const [px, py] of pts) ctx.lineTo(px, py); ctx.closePath(); ctx.fill(); ctx.stroke();
+    for (const [px, py] of pts) { ctx.beginPath(); ctx.moveTo(0, -s * .38); ctx.lineTo(px, py); ctx.lineTo(0, s * .3); ctx.stroke(); }
+    ctx.shadowBlur = 0; ctx.fillStyle = '#eafff6'; ctx.beginPath(); ctx.arc(look * s * .04, -s * .04, s * .06, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#ff3b6b'; ctx.beginPath(); ctx.arc(look * s * .06, -s * .04, s * .025, 0, TAU); ctx.fill();
+    for (const side of [-1, 1]) { ctx.strokeStyle = 'rgba(77,255,184,.6)'; ctx.beginPath(); ctx.moveTo(side * s * .28, 0); ctx.lineTo(side * s * .45, s * .35 + Math.sin(time * 3 + side) * s * .05); ctx.stroke(); }
+    drawHitFlash(s, flash, .35, .3); ctx.restore();
   }
   // ==== Race rendering and the frame loop.
   function polygon(points, fill, stroke, lineWidth = 1) {

@@ -64,7 +64,9 @@
   const BOSS_TYPES = [
     { kind: 'overlord', name: 'ALIEN OVERLORD', attack: 'slime', color: '#7dff3a', blood: ['#7dff3a', '#3fc21f'], guts: ['#ff6fa8', '#b8417a'], splat: '#4fd31f', down: 'OVERLORD SPLATTERED!' },
     { kind: 'cyclops', name: 'CYCLOPS COMMANDER', attack: 'eyebeam', color: '#c38bff', blood: ['#b06bff', '#7a2fd0'], guts: ['#ffb0d8', '#d05a9a'], splat: '#8f45e0', down: 'CYCLOPS POPPED!' },
+    { kind: 'swarm', name: 'SWARM HIVE', attack: 'drones', color: '#ffb020', blood: ['#ffcf4a', '#e08a10'], guts: ['#fff2a8', '#c9a020'], splat: '#d99a18', down: 'SWARM SCATTERED!' },
     { kind: 'maggot', name: 'MAGGOT QUEEN', attack: 'acid', color: '#f2e85a', blood: ['#e8e04a', '#b8b020'], guts: ['#ff8a6a', '#c9503a'], splat: '#cfc23a', down: 'MAGGOT SQUASHED!' },
+    { kind: 'architect', name: 'THE ARCHITECT', attack: 'walls', color: '#4dffb8', blood: ['#4dffb8', '#1fb07a'], guts: ['#d6fff0', '#7af0c8'], splat: '#22c48a', down: 'ARCHITECT DEMOLISHED!' },
     { kind: 'robot', name: 'ROBO-TYRANT', attack: 'missiles', color: '#ff3b3b', blood: ['#26262c', '#4a4a52'], guts: ['#9aa3b5', '#c8ced8'], splat: '#1d1d22', down: 'ROBOT SCRAPPED!' },
     { kind: 'spider', name: 'CRYSTAL SPIDER', attack: 'web', color: '#7dfcff', blood: ['#bff8ff', '#5fd8ff'], guts: ['#e6fbff', '#8fe9ff'], splat: '#7dd8f0', down: 'SPIDER SHATTERED!' },
     { kind: 'shark', name: 'WORMHOLE SHARK', attack: 'portal', color: '#ff6a3d', blood: ['#ff3b3b', '#b0102a'], guts: ['#ff8aa2', '#c4566f'], splat: '#c0142e', down: 'SHARK SPLATTERED!' },
@@ -91,7 +93,9 @@
     } else showCallout(f.endless ? 'ENDLESS BOSS RUSH — WAVE 1!' : f.waves > 1 ? `FINAL BOSS 1/${f.waves}!` : 'FINAL BOSS!', cfg.type.color);
   }
   function playDeathScream(kind) {
-    robotSay('', `scream-${{ spider: 'cyclops', shark: 'overlord' }[kind] || kind}`);
+    robotSay('', `scream-${{ spider: 'cyclops', shark: 'overlord', swarm: 'maggot', architect: 'robot' }[kind] || kind}`);
+    if (kind === 'swarm') { for (let i = 0; i < 4; i++) playToneSweep(1800 + i * 300, 200, 1 + i * .2, 'sawtooth', .03); playNoiseBurst(1, .16, 4000, 400); return; }
+    if (kind === 'architect') { playToneSweep(600, 40, 2.4, 'square', .07); playToneSweep(1200, 80, 2, 'triangle', .05); playNoiseBurst(1.4, .2, 2000, 100); return; }
     if (kind === 'spider') { playToneSweep(3200, 600, 1.4, 'triangle', .05); playNoiseBurst(1.2, .2, 9000, 3000); playToneSweep(4400, 2000, .6, 'sine', .04); return; }
     if (kind === 'shark') { playToneSweep(160, 30, 2.2, 'sawtooth', .12); playToneSweep(90, 20, 2.4, 'square', .07); playNoiseBurst(1.4, .2, 1200, 80); return; }
     if (kind === 'overlord') { playToneSweep(220, 40, 2.4, 'sawtooth', .09); playNoiseBurst(1.6, .14, 900, 60); }
@@ -112,6 +116,17 @@
       f.bolts.push({ kind: 'bite', x: shipPx, y: L.shipY, vx: 0, vy: 0, dmg: 16, warnUntil: time + 1, until: time + 1.45 });
       f.boss.hidden = time + 1.5;
       playToneSweep(400, 60, 1, 'sine', .08); playNoiseBurst(.9, .1, 300, 2000); return;
+    }
+    if (attack === 'drones') {
+      // The hive launches kamikaze drones that home in on the player (they turn slowly: keep moving).
+      for (let i = 0; i < 4; i++) f.bolts.push({ kind: 'drone', x: mx + (i - 1.5) * L.bs * .25, y: my, vx: (i - 1.5) * H * .12, vy: H * .2, dmg: 6, color: '#ffb020' });
+      playToneSweep(1600, 2400, .4, 'sawtooth', .03); return;
+    }
+    if (attack === 'walls') {
+      // The architect rebuilds the arena: a laser wall sweeps down the whole width, with one gap to slip through.
+      const gap = clamp(.15 + Math.random() * .7, .12, .88) * W;
+      f.bolts.push({ kind: 'wall', x: W / 2, y: my, vx: 0, vy: H * .26, dmg: 12, gap, gapW: L.ship * 3.4 });
+      playToneSweep(200, 900, .6, 'square', .04); return;
     }
     if (attack === 'eyebeam') {
       // Telegraphed death ray from the monocle eye straight down at the player's position.
@@ -304,6 +319,16 @@
         }
         continue;
       }
+      if (bolt.kind === 'drone') bolt.vx = clamp(bolt.vx + Math.sign(shipPx - bolt.x) * H * .9 * dt, -H * .35, H * .35);
+      if (bolt.kind === 'wall') {
+        if (!bolt.passed && bolt.y >= L.shipY - L.ship * .2) {
+          bolt.passed = true;
+          if (time > f.invulnUntil && Math.abs(shipPx - bolt.gap) > bolt.gapW / 2) {
+            shield = Math.max(0, shield - bolt.dmg * diff().dmg); shake = Math.max(shake, 1); screenFlash = Math.max(screenFlash, .3); playImpactSound(1); finaleMsg(`LASER WALL!  SHIELD -${bolt.dmg}`);
+          } else finaleMsg('THROUGH THE GAP!');
+        }
+        continue;
+      }
       if (bolt.kind === 'web' && time > f.invulnUntil && Math.abs(bolt.x - shipPx) < bolt.r && Math.abs(bolt.y - L.shipY) < L.ship * .6) {
         bolt.hit = true; f.webbedUntil = time + 2.2; shield = Math.max(0, shield - bolt.dmg * diff().dmg); playNoiseBurst(.3, .1, 2000, 400); finaleMsg('WEBBED!  SLOWED DOWN'); continue;
       }
@@ -317,7 +342,7 @@
       }
       if (time > f.invulnUntil && Math.abs(bolt.x - shipPx) < L.ship * .9 && Math.abs(bolt.y - L.shipY) < L.ship * .5) {
         bolt.hit = true; shield = Math.max(0, shield - bolt.dmg * diff().dmg); shake = Math.max(shake, .8); screenFlash = Math.max(screenFlash, .25);
-        playImpactSound(.8); finaleMsg(`${{ slime: 'SLIMED!', acid: 'ACID BURN!', missile: 'MISSILE HIT!', shard: 'CRYSTAL SHARD!' }[bolt.kind] || 'ZAPPED!'}  SHIELD -${bolt.dmg}`);
+        playImpactSound(.8); finaleMsg(`${{ slime: 'SLIMED!', acid: 'ACID BURN!', missile: 'MISSILE HIT!', shard: 'CRYSTAL SHARD!', drone: 'DRONE STRIKE!' }[bolt.kind] || 'ZAPPED!'}  SHIELD -${bolt.dmg}`);
       }
     }
     f.bolts = f.bolts.filter(bolt => bolt.kind === 'eyebeam' || bolt.kind === 'bite' ? !bolt.hit && time < bolt.until : !bolt.hit && bolt.y < H + 40 && bolt.x > -40 && bolt.x < W + 40);
