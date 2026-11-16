@@ -13,7 +13,10 @@
   // Safari 16.4+: play like a media app, so sound also comes out with the iPhone's silent switch on
   // (the music runs through Web Audio, which iOS would otherwise mute together with the ringer).
   function audioSessionPlayback() { try { const s = /** @type {any} */ (navigator).audioSession; if (s && s.type !== 'playback') s.type = 'playback'; } catch { /* not supported */ } }
-  function wakeAudio() { if (audioContext && audioContext.state !== 'running' && audioContext.state !== 'closed') { audioSessionPlayback(); const p = audioContext.resume(); if (p && p.catch) p.catch(() => {}); } }
+  function wakeAudio() {
+    if (audioContext && audioContext.state !== 'running' && audioContext.state !== 'closed') { audioSessionPlayback(); const p = audioContext.resume(); if (p && p.catch) p.catch(() => {}); }
+    if (musicBlocked && musicWanted && audio.paused && !muted && soundtrackReady) tryPlay();
+  }
   function setupAudio() {
     audioSessionPlayback();
     if (audioContext) { wakeAudio(); return; }
@@ -40,7 +43,13 @@
   const AUDIO_EXT = (() => { try { return !appleWebKit && audio.canPlayType && audio.canPlayType('audio/webm; codecs="opus"') ? 'webm' : 'mp3'; } catch { return 'mp3'; } })();
   const MP3_SOUNDTRACK_URL = soundtrackUrl('mp3');
   const SOUNDTRACK_URL = soundtrackUrl(AUDIO_EXT);
-  let soundtrackReady = false, soundtrackProgress = 0, soundtrackPromise = null, musicWanted = false;
+  let soundtrackReady = false, soundtrackProgress = 0, soundtrackPromise = null, musicWanted = false, musicBlocked = false;
+  // Plays the soundtrack; if the browser refuses (Safari outside a tap), the next tap starts it (see wakeAudio).
+  function tryPlay() {
+    const p = audio.play();
+    if (p && p.then) return p.then(() => { musicBlocked = false; updateMusic(); }, () => { musicBlocked = true; updateMusic(); });
+    return Promise.resolve();
+  }
   const SILENCE = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=='; // 0.1 s of silence
 
   function preloadSoundtrack() {
@@ -66,11 +75,11 @@
         // The browser could not play the WebM copy after all: stream the MP3 instead.
         if (failed && SOUNDTRACK_URL !== MP3_SOUNDTRACK_URL) { audio.src = MP3_SOUNDTRACK_URL; audio.preload = 'auto'; audio.load(); }
         if (at) try { audio.currentTime = at; } catch { /* keep the start */ }
-        if (resume || musicWanted) audio.play().catch(() => {});
+        if (resume || musicWanted) tryPlay();
       } catch {
         // Offline without a cached copy or a failed download: fall back to normal streaming.
         audio.src = SOUNDTRACK_URL; audio.preload = 'auto'; try { audio.load(); } catch { /* ignore */ }
-        if (musicWanted) audio.play().catch(() => {});
+        if (musicWanted) tryPlay();
       }
       soundtrackReady = true; soundtrackProgress = 1; updateMusic();
     })();
@@ -86,7 +95,7 @@
       const unlock = audio.play(); if (unlock && unlock.then) unlock.then(() => { if (!soundtrackReady) audio.pause(); }).catch(() => {});
       updateMusic(); return;
     }
-    audio.play().then(updateMusic).catch(() => { $('music-status').textContent = 'SOUNDTRACK / TAP TO PLAY'; });
+    tryPlay().then(() => { if (musicBlocked) $('music-status').textContent = 'SOUNDTRACK / TAP TO PLAY'; });
   }
   function updateMusic() {
     const playing = !audio.paused && !muted;
@@ -169,6 +178,30 @@
     if (typeof fetch !== 'function') { voicesLoaded = VOICE_CLIPS.length; return; }
     for (const clip of VOICE_CLIPS) fetch(`voice/${clip}.${AUDIO_EXT}`).then(r => r.ok ? r.arrayBuffer() : null)
       .then(data => { if (data) voiceData.set(clip, data); }).catch(() => {}).finally(() => { voicesLoaded++; });
+  }
+  // ---- Download progress (soundtrack 85 %, voices 15 %) and the start button that waits for it.
+  const bootProgress = () => clamp(soundtrackProgress * .85 + voicesLoaded / VOICE_CLIPS.length * .15, 0, 1);
+  // The start button waits until the soundtrack and all voice clips are on the device, so the music starts inside the
+  // player's tap (Safari only allows that) and never stutters. A download that makes no progress for 25 s does not
+  // lock the game: the button opens and the music streams instead.
+  const DOWNLOAD_STALL = 25;
+  let lastProgress = -1, lastProgressAt = 0, downloadsStalled = false;
+  const downloadsDone = () => soundtrackReady && voicesLoaded >= VOICE_CLIPS.length;
+  const downloadsReady = () => downloadsDone() || downloadsStalled;
+  function watchDownloads(now) {
+    if (downloadsReady()) return;
+    const p = bootProgress();
+    if (p !== lastProgress) { lastProgress = p; lastProgressAt = now; }
+    else if (now - lastProgressAt > DOWNLOAD_STALL) downloadsStalled = true;
+  }
+  let startLabel = '';
+  function renderStartButton() {
+    const start = $('start'); if (!start) return;
+    const ready = downloadsReady(), pct = Math.min(99, Math.round(bootProgress() * 100));
+    const label = !ready ? `LOADING ${pct}%` : trackLocked(trackIndex) ? 'LOCKED CIRCUIT' : 'ENTER THE RACE';
+    start.disabled = !ready; start.classList.toggle('loading', !ready); start.setAttribute('aria-busy', String(!ready));
+    if (start.style && start.style.setProperty) start.style.setProperty('--load', `${ready ? 100 : pct}%`);
+    if (label !== startLabel && start.firstElementChild) { startLabel = label; start.firstElementChild.textContent = label; }
   }
   // Callback form: older Safari has no promise-based decodeAudioData.
   const decodeClip = data => new Promise((ok, fail) => { try { const p = audioContext.decodeAudioData(data, ok, fail); if (p && p.catch) p.catch(fail); } catch (e) { fail(e); } });

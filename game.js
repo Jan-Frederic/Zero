@@ -555,7 +555,7 @@
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
     [/^WAVE (\d+): (.+)$/, 'WELLE $1: $2'], [/^FINAL BOSS (\d+)\/(\d+)!$/, 'ENDBOSS $1/$2!'], [/^ALIEN WALL (.+)$/, 'ALIEN-WAND $1'], [/^LIVES (.*)$/, 'LEBEN $1'],
-    [/^(\d+)% CREDITS$/, '$1 % CREDITS'], [/^LOADING MUSIC (\d+)%$/, 'MUSIK LÄDT $1 %'], [/^SOUNDTRACK \/ LOADING (\d+)%$/, 'SOUNDTRACK / LÄDT $1 %'],
+    [/^(\d+)% CREDITS$/, '$1 % CREDITS'], [/^LOADING MUSIC (\d+)%$/, 'MUSIK LÄDT $1 %'], [/^LOADING (\d+)%$/, 'LÄDT $1 %'], [/^SOUNDTRACK \/ LOADING (\d+)%$/, 'SOUNDTRACK / LÄDT $1 %'],
     [/^ROTATE TO (\w+)$/, (m, a) => `INS ${a === 'LANDSCAPE' ? 'QUERFORMAT' : 'HOCHFORMAT'} DREHEN`], [/^SCREEN: (\w+)$/, (m, a) => `BILDSCHIRM: ${tr(a)}`],
     [/^TUTORIAL (\d+)\/(\d+)$/, 'TUTORIAL $1/$2'], [/^🔒 LOCKED — FINISH TOP 3 ON (.+) TO UNLOCK$/, '🔒 GESPERRT — KOMM AUF $1 UNTER DIE TOP 3'], [/^🔓 NEW CIRCUIT UNLOCKED: (.+)!$/, '🔓 NEUE STRECKE FREI: $1!'],
     [/^✦ NEW ENDLESS RECORD! \(previous best: (\d+)\)$/, '✦ NEUER ENDLOS-REKORD! (bisher: $1)'], [/^BOSS AFTER BOSS UNTIL YOU FALL · RECORD (\d+) WAVES$/, 'BOSS UM BOSS, BIS DU FÄLLST · REKORD $1 WELLEN'],
@@ -772,7 +772,10 @@
   // Safari 16.4+: play like a media app, so sound also comes out with the iPhone's silent switch on
   // (the music runs through Web Audio, which iOS would otherwise mute together with the ringer).
   function audioSessionPlayback() { try { const s = /** @type {any} */ (navigator).audioSession; if (s && s.type !== 'playback') s.type = 'playback'; } catch { /* not supported */ } }
-  function wakeAudio() { if (audioContext && audioContext.state !== 'running' && audioContext.state !== 'closed') { audioSessionPlayback(); const p = audioContext.resume(); if (p && p.catch) p.catch(() => {}); } }
+  function wakeAudio() {
+    if (audioContext && audioContext.state !== 'running' && audioContext.state !== 'closed') { audioSessionPlayback(); const p = audioContext.resume(); if (p && p.catch) p.catch(() => {}); }
+    if (musicBlocked && musicWanted && audio.paused && !muted && soundtrackReady) tryPlay();
+  }
   function setupAudio() {
     audioSessionPlayback();
     if (audioContext) { wakeAudio(); return; }
@@ -799,7 +802,13 @@
   const AUDIO_EXT = (() => { try { return !appleWebKit && audio.canPlayType && audio.canPlayType('audio/webm; codecs="opus"') ? 'webm' : 'mp3'; } catch { return 'mp3'; } })();
   const MP3_SOUNDTRACK_URL = soundtrackUrl('mp3');
   const SOUNDTRACK_URL = soundtrackUrl(AUDIO_EXT);
-  let soundtrackReady = false, soundtrackProgress = 0, soundtrackPromise = null, musicWanted = false;
+  let soundtrackReady = false, soundtrackProgress = 0, soundtrackPromise = null, musicWanted = false, musicBlocked = false;
+  // Plays the soundtrack; if the browser refuses (Safari outside a tap), the next tap starts it (see wakeAudio).
+  function tryPlay() {
+    const p = audio.play();
+    if (p && p.then) return p.then(() => { musicBlocked = false; updateMusic(); }, () => { musicBlocked = true; updateMusic(); });
+    return Promise.resolve();
+  }
   const SILENCE = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=='; // 0.1 s of silence
 
   function preloadSoundtrack() {
@@ -825,11 +834,11 @@
         // The browser could not play the WebM copy after all: stream the MP3 instead.
         if (failed && SOUNDTRACK_URL !== MP3_SOUNDTRACK_URL) { audio.src = MP3_SOUNDTRACK_URL; audio.preload = 'auto'; audio.load(); }
         if (at) try { audio.currentTime = at; } catch { /* keep the start */ }
-        if (resume || musicWanted) audio.play().catch(() => {});
+        if (resume || musicWanted) tryPlay();
       } catch {
         // Offline without a cached copy or a failed download: fall back to normal streaming.
         audio.src = SOUNDTRACK_URL; audio.preload = 'auto'; try { audio.load(); } catch { /* ignore */ }
-        if (musicWanted) audio.play().catch(() => {});
+        if (musicWanted) tryPlay();
       }
       soundtrackReady = true; soundtrackProgress = 1; updateMusic();
     })();
@@ -845,7 +854,7 @@
       const unlock = audio.play(); if (unlock && unlock.then) unlock.then(() => { if (!soundtrackReady) audio.pause(); }).catch(() => {});
       updateMusic(); return;
     }
-    audio.play().then(updateMusic).catch(() => { $('music-status').textContent = 'SOUNDTRACK / TAP TO PLAY'; });
+    tryPlay().then(() => { if (musicBlocked) $('music-status').textContent = 'SOUNDTRACK / TAP TO PLAY'; });
   }
   function updateMusic() {
     const playing = !audio.paused && !muted;
@@ -928,6 +937,30 @@
     if (typeof fetch !== 'function') { voicesLoaded = VOICE_CLIPS.length; return; }
     for (const clip of VOICE_CLIPS) fetch(`voice/${clip}.${AUDIO_EXT}`).then(r => r.ok ? r.arrayBuffer() : null)
       .then(data => { if (data) voiceData.set(clip, data); }).catch(() => {}).finally(() => { voicesLoaded++; });
+  }
+  // ---- Download progress (soundtrack 85 %, voices 15 %) and the start button that waits for it.
+  const bootProgress = () => clamp(soundtrackProgress * .85 + voicesLoaded / VOICE_CLIPS.length * .15, 0, 1);
+  // The start button waits until the soundtrack and all voice clips are on the device, so the music starts inside the
+  // player's tap (Safari only allows that) and never stutters. A download that makes no progress for 25 s does not
+  // lock the game: the button opens and the music streams instead.
+  const DOWNLOAD_STALL = 25;
+  let lastProgress = -1, lastProgressAt = 0, downloadsStalled = false;
+  const downloadsDone = () => soundtrackReady && voicesLoaded >= VOICE_CLIPS.length;
+  const downloadsReady = () => downloadsDone() || downloadsStalled;
+  function watchDownloads(now) {
+    if (downloadsReady()) return;
+    const p = bootProgress();
+    if (p !== lastProgress) { lastProgress = p; lastProgressAt = now; }
+    else if (now - lastProgressAt > DOWNLOAD_STALL) downloadsStalled = true;
+  }
+  let startLabel = '';
+  function renderStartButton() {
+    const start = $('start'); if (!start) return;
+    const ready = downloadsReady(), pct = Math.min(99, Math.round(bootProgress() * 100));
+    const label = !ready ? `LOADING ${pct}%` : trackLocked(trackIndex) ? 'LOCKED CIRCUIT' : 'ENTER THE RACE';
+    start.disabled = !ready; start.classList.toggle('loading', !ready); start.setAttribute('aria-busy', String(!ready));
+    if (start.style && start.style.setProperty) start.style.setProperty('--load', `${ready ? 100 : pct}%`);
+    if (label !== startLabel && start.firstElementChild) { startLabel = label; start.firstElementChild.textContent = label; }
   }
   // Callback form: older Safari has no promise-based decodeAudioData.
   const decodeClip = data => new Promise((ok, fail) => { try { const p = audioContext.decodeAudioData(data, ok, fail); if (p && p.catch) p.catch(fail); } catch (e) { fail(e); } });
@@ -1587,7 +1620,7 @@
     const locked = trackLocked(trackIndex), el = $('track-lock');
     document.body.classList.toggle('track-locked', locked);
     if (el) el.textContent = locked ? `🔒 LOCKED — FINISH TOP 3 ON ${tracks[trackIndex - 1].name} TO UNLOCK` : `CIRCUITS UNLOCKED: ${Math.min(profile.unlocked || 1, tracks.length)}/${tracks.length}`;
-    const start = $('start'); if (start.firstElementChild) start.firstElementChild.textContent = locked ? 'LOCKED CIRCUIT' : 'ENTER THE RACE';
+    renderStartButton();
   }
   function showLockedHint() { const el = $('track-lock'); if (el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); } }
   // ---- Game modes: RACE (grand prix), TIME TRIAL (alone against the clock) and ENDLESS (boss after boss).
@@ -1779,6 +1812,7 @@
   }
   // ==== Race start/pause/garage, lasers, wrecks, lives, results.
   function startRace() {
+    if (!downloadsReady()) return; // Enter key or gamepad while the start button still waits for the downloads
     if (gameMode() === 'endless') { startEndless(); return; }
     if (gameMode() === 'cup') prepareCupRace(); else cup = null;
     if (trackLocked(trackIndex)) { renderLock(); playToneSweep(220, 120, .25, 'square', .05); showLockedHint(); return; }
@@ -2074,7 +2108,6 @@
     'CONVINCING CATS TO CROSS THE TRACK…', 'REBOOTING THE BIG BANG (ATTEMPT 2 OF 3)…', 'WAXING THE MAGGOT QUEEN… EW.', 'COMPRESSING SPACETIME, ALMOST DONE…',
   ];
   let bootLine = -1, bootLineAt = -9, bootDoneAt = 0;
-  const bootProgress = () => clamp(soundtrackProgress * .85 + voicesLoaded / VOICE_CLIPS.length * .15, 0, 1);
   // In portrait the boot panel sits under the start button; elsewhere it takes the middle of the bottom bar.
   function placeBoot() {
     const box = $('boot'), note = document.querySelector('.start-note'), bar = document.querySelector('.bottom-bar'), controls = document.querySelector('.bottom-bar .controls');
@@ -2085,9 +2118,10 @@
   }
   if (window.matchMedia) { placeBoot(); matchMedia('(max-width:600px) and (orientation:portrait)').addEventListener?.('change', placeBoot); }
   function updateBoot() {
+    watchDownloads(frameClock); renderStartButton();
     const box = $('boot'); if (!box) return;
     document.body.classList.toggle('booting', !box.classList.contains('gone'));
-    const done = soundtrackReady && voicesLoaded >= VOICE_CLIPS.length, pct = done ? 100 : Math.min(99, Math.round(bootProgress() * 100));
+    const done = downloadsDone(), pct = done ? 100 : Math.min(99, Math.round(bootProgress() * 100));
     if (done) {
       if (!bootDoneAt) { bootDoneAt = time || .001; $('boot-text').textContent = 'SYSTEM READY · SINGULARITY STABLE · GO RACE!'; box.classList.add('done'); }
       if (time - bootDoneAt > 3.5) box.classList.add('gone');
@@ -3894,7 +3928,7 @@
   $('prev-track').addEventListener('click', () => selectTrack(-1)); $('next-track').addEventListener('click', () => selectTrack(1));
   document.querySelectorAll('[data-ship]').forEach(button => button.addEventListener('click', () => selectShip(Number(button.dataset.ship))));
   renderShips(); window.morbidShips = { select: selectShip };
-  $('music-toggle').addEventListener('click', () => { if (audio.paused) { if (muted) toggleMute(); playMusic(); } else { audio.pause(); updateMusic(); } });
+  $('music-toggle').addEventListener('click', () => { if (audio.paused) { if (muted) toggleMute(); playMusic(); } else { audio.pause(); musicWanted = false; musicBlocked = false; updateMusic(); } });
   $('sound').addEventListener('click', toggleMute);
   audio.addEventListener('play', updateMusic); audio.addEventListener('pause', updateMusic);
   audio.addEventListener('error', () => { $('music-status').textContent = 'SOUNDTRACK / FILE UNAVAILABLE'; });

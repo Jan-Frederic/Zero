@@ -1,5 +1,6 @@
   // ==== Race start/pause/garage, lasers, wrecks, lives, results.
   function startRace() {
+    if (!downloadsReady()) return; // Enter key or gamepad while the start button still waits for the downloads
     if (gameMode() === 'endless') { startEndless(); return; }
     if (gameMode() === 'cup') prepareCupRace(); else cup = null;
     if (trackLocked(trackIndex)) { renderLock(); playToneSweep(220, 120, .25, 'square', .05); showLockedHint(); return; }

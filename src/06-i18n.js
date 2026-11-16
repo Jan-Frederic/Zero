@@ -211,7 +211,7 @@
     [/^([^/·]+)  SHIELD -(\d+)$/, (m, a, n) => `${tr(a)}  SCHILD -${n}`], [/^SHIELD -(\d+)$/, 'SCHILD -$1'], [/^([A-Z-]+) HIT  \/  (\d+) TO GO$/, '$1 GETROFFEN  /  NOCH $2'],
     [/^BOSS (\d+)\/(\d+) DOWN  \/  NEXT ONE INCOMING$/, 'BOSS $1/$2 BESIEGT  /  DER NÄCHSTE KOMMT'], [/^WAVE (\d+) CLEARED  \/  NEXT ONE INCOMING$/, 'WELLE $1 GESCHAFFT  /  DIE NÄCHSTE KOMMT'],
     [/^WAVE (\d+): (.+)$/, 'WELLE $1: $2'], [/^FINAL BOSS (\d+)\/(\d+)!$/, 'ENDBOSS $1/$2!'], [/^ALIEN WALL (.+)$/, 'ALIEN-WAND $1'], [/^LIVES (.*)$/, 'LEBEN $1'],
-    [/^(\d+)% CREDITS$/, '$1 % CREDITS'], [/^LOADING MUSIC (\d+)%$/, 'MUSIK LÄDT $1 %'], [/^SOUNDTRACK \/ LOADING (\d+)%$/, 'SOUNDTRACK / LÄDT $1 %'],
+    [/^(\d+)% CREDITS$/, '$1 % CREDITS'], [/^LOADING MUSIC (\d+)%$/, 'MUSIK LÄDT $1 %'], [/^LOADING (\d+)%$/, 'LÄDT $1 %'], [/^SOUNDTRACK \/ LOADING (\d+)%$/, 'SOUNDTRACK / LÄDT $1 %'],
     [/^ROTATE TO (\w+)$/, (m, a) => `INS ${a === 'LANDSCAPE' ? 'QUERFORMAT' : 'HOCHFORMAT'} DREHEN`], [/^SCREEN: (\w+)$/, (m, a) => `BILDSCHIRM: ${tr(a)}`],
     [/^TUTORIAL (\d+)\/(\d+)$/, 'TUTORIAL $1/$2'], [/^🔒 LOCKED — FINISH TOP 3 ON (.+) TO UNLOCK$/, '🔒 GESPERRT — KOMM AUF $1 UNTER DIE TOP 3'], [/^🔓 NEW CIRCUIT UNLOCKED: (.+)!$/, '🔓 NEUE STRECKE FREI: $1!'],
     [/^✦ NEW ENDLESS RECORD! \(previous best: (\d+)\)$/, '✦ NEUER ENDLOS-REKORD! (bisher: $1)'], [/^BOSS AFTER BOSS UNTIL YOU FALL · RECORD (\d+) WAVES$/, 'BOSS UM BOSS, BIS DU FÄLLST · REKORD $1 WELLEN'],

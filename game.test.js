@@ -439,9 +439,28 @@ test('extra lives let you continue the boss fight where you blew up', () => {
   assert.equal(inspect().mode, 'final');
 });
 
-test('the countdown waits until the soundtrack is fully loaded', () => {
+test('the start button stays disabled until the soundtrack and voices are downloaded', () => {
   const { element: el, step, inspect, musicLoading, musicLoaded } = harness();
-  musicLoading(.4);
+  el('start').firstElementChild = { textContent: '' };
+  musicLoading(.4); step(.1);
+  assert.equal(el('start').disabled, true, 'disabled while downloading');
+  assert.equal(el('start').firstElementChild.textContent, 'LOADING 49%');
+  el('start').fire('click'); step(1);
+  assert.equal(inspect().mode, 'menu', 'no race while the files are missing');
+  musicLoaded(); step(.1);
+  assert.equal(el('start').disabled, false, 'enabled once everything is there');
+  assert.equal(el('start').firstElementChild.textContent, 'ENTER THE RACE');
+  el('start').fire('click');
+  assert.equal(el('soundtrack').paused, false, 'the music starts inside the tap');
+  step(3.1);
+  assert.equal(inspect().mode, 'racing');
+});
+
+test('a stalled download unlocks the start button; the countdown then waits for the music', () => {
+  const { element: el, step, inspect, musicLoading, musicLoaded } = harness();
+  musicLoading(.4); step(.1);
+  for (let i = 0; i < 27; i++) step(1);
+  assert.equal(el('start').disabled, false, 'no progress for 25 s: the game is not locked');
   el('start').fire('click'); step(4);
   assert.equal(inspect().mode, 'countdown', 'the race does not start without the music');
   assert.equal(el('countdown').textContent, 'LOADING MUSIC 40%');
