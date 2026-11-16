@@ -86,18 +86,33 @@ const HOOKS = "  window.__smoke = { mode: () => mode, win: () => { ufos = []; bo
       const step = async (label, fn) => {
         try { await fn(); lines.push(`  ✓ ${label}`); } catch (e) { failures++; lines.push(`  ✗ ${label}: ${String(e.message).split('\n')[0]}`); }
       };
+      // A slow soundtrack download: the start button must wait for it.
+      let release; const held = new Promise(r => { release = r; });
+      await page.route(/Morbid_Fingers[^/]*\.(mp3|webm)$/, async r => { await held; await r.continue(); });
       await page.goto(server.url); await page.waitForTimeout(1200);
       if (await page.isVisible('#rotate-overlay')) await page.tap('#rotate-switch');
+      if (await page.isVisible('#health-screen')) await page.tap('#health-accept');
+      await step('start button is disabled while the soundtrack downloads', async () => {
+        if (!await page.isDisabled('#start')) throw new Error('enabled');
+        const label = (await page.textContent('#start')).trim(); if (!/^LOADING \d+%/.test(label)) throw new Error(`label "${label}"`);
+      });
+      await page.screenshot({ path: path.join(shots, 'iphone-safari-1-loading.png') });
+      release();
+      await step('start button opens once everything is downloaded', async () => {
+        await page.waitForFunction(() => !document.getElementById('start').disabled, null, { timeout: 15000 });
+        if (!/ENTER THE RACE/.test(await page.textContent('#start'))) throw new Error('label not restored');
+      });
       await step('fullscreen button is hidden without the fullscreen API', async () => { if (await page.isVisible('#fullscreen')) throw new Error('visible'); });
       await step('soundtrack and voices load as MP3', async () => {
         if (!audio.length) throw new Error('no audio requested');
         const webm = audio.filter(f => f.endsWith('.webm')); if (webm.length) throw new Error(`WebM requested: ${webm.slice(0, 3).join(', ')}`);
       });
-      await step('race starts after the countdown', async () => {
-        if (await page.isVisible('#health-screen')) await page.tap('#health-accept');
-        await page.tap('#start'); await page.waitForTimeout(4200);
+      await step('race starts after the countdown with the music playing', async () => {
+        await page.tap('#start'); await page.waitForTimeout(3600);
         const mode = await page.evaluate(() => window.__smoke.mode());
         if (mode !== 'racing') throw new Error(`mode is ${mode}`);
+        const music = await page.evaluate(() => { const a = document.querySelector('audio'); return { paused: a.paused, src: a.src.slice(0, 5), t: a.currentTime }; });
+        if (music.paused || music.src !== 'blob:' || !(music.t > 1)) throw new Error(`music ${JSON.stringify(music)}`);
       });
       if (errors.length) { failures++; lines.push(`  ✗ page errors: ${errors.join(' | ')}`); }
       console.log(`iphone-safari\n${lines.join('\n')}`);

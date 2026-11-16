@@ -7,7 +7,6 @@
     'CONVINCING CATS TO CROSS THE TRACK…', 'REBOOTING THE BIG BANG (ATTEMPT 2 OF 3)…', 'WAXING THE MAGGOT QUEEN… EW.', 'COMPRESSING SPACETIME, ALMOST DONE…',
   ];
   let bootLine = -1, bootLineAt = -9, bootDoneAt = 0;
-  const bootProgress = () => clamp(soundtrackProgress * .85 + voicesLoaded / VOICE_CLIPS.length * .15, 0, 1);
   // In portrait the boot panel sits under the start button; elsewhere it takes the middle of the bottom bar.
   function placeBoot() {
     const box = $('boot'), note = document.querySelector('.start-note'), bar = document.querySelector('.bottom-bar'), controls = document.querySelector('.bottom-bar .controls');
@@ -18,9 +17,10 @@
   }
   if (window.matchMedia) { placeBoot(); matchMedia('(max-width:600px) and (orientation:portrait)').addEventListener?.('change', placeBoot); }
   function updateBoot() {
+    watchDownloads(frameClock); renderStartButton();
     const box = $('boot'); if (!box) return;
     document.body.classList.toggle('booting', !box.classList.contains('gone'));
-    const done = soundtrackReady && voicesLoaded >= VOICE_CLIPS.length, pct = done ? 100 : Math.min(99, Math.round(bootProgress() * 100));
+    const done = downloadsDone(), pct = done ? 100 : Math.min(99, Math.round(bootProgress() * 100));
     if (done) {
       if (!bootDoneAt) { bootDoneAt = time || .001; $('boot-text').textContent = 'SYSTEM READY · SINGULARITY STABLE · GO RACE!'; box.classList.add('done'); }
       if (time - bootDoneAt > 3.5) box.classList.add('gone');

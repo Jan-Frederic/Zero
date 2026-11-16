@@ -536,3 +536,5 @@ body.photo .photo-bar{display:flex;position:fixed;left:50%;bottom:calc(14px + en
 body.hud-small #hud .race-top,body.hud-small #hud .race-bottom{zoom:.82}
 body.hud-large #hud .race-top,body.hud-large #hud .race-bottom{zoom:1.18}
 .error-log{margin-top:14px}.error-log small{display:block;font:11px var(--mono);letter-spacing:1px;color:#b9b2cc;margin-top:4px}
+/* Start button while the soundtrack and voices download: disabled, with the progress filling along its bottom edge. */
+.start-button.loading,.start-button.loading:hover{background:#ddff4614 linear-gradient(var(--acid),var(--acid)) no-repeat left bottom/var(--load,0%) 4px;color:var(--acid);box-shadow:inset 0 0 0 1px #ddff4650;transform:none;cursor:progress;transition:background-size .3s}
