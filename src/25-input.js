@@ -17,8 +17,10 @@
   audio.addEventListener('play', updateMusic); audio.addEventListener('pause', updateMusic);
   audio.addEventListener('error', () => { $('music-status').textContent = 'SOUNDTRACK / FILE UNAVAILABLE'; });
   $('fullscreen').addEventListener('click', async () => {
-    try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { /* Fullscreen may be unavailable in embedded browsers. */ }
+    try { if (fullscreenElement()) await exitFullscreen(); else await enterFullscreen(); } catch { /* Fullscreen may be unavailable in embedded browsers. */ }
   });
+  // No fullscreen API (iPhone Safari) or already running as an installed app: the button would do nothing.
+  if (!fullscreenAvailable() || (window.matchMedia && matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches) || /** @type {any} */ (navigator).standalone) $('fullscreen').classList.add('hidden');
   window.addEventListener('keydown', event => {
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code) && event.target.tagName !== 'BUTTON') event.preventDefault();
     if (!event.repeat) {
@@ -33,7 +35,10 @@
   });
   window.addEventListener('keyup', event => keys.delete(event.code));
   window.addEventListener('blur', () => { keys.clear(); resetGesture(); if (mode === 'racing' || mode === 'countdown') pauseRace(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && (mode === 'racing' || mode === 'countdown')) pauseRace(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && (mode === 'racing' || mode === 'countdown')) pauseRace(); else if (!document.hidden) wakeAudio(); });
+  // iOS suspends ("interrupts") the audio context for calls, Siri or app switches; the next touch brings the sound back.
+  window.addEventListener('pointerdown', wakeAudio, { capture: true, passive: true });
+  window.addEventListener('keydown', wakeAudio, { capture: true, passive: true });
   document.querySelectorAll('[data-key]').forEach(button => {
     button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(/** @type {PointerEvent} */ (event).pointerId); keys.add(button.dataset.key); });
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, () => keys.delete(button.dataset.key));

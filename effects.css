@@ -157,7 +157,7 @@ body.racing .home-actions{display:none}
 .health-text p{margin:0 0 12px}.health-text b{color:#fff}
 body.health-open .update-banner{display:none}
 @media(max-width:600px){.health-text{font-size:13px;max-height:50vh}}
-@media(max-height:520px) and (orientation:landscape){#health-screen{inset:0;z-index:55}.health-card{max-height:calc(100% - 16px);padding:12px 22px}.health-card .eyebrow{display:none}.health-card h2{font-size:24px;margin:2px 0 6px}.health-text{font-size:12px;line-height:1.45;max-height:calc(100vh - 140px)}.health-card .start-button{margin-top:8px;padding:10px 20px}}
+@media(max-height:520px) and (orientation:landscape){#health-screen{inset:0;z-index:55}.health-card{max-height:calc(100% - 16px);padding:12px 22px}.health-card .eyebrow{display:none}.health-card h2{font-size:24px;margin:2px 0 6px}.health-text{font-size:12px;line-height:1.45;max-height:calc(100vh - 140px);max-height:calc(100dvh - 140px)}.health-card .start-button{margin-top:8px;padding:10px 20px}}
 
 /* Finale: red alarm button, space fight controls, disco. */
 @keyframes alarmButton{0%{transform:translate(-3px,1px) rotate(-1deg)}50%{transform:translate(3px,-1px) rotate(1deg)}100%{transform:translate(-2px,2px) rotate(0)}}

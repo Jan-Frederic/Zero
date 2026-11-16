@@ -10,12 +10,17 @@
   const voiceBuffers = new Map();
   let voiceSource = null;
   let subtitleAt = -9, voicesStarted = false, speechPrimed = false;
+  // Safari 16.4+: play like a media app, so sound also comes out with the iPhone's silent switch on
+  // (the music runs through Web Audio, which iOS would otherwise mute together with the ringer).
+  function audioSessionPlayback() { try { const s = /** @type {any} */ (navigator).audioSession; if (s && s.type !== 'playback') s.type = 'playback'; } catch { /* not supported */ } }
+  function wakeAudio() { if (audioContext && audioContext.state !== 'running' && audioContext.state !== 'closed') { audioSessionPlayback(); const p = audioContext.resume(); if (p && p.catch) p.catch(() => {}); } }
   function setupAudio() {
-    if (audioContext) { audioContext.resume().catch(() => {}); return; }
+    audioSessionPlayback();
+    if (audioContext) { wakeAudio(); return; }
     try {
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
       analyser = audioContext.createAnalyser(); analyser.fftSize = 128;
-      musicGain = audioContext.createGain(); musicGain.gain.value = .92;
+      musicGain = audioContext.createGain(); musicGain.gain.value = .92 * .24; audio.volume = 1;
       sfxBus = audioContext.createGain(); sfxBus.gain.value = 1.55;
       musicSource = audioContext.createMediaElementSource(audio); musicSource.connect(analyser); analyser.connect(musicGain); musicGain.connect(audioContext.destination);
       sfxBus.connect(audioContext.destination);
@@ -30,8 +35,11 @@
   // ---- Soundtrack preloading: the whole MP3 is downloaded into memory as soon as the page opens and played
   // from a local blob, so playback can never run dry mid-race. Races wait (briefly) until it is ready.
   // WebM/Opus copies are ~40 % smaller; browsers that cannot play them get the MP3s.
-  const AUDIO_EXT = (() => { try { return audio.canPlayType && audio.canPlayType('audio/webm; codecs="opus"') ? 'webm' : 'mp3'; } catch { return 'mp3'; } })();
-  const SOUNDTRACK_URL = String((audio.getAttribute && audio.getAttribute('src')) || audio.src || '').replace(/\.mp3$/, '.' + AUDIO_EXT);
+  // Apple's WebKit gets the MP3s: its WebM/Opus support differs between iOS versions, especially in decodeAudioData.
+  function soundtrackUrl(ext) { return String((audio.getAttribute && audio.getAttribute('src')) || audio.src || '').replace(/\.mp3$/, '.' + ext); }
+  const AUDIO_EXT = (() => { try { return !appleWebKit && audio.canPlayType && audio.canPlayType('audio/webm; codecs="opus"') ? 'webm' : 'mp3'; } catch { return 'mp3'; } })();
+  const MP3_SOUNDTRACK_URL = soundtrackUrl('mp3');
+  const SOUNDTRACK_URL = soundtrackUrl(AUDIO_EXT);
   let soundtrackReady = false, soundtrackProgress = 0, soundtrackPromise = null, musicWanted = false;
   const SILENCE = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=='; // 0.1 s of silence
 
@@ -54,7 +62,9 @@
         } else blob = await response.blob();
         const resume = !audio.paused && !String(audio.src || '').startsWith('data:'), at = String(audio.src || '').startsWith('data:') ? 0 : audio.currentTime || 0;
         audio.src = URL.createObjectURL(blob); audio.preload = 'auto'; audio.load();
-        await new Promise(done => { audio.addEventListener('canplaythrough', done, { once: true }); audio.addEventListener('error', done, { once: true }); setTimeout(done, 4000); });
+        const failed = await new Promise(done => { audio.addEventListener('canplaythrough', () => done(false), { once: true }); audio.addEventListener('error', () => done(true), { once: true }); setTimeout(() => done(false), 4000); });
+        // The browser could not play the WebM copy after all: stream the MP3 instead.
+        if (failed && SOUNDTRACK_URL !== MP3_SOUNDTRACK_URL) { audio.src = MP3_SOUNDTRACK_URL; audio.preload = 'auto'; audio.load(); }
         if (at) try { audio.currentTime = at; } catch { /* keep the start */ }
         if (resume || musicWanted) audio.play().catch(() => {});
       } catch {
@@ -67,7 +77,8 @@
     return soundtrackPromise;
   }
   function playMusic() {
-    setupAudio(); audio.volume = .24; musicWanted = true;
+    // iOS ignores audio.volume, so with Web Audio the music level is set on its gain node instead (see setupAudio).
+    setupAudio(); musicWanted = true; audio.volume = musicSource ? 1 : .24;
     if (!soundtrackReady) {
       // Unlock the audio element inside the user's tap (needed on iOS), but don't stream it twice:
       // it starts for real as soon as the preloaded copy is ready.
@@ -159,11 +170,14 @@
     for (const clip of VOICE_CLIPS) fetch(`voice/${clip}.${AUDIO_EXT}`).then(r => r.ok ? r.arrayBuffer() : null)
       .then(data => { if (data) voiceData.set(clip, data); }).catch(() => {}).finally(() => { voicesLoaded++; });
   }
+  // Callback form: older Safari has no promise-based decodeAudioData.
+  const decodeClip = data => new Promise((ok, fail) => { try { const p = audioContext.decodeAudioData(data, ok, fail); if (p && p.catch) p.catch(fail); } catch (e) { fail(e); } });
   function loadVoices() {
     if (!audioContext || voicesStarted || typeof fetch !== 'function') return;
     voicesStarted = true;
     for (const clip of VOICE_CLIPS) (voiceData.has(clip) ? Promise.resolve(voiceData.get(clip).slice(0)) : fetch(`voice/${clip}.${AUDIO_EXT}`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()))
-      .then(data => new Promise((ok, fail) => audioContext.decodeAudioData(data, ok, fail))).then(buffer => voiceBuffers.set(clip, buffer)).catch(() => {});
+      .then(decodeClip).catch(() => AUDIO_EXT === 'mp3' ? Promise.reject() : fetch(`voice/${clip}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()).then(decodeClip))
+      .then(buffer => voiceBuffers.set(clip, buffer)).catch(() => {});
   }
   // Retro robot announcer: plays the pre-rendered clip; falls back to the system voice if it is not loaded.
   function robotSay(text, clip) {
