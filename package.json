@@ -19,7 +19,7 @@
     "@semantic-release/git": "^10.0.1",
     "esbuild": "0.28.2",
     "pixelmatch": "8.0.0",
-    "playwright": "1.65.0",
+    "playwright": "1.65.1",
     "pngjs": "7.0.0",
     "semantic-release": "^25.0.9",
     "typescript": "7.0.2"
