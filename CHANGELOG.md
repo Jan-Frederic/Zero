@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.1](https://github.com/Jan-Frederic/Zero/compare/v1.19.0...v1.19.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ios:** make sound, fullscreen, sharing and saves robust on Apple devices ([ecb2020](https://github.com/Jan-Frederic/Zero/commit/ecb2020f3a4f5df10ed68441d90907942d029ace))
+
 # [1.19.0](https://github.com/Jan-Frederic/Zero/compare/v1.18.0...v1.19.0) (2026-11-15)
 
 
