@@ -29,11 +29,16 @@
   async function shareFile(blob, name, text, url) {
     if (!blob) return false;
     const file = typeof File === 'function' ? new File([blob], name, { type: blob.type }) : null;
+    const download = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); return true; };
     try {
       if (file && navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], text, url, title: 'Morbid Racers' });
-      else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); }
+      else return download();
       return true;
-    } catch { return false; /* share sheet dismissed */ }
+    } catch (e) {
+      // Dismissed share sheet: nothing to do. Safari refuses the share when rendering the picture took too long
+      // after the tap (NotAllowedError): save the file instead.
+      return e && e.name === 'AbortError' ? false : download();
+    }
   }
   // ---- Photo mode: freeze the race, move the camera, pick a filter and save the shot.
   const PHOTO_FILTERS = [['NONE', 'none'], ['NOIR', 'grayscale(1) contrast(1.35)'], ['VHS', 'saturate(1.7) hue-rotate(-14deg) contrast(1.15) blur(.4px)'], ['NEON', 'saturate(2.1) brightness(1.12)'], ['SEPIA', 'sepia(.85) contrast(1.1)']];

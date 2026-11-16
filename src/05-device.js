@@ -26,12 +26,27 @@
     if (!gyroListening) { window.addEventListener('deviceorientation', onTilt); gyroListening = true; }
     return true;
   }
+  // ---- Apple devices: every iOS/iPadOS browser runs on WebKit (iPads report a Mac user agent but have touch).
+  const ua = String(navigator.userAgent || '');
+  const appleWebKit = /iP(hone|ad|od)/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) || (/Safari/.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Firefox|FxiOS|Android/.test(ua));
+  // ---- Fullscreen with the WebKit prefix (older iPadOS); iPhone Safari has none, so the button is hidden there.
+  const doc = /** @type {any} */ (document);
+  const fullscreenElement = () => doc.fullscreenElement || doc.webkitFullscreenElement || null;
+  const fullscreenAvailable = () => !!(doc.fullscreenEnabled || doc.webkitFullscreenEnabled);
+  function enterFullscreen() {
+    const el = /** @type {any} */ (document.documentElement), fn = el.requestFullscreen || el.webkitRequestFullscreen;
+    try { return fn ? Promise.resolve(fn.call(el)) : Promise.reject(new Error('no fullscreen')); } catch (e) { return Promise.reject(e); }
+  }
+  function exitFullscreen() {
+    const fn = doc.exitFullscreen || doc.webkitExitFullscreen;
+    try { return Promise.resolve(fn && fn.call(document)); } catch (e) { return Promise.reject(e); }
+  }
   function currentOrientation() { return window.matchMedia?.('(orientation: landscape)')?.matches ? 'landscape' : 'portrait'; }
   // Lock the orientation where the browser allows it (Android, installed app); everywhere else ask the player to rotate.
   async function applyScreenSetting(fromGesture) {
     if (!window.matchMedia?.('(pointer: coarse)').matches || !screen.orientation?.lock) { checkOrientation(); return; }
     try {
-      if (fromGesture && !document.fullscreenElement && !matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches) await document.documentElement.requestFullscreen?.();
+      if (fromGesture && fullscreenAvailable() && !fullscreenElement() && !matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches) await enterFullscreen();
       await screen.orientation.lock(settings.screen);
     } catch { /* Not allowed here (e.g. iOS): the rotate prompt takes over. */ }
     checkOrientation();

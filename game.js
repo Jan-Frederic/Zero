@@ -307,12 +307,27 @@
     if (!gyroListening) { window.addEventListener('deviceorientation', onTilt); gyroListening = true; }
     return true;
   }
+  // ---- Apple devices: every iOS/iPadOS browser runs on WebKit (iPads report a Mac user agent but have touch).
+  const ua = String(navigator.userAgent || '');
+  const appleWebKit = /iP(hone|ad|od)/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) || (/Safari/.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Firefox|FxiOS|Android/.test(ua));
+  // ---- Fullscreen with the WebKit prefix (older iPadOS); iPhone Safari has none, so the button is hidden there.
+  const doc = /** @type {any} */ (document);
+  const fullscreenElement = () => doc.fullscreenElement || doc.webkitFullscreenElement || null;
+  const fullscreenAvailable = () => !!(doc.fullscreenEnabled || doc.webkitFullscreenEnabled);
+  function enterFullscreen() {
+    const el = /** @type {any} */ (document.documentElement), fn = el.requestFullscreen || el.webkitRequestFullscreen;
+    try { return fn ? Promise.resolve(fn.call(el)) : Promise.reject(new Error('no fullscreen')); } catch (e) { return Promise.reject(e); }
+  }
+  function exitFullscreen() {
+    const fn = doc.exitFullscreen || doc.webkitExitFullscreen;
+    try { return Promise.resolve(fn && fn.call(document)); } catch (e) { return Promise.reject(e); }
+  }
   function currentOrientation() { return window.matchMedia?.('(orientation: landscape)')?.matches ? 'landscape' : 'portrait'; }
   // Lock the orientation where the browser allows it (Android, installed app); everywhere else ask the player to rotate.
   async function applyScreenSetting(fromGesture) {
     if (!window.matchMedia?.('(pointer: coarse)').matches || !screen.orientation?.lock) { checkOrientation(); return; }
     try {
-      if (fromGesture && !document.fullscreenElement && !matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches) await document.documentElement.requestFullscreen?.();
+      if (fromGesture && fullscreenAvailable() && !fullscreenElement() && !matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches) await enterFullscreen();
       await screen.orientation.lock(settings.screen);
     } catch { /* Not allowed here (e.g. iOS): the rotate prompt takes over. */ }
     checkOrientation();
@@ -754,12 +769,17 @@
   const voiceBuffers = new Map();
   let voiceSource = null;
   let subtitleAt = -9, voicesStarted = false, speechPrimed = false;
+  // Safari 16.4+: play like a media app, so sound also comes out with the iPhone's silent switch on
+  // (the music runs through Web Audio, which iOS would otherwise mute together with the ringer).
+  function audioSessionPlayback() { try { const s = /** @type {any} */ (navigator).audioSession; if (s && s.type !== 'playback') s.type = 'playback'; } catch { /* not supported */ } }
+  function wakeAudio() { if (audioContext && audioContext.state !== 'running' && audioContext.state !== 'closed') { audioSessionPlayback(); const p = audioContext.resume(); if (p && p.catch) p.catch(() => {}); } }
   function setupAudio() {
-    if (audioContext) { audioContext.resume().catch(() => {}); return; }
+    audioSessionPlayback();
+    if (audioContext) { wakeAudio(); return; }
     try {
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
       analyser = audioContext.createAnalyser(); analyser.fftSize = 128;
-      musicGain = audioContext.createGain(); musicGain.gain.value = .92;
+      musicGain = audioContext.createGain(); musicGain.gain.value = .92 * .24; audio.volume = 1;
       sfxBus = audioContext.createGain(); sfxBus.gain.value = 1.55;
       musicSource = audioContext.createMediaElementSource(audio); musicSource.connect(analyser); analyser.connect(musicGain); musicGain.connect(audioContext.destination);
       sfxBus.connect(audioContext.destination);
@@ -774,8 +794,11 @@
   // ---- Soundtrack preloading: the whole MP3 is downloaded into memory as soon as the page opens and played
   // from a local blob, so playback can never run dry mid-race. Races wait (briefly) until it is ready.
   // WebM/Opus copies are ~40 % smaller; browsers that cannot play them get the MP3s.
-  const AUDIO_EXT = (() => { try { return audio.canPlayType && audio.canPlayType('audio/webm; codecs="opus"') ? 'webm' : 'mp3'; } catch { return 'mp3'; } })();
-  const SOUNDTRACK_URL = String((audio.getAttribute && audio.getAttribute('src')) || audio.src || '').replace(/\.mp3$/, '.' + AUDIO_EXT);
+  // Apple's WebKit gets the MP3s: its WebM/Opus support differs between iOS versions, especially in decodeAudioData.
+  function soundtrackUrl(ext) { return String((audio.getAttribute && audio.getAttribute('src')) || audio.src || '').replace(/\.mp3$/, '.' + ext); }
+  const AUDIO_EXT = (() => { try { return !appleWebKit && audio.canPlayType && audio.canPlayType('audio/webm; codecs="opus"') ? 'webm' : 'mp3'; } catch { return 'mp3'; } })();
+  const MP3_SOUNDTRACK_URL = soundtrackUrl('mp3');
+  const SOUNDTRACK_URL = soundtrackUrl(AUDIO_EXT);
   let soundtrackReady = false, soundtrackProgress = 0, soundtrackPromise = null, musicWanted = false;
   const SILENCE = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=='; // 0.1 s of silence
 
@@ -798,7 +821,9 @@
         } else blob = await response.blob();
         const resume = !audio.paused && !String(audio.src || '').startsWith('data:'), at = String(audio.src || '').startsWith('data:') ? 0 : audio.currentTime || 0;
         audio.src = URL.createObjectURL(blob); audio.preload = 'auto'; audio.load();
-        await new Promise(done => { audio.addEventListener('canplaythrough', done, { once: true }); audio.addEventListener('error', done, { once: true }); setTimeout(done, 4000); });
+        const failed = await new Promise(done => { audio.addEventListener('canplaythrough', () => done(false), { once: true }); audio.addEventListener('error', () => done(true), { once: true }); setTimeout(() => done(false), 4000); });
+        // The browser could not play the WebM copy after all: stream the MP3 instead.
+        if (failed && SOUNDTRACK_URL !== MP3_SOUNDTRACK_URL) { audio.src = MP3_SOUNDTRACK_URL; audio.preload = 'auto'; audio.load(); }
         if (at) try { audio.currentTime = at; } catch { /* keep the start */ }
         if (resume || musicWanted) audio.play().catch(() => {});
       } catch {
@@ -811,7 +836,8 @@
     return soundtrackPromise;
   }
   function playMusic() {
-    setupAudio(); audio.volume = .24; musicWanted = true;
+    // iOS ignores audio.volume, so with Web Audio the music level is set on its gain node instead (see setupAudio).
+    setupAudio(); musicWanted = true; audio.volume = musicSource ? 1 : .24;
     if (!soundtrackReady) {
       // Unlock the audio element inside the user's tap (needed on iOS), but don't stream it twice:
       // it starts for real as soon as the preloaded copy is ready.
@@ -903,11 +929,14 @@
     for (const clip of VOICE_CLIPS) fetch(`voice/${clip}.${AUDIO_EXT}`).then(r => r.ok ? r.arrayBuffer() : null)
       .then(data => { if (data) voiceData.set(clip, data); }).catch(() => {}).finally(() => { voicesLoaded++; });
   }
+  // Callback form: older Safari has no promise-based decodeAudioData.
+  const decodeClip = data => new Promise((ok, fail) => { try { const p = audioContext.decodeAudioData(data, ok, fail); if (p && p.catch) p.catch(fail); } catch (e) { fail(e); } });
   function loadVoices() {
     if (!audioContext || voicesStarted || typeof fetch !== 'function') return;
     voicesStarted = true;
     for (const clip of VOICE_CLIPS) (voiceData.has(clip) ? Promise.resolve(voiceData.get(clip).slice(0)) : fetch(`voice/${clip}.${AUDIO_EXT}`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()))
-      .then(data => new Promise((ok, fail) => audioContext.decodeAudioData(data, ok, fail))).then(buffer => voiceBuffers.set(clip, buffer)).catch(() => {});
+      .then(decodeClip).catch(() => AUDIO_EXT === 'mp3' ? Promise.reject() : fetch(`voice/${clip}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()).then(decodeClip))
+      .then(buffer => voiceBuffers.set(clip, buffer)).catch(() => {});
   }
   // Retro robot announcer: plays the pre-rendered clip; falls back to the system voice if it is not loaded.
   function robotSay(text, clip) {
@@ -3870,8 +3899,10 @@
   audio.addEventListener('play', updateMusic); audio.addEventListener('pause', updateMusic);
   audio.addEventListener('error', () => { $('music-status').textContent = 'SOUNDTRACK / FILE UNAVAILABLE'; });
   $('fullscreen').addEventListener('click', async () => {
-    try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { /* Fullscreen may be unavailable in embedded browsers. */ }
+    try { if (fullscreenElement()) await exitFullscreen(); else await enterFullscreen(); } catch { /* Fullscreen may be unavailable in embedded browsers. */ }
   });
+  // No fullscreen API (iPhone Safari) or already running as an installed app: the button would do nothing.
+  if (!fullscreenAvailable() || (window.matchMedia && matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches) || /** @type {any} */ (navigator).standalone) $('fullscreen').classList.add('hidden');
   window.addEventListener('keydown', event => {
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code) && event.target.tagName !== 'BUTTON') event.preventDefault();
     if (!event.repeat) {
@@ -3886,7 +3917,10 @@
   });
   window.addEventListener('keyup', event => keys.delete(event.code));
   window.addEventListener('blur', () => { keys.clear(); resetGesture(); if (mode === 'racing' || mode === 'countdown') pauseRace(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && (mode === 'racing' || mode === 'countdown')) pauseRace(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && (mode === 'racing' || mode === 'countdown')) pauseRace(); else if (!document.hidden) wakeAudio(); });
+  // iOS suspends ("interrupts") the audio context for calls, Siri or app switches; the next touch brings the sound back.
+  window.addEventListener('pointerdown', wakeAudio, { capture: true, passive: true });
+  window.addEventListener('keydown', wakeAudio, { capture: true, passive: true });
   document.querySelectorAll('[data-key]').forEach(button => {
     button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(/** @type {PointerEvent} */ (event).pointerId); keys.add(button.dataset.key); });
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, () => keys.delete(button.dataset.key));
@@ -4191,11 +4225,16 @@
   async function shareFile(blob, name, text, url) {
     if (!blob) return false;
     const file = typeof File === 'function' ? new File([blob], name, { type: blob.type }) : null;
+    const download = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); return true; };
     try {
       if (file && navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], text, url, title: 'Morbid Racers' });
-      else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); }
+      else return download();
       return true;
-    } catch { return false; /* share sheet dismissed */ }
+    } catch (e) {
+      // Dismissed share sheet: nothing to do. Safari refuses the share when rendering the picture took too long
+      // after the tap (NotAllowedError): save the file instead.
+      return e && e.name === 'AbortError' ? false : download();
+    }
   }
   // ---- Photo mode: freeze the race, move the camera, pick a filter and save the shot.
   const PHOTO_FILTERS = [['NONE', 'none'], ['NOIR', 'grayscale(1) contrast(1.35)'], ['VHS', 'saturate(1.7) hue-rotate(-14deg) contrast(1.15) blur(.4px)'], ['NEON', 'saturate(2.1) brightness(1.12)'], ['SEPIA', 'sepia(.85) contrast(1.1)']];
@@ -4280,8 +4319,14 @@
   // Lets the update job wait until no race is in progress.
   window.morbidBusy = () => ['countdown', 'racing', 'respawning', 'paused', 'wrecked', 'invasion', 'final'].includes(mode) || (mode === 'disco' && !(finale && finale.resultsShown));
   window.addEventListener('resize', resize);
+  // iOS reports the new size a moment after rotating (and when the toolbar collapses): measure again.
+  window.addEventListener('orientationchange', () => { setTimeout(resize, 120); setTimeout(resize, 500); });
+  if (window.visualViewport) visualViewport.addEventListener('resize', () => { if (Math.abs(innerHeight - H) > 1 || Math.abs(innerWidth - W) > 1) resize(); });
   // Music and voices download after the page has loaded, so they do not compete with the first paint.
   function startDownloads() { preloadSoundtrack(); prefetchVoices(); }
   if (document.readyState === 'loading' || document.readyState === 'interactive') window.addEventListener('load', startDownloads, { once: true }); else startDownloads();
+  // Safari clears a website's saved data after 7 days without a visit unless the site is on the home screen or the
+  // storage is marked persistent: ask for that, so credits and progress survive. (Only on Apple: Firefox would show a prompt.)
+  try { if (appleWebKit && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch { /* not supported */ }
   applyPerf(); applyLanguage(); resize(); buildTrack(); requestAnimationFrame(frame);
 })();

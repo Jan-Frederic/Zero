@@ -70,6 +70,39 @@ const HOOKS = "  window.__smoke = { mode: () => mode, win: () => { ufos = []; bo
       console.log(`${vp.name}\n${lines.join('\n')}`);
       await ctx.close();
     }
+    // Apple: iPhone Safari user agent and no fullscreen API (as on a real iPhone). The game must pick the MP3s,
+    // hide the useless fullscreen button and still run a race without errors.
+    {
+      const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, serviceWorkers: 'block', locale: 'en-GB',
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1' });
+      await ctx.addInitScript(() => {
+        for (const k of ['fullscreenEnabled', 'webkitFullscreenEnabled']) Object.defineProperty(Document.prototype, k, { get: () => false, configurable: true });
+        Element.prototype.requestFullscreen = undefined;
+      });
+      const page = await ctx.newPage(), errors = [], lines = [], audio = [];
+      page.on('pageerror', e => errors.push(e.message));
+      page.on('request', r => { if (/\.(mp3|webm)$/.test(r.url())) audio.push(r.url().split('/').pop()); });
+      await page.route('**/game.js', r => r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(root, 'game.js'), 'utf8').replace('  function startDownloads() {', HOOKS + '  function startDownloads() {') }));
+      const step = async (label, fn) => {
+        try { await fn(); lines.push(`  ✓ ${label}`); } catch (e) { failures++; lines.push(`  ✗ ${label}: ${String(e.message).split('\n')[0]}`); }
+      };
+      await page.goto(server.url); await page.waitForTimeout(1200);
+      if (await page.isVisible('#rotate-overlay')) await page.tap('#rotate-switch');
+      await step('fullscreen button is hidden without the fullscreen API', async () => { if (await page.isVisible('#fullscreen')) throw new Error('visible'); });
+      await step('soundtrack and voices load as MP3', async () => {
+        if (!audio.length) throw new Error('no audio requested');
+        const webm = audio.filter(f => f.endsWith('.webm')); if (webm.length) throw new Error(`WebM requested: ${webm.slice(0, 3).join(', ')}`);
+      });
+      await step('race starts after the countdown', async () => {
+        if (await page.isVisible('#health-screen')) await page.tap('#health-accept');
+        await page.tap('#start'); await page.waitForTimeout(4200);
+        const mode = await page.evaluate(() => window.__smoke.mode());
+        if (mode !== 'racing') throw new Error(`mode is ${mode}`);
+      });
+      if (errors.length) { failures++; lines.push(`  ✗ page errors: ${errors.join(' | ')}`); }
+      console.log(`iphone-safari\n${lines.join('\n')}`);
+      await ctx.close();
+    }
     await browser.close();
   } finally { server.stop(); }
   console.log(failures ? `\n${failures} smoke check(s) failed` : '\nall smoke checks passed');
