@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.2](https://github.com/Jan-Frederic/Zero/compare/v1.19.1...v1.19.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **audio:** start races only once the music is downloaded, so it starts reliably on Safari ([c17ad8e](https://github.com/Jan-Frederic/Zero/commit/c17ad8e4cac58b0295d8fc89882bd7373d56af82))
+
 ## [1.19.1](https://github.com/Jan-Frederic/Zero/compare/v1.19.0...v1.19.1) (2026-11-16)
 
 
