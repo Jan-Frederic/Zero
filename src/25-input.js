@@ -28,14 +28,14 @@
       if (event.code === 'Escape' || event.code === 'KeyP') pauseRace();
       if (event.code === 'KeyM') toggleMute();
     }
-    if (mode === 'racing' || mode === 'countdown' || mode === 'final') {
+    if (mode === 'racing' || mode === 'countdown' || mode === 'final' || mode === 'maze') {
       if (event.code === 'Space') { event.preventDefault(); if (event.target.tagName === 'BUTTON') event.target.blur(); }
       keys.add(event.code);
     }
   });
   window.addEventListener('keyup', event => keys.delete(event.code));
-  window.addEventListener('blur', () => { keys.clear(); resetGesture(); if (mode === 'racing' || mode === 'countdown') pauseRace(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && (mode === 'racing' || mode === 'countdown')) pauseRace(); else if (!document.hidden) wakeAudio(); });
+  window.addEventListener('blur', () => { keys.clear(); resetGesture(); if (mode === 'racing' || mode === 'countdown' || mode === 'maze') pauseRace(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && (mode === 'racing' || mode === 'countdown' || mode === 'maze')) pauseRace(); else if (!document.hidden) wakeAudio(); });
   // iOS suspends ("interrupts") the audio context for calls, Siri or app switches; the next touch brings the sound back.
   window.addEventListener('pointerdown', wakeAudio, { capture: true, passive: true });
   window.addEventListener('keydown', wakeAudio, { capture: true, passive: true });
@@ -43,7 +43,7 @@
     button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(/** @type {PointerEvent} */ (event).pointerId); keys.add(button.dataset.key); });
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, () => keys.delete(button.dataset.key));
   });
-  const gestureActive = () => mode === 'racing' || mode === 'countdown' || mode === 'final';
+  const gestureActive = () => mode === 'racing' || mode === 'countdown' || mode === 'final' || mode === 'maze';
   function updateGesture() {
     let dx = gesture.x - gesture.originX, dy = gesture.y - gesture.originY;
     // Float the origin behind the finger so reversing direction responds instantly.

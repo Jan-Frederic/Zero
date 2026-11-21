@@ -1,6 +1,7 @@
   // ==== Race start/pause/garage, lasers, wrecks, lives, results.
   function startRace() {
     if (!downloadsReady()) return; // Enter key or gamepad while the start button still waits for the downloads
+    resetCatChaos();
     if (gameMode() === 'endless') { startEndless(); return; }
     if (gameMode() === 'cup') prepareCupRace(); else cup = null;
     if (trackLocked(trackIndex)) { renderLock(); playToneSweep(220, 120, .25, 'square', .05); showLockedHint(); return; }
@@ -23,12 +24,12 @@
     $('result-eyebrow').textContent = 'NEON GRAND PRIX / RACE COMPLETE'; $('cup-standings').classList.add('hidden'); $('story-new').classList.add('hidden'); cancelClip(); if ($('again').firstElementChild) $('again').firstElementChild.textContent = 'RACE AGAIN';
     $('race-message').classList.remove('visible'); messageTime = 0;
     if (settings.steering === 'gyro' && !gyroListening) enableGyro();
-    playMusic(); primeSpeech(); calibrateTilt(); applyScreenSetting(true); updateHUD();
+    startRaceMusic(); primeSpeech(); calibrateTilt(); applyScreenSetting(true); updateHUD();
     if (!profile.tutorialDone && gameMode() === 'race') startTutorial(); else { tutorial = null; $('tutorial').classList.remove('visible'); }
     if (window.matchMedia?.('(pointer: coarse)').matches) { hintTime = 6; document.body.classList.add('hinting'); }
   }
   function pauseRace() {
-    if (mode === 'racing' || mode === 'countdown') {
+    if (mode === 'racing' || mode === 'countdown' || mode === 'maze') {
       $('pause-screen').dataset.previous = mode; mode = 'paused'; keys.clear(); resetGesture();
       $('pause-screen').classList.remove('hidden'); document.body.classList.add('paused');
     } else if (mode === 'paused') {
@@ -37,7 +38,7 @@
   }
   function garage() {
     if (tutorial) { tutorial = null; $('tutorial').classList.remove('visible'); }
-    clearFinale(); cancelClip(); mode = 'menu'; keys.clear(); resetGesture(); speed = 0; playerX = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; boosting = false;
+    clearFinale(); cancelClip(); resetCatChaos(); mode = 'menu'; keys.clear(); resetGesture(); speed = 0; playerX = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; boosting = false;
     explosions = []; laserShots = []; enemyShots = []; bombs = []; ufos = []; particles = []; screenFlash = 0;
     crashingUfos = []; ufoRespawns = []; smoke = []; megaBlasts = []; callout = null; hyperTime = 0; boss = null; bossAttacks = []; document.body.classList.remove('hyper', 'boss');
     $('menu').classList.remove('hidden'); ['hud', 'pause-screen', 'results'].forEach(id => $(id).classList.add('hidden'));

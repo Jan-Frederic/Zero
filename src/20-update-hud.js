@@ -3,7 +3,7 @@
   function update(dt) {
     if (photo) return;
     time += dt; screenFlash = Math.max(0, screenFlash - dt * 2.4);
-    updateBoot(); tickAchievement(); updateClip();
+    updateBoot(); tickAchievement(); updateClip(); if (catLeaps.length) catLeaps = catLeaps.filter(l => time - l.at < CAT_LEAP_TIME);
     if (frameClock - subtitleAt > 2.8 && $('subtitle')) $('subtitle').classList.remove('visible');
     if (['racing', 'final', 'respawning', 'countdown'].includes(mode)) { playClock += dt; if (playClock > 15) { profile.stats.seconds = (profile.stats.seconds || 0) + playClock; playClock = 0; saveProfile(); } }
     if (analyser && !audio.paused && !muted) { analyser.getByteFrequencyData(frequency); beat = lerp(beat, frequency.slice(0, 12).reduce((a, b) => a + b, 0) / (12 * 255), .2); } else beat *= .95;
@@ -20,6 +20,8 @@
     }
     if (mode === 'menu') { position = mod(position + dt * 2900, LENGTH); playerX = Math.sin(time * .14) * .18; return; }
     if (mode === 'invasion' || mode === 'final' || mode === 'disco') { updateFinale(dt); return; }
+    if (mode === 'blackhole') { updateBlackHole(dt); return; }
+    if (mode === 'maze') { updateMaze(dt); return; }
     if (mode === 'paused' || mode === 'finished') return;
     if (hintTime > 0) { hintTime -= dt; if (hintTime <= 0 || gesture.moved) { hintTime = 0; document.body.classList.remove('hinting'); } }
     if (mode === 'countdown') {
@@ -145,7 +147,7 @@
             const previousAmmo = laserAmmo;
             laserAmmo = Math.min(laserCap(), laserAmmo + 1);
             createExplosion(worldSegment * SEG + SEG * .5, lane * track.width, hazard.color || '#ff9bf2', .82, true);
-            if (stat('cats') >= 10) unlockAchievement('cats10'); raceStats.cats++;
+            if (stat('cats') >= 10) unlockAchievement('cats10'); raceStats.cats++; catPoof(hazard.color);
             showMessage(laserAmmo > previousAmmo ? 'CAT PIXEL-POOF!  LASER +1' : 'CAT PIXEL-POOF!  LASER FULL', 1.05);
             playCatPopSound();
             if (damageShield(4)) { updateHUD(); return; }
@@ -201,6 +203,7 @@
       else playExplosionSound(.55);
     }
     bombs = bombs.filter(bomb => !bomb.exploded && bomb.distance > distance - 1200);
+    if (catKnock > 0) applyCatKnock(dt);
     const prevDistance = distance; distance += speed * dt; position = mod(distance, LENGTH);
     for (const r of rivals) {
       if (r.dying) { updateWreck(r, dt, track); continue; }

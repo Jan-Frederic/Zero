@@ -28,14 +28,14 @@ function harness(opts = {}) {
   let frame, now = 0;
   const sandbox = {
     console, Math, Uint8Array, btoa: s => Buffer.from(s, 'binary').toString('base64'), atob: s => Buffer.from(s, 'base64').toString('binary'), escape, unescape, navigator: { vibrate: pattern => { vibrations.push(pattern); return true; } }, innerWidth: 1280, innerHeight: 800, devicePixelRatio: 1,
-    document: { getElementById: element, querySelector: element, querySelectorAll: query => query === '[data-ship]' ? ships : query === '[data-haptics]' ? hapticButtons : [], body: element('body'), addEventListener() {} },
+    document: { createElement: () => ({ width: 0, height: 0, style: {}, getContext: () => context, click() {}, remove() {} }), getElementById: element, querySelector: element, querySelectorAll: query => query === '[data-ship]' ? ships : query === '[data-haptics]' ? hapticButtons : [], body: element('body'), addEventListener() {} },
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
     requestAnimationFrame: fn => { frame = fn; },
     addEventListener: (event, fn) => (windowEvents[event] ||= []).push(fn),
   };
   sandbox.window = sandbox;
   const source = fs.readFileSync('game.js', 'utf8').replace('  applyPerf(); applyLanguage(); resize(); buildTrack(); requestAnimationFrame(frame);\n})();',
-    '  applyPerf(); applyLanguage(); resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ tutorialStep: tutorial ? tutorial.step : -1,  weather: weather && weather.type, meteors: bombs.filter(b => b.meteor).length,  nemeses: rivals.filter(r => r.nemesis).map(r => ({ name: r.nemesis.name, hull: r.hull, alive: r.alive })),  power: Object.keys(power).filter(k => power[k] > time), slip, missiles: missiles.length, mines: mines.length, rivalsAlive: rivals.filter(r => r.alive).length, empd: rivals.filter(r => r.empUntil > time).length, bubbleHits, powerups: segments.filter(s => s.powerup).map(s => ({ index: s.index, lane: s.powerup.lane, type: s.powerup.type })), lives, raceInvulnUntil, speed,  racerCrashes: crashingUfos.filter(c => c.kind === \'racer\').length, blasts2: megaBlasts.length, ufoKills, boss: boss && { hp: boss.hp, lane: boss.lane, dying: !!boss.dying }, bossAttacks: bossAttacks.length, hyperTime, stargates: segments.filter(s => s.stargate).map(s => ({ index: s.index, lane: s.stargate.lane })), energy, ufoList: ufos.map(u => ({ lane: u.lane, slot: u.slot })), crashing: crashingUfos.length, blasts: megaBlasts.length, confetti: confetti.length, callout: callout && callout.text, dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, cup: cup && { round: cup.round, done: !!cup.done, player: cup.player, tracks: cup.tracks.join() }, trackIndex, survival: survival && survival.level, ufoCount: ufos.length, rivalMissiles: rivalMissiles.length, hazardsAt: segments.filter(s => s.hazard && s.hazard.type !== "cat").map(s => ({ index: s.index, lane: s.hazard.lane, type: s.hazard.type })), drift, driftTime, segCurves: segments.map(s => s.curve), curves: [100, 400, 700].map(i => segments[i].curve), credits: profile.credits, jumpHeight, shortcuts: segments.filter(s => s.shortcut).map(s => ({ index: s.index, lane: s.shortcut.lane })), playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__setUfoKills = n => { ufoKills = n; };\n  window.__placeSecond = (gap, lane) => { const r = rivals[1]; r.alive = true; r.distance = distance + 1050 + gap; r.lane = lane; r.x = lane; r.speed = speed; r.boostCooldown = 1e6; r.laserCooldown = 1e6; return r; };\n  window.__curves = () => segments.map(s => s.curve);\n  window.__mission = (id, n) => mission(id, n);\n  window.__finaleName = () => finale.cfg.name;\n  window.__wreck = () => { lives = 0; destroyPlayer(); };\n  window.__placeRival = (gap, lane) => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); const r = rivals[0]; r.alive = true; r.distance = distance + 1050 + gap; r.lane = lane; r.x = lane; r.speed = speed; r.boostCooldown = 1e6; return r; };\n  window.__setBossHp = n => { if (boss) boss.hp = n; };\n  window.__finaleAim = col => { finale.formVx = 0; finale.boss.v = 0; finale.boss.off = 0; finale.cool = 0; finale.rowSwing = 0; finale.rowPhase = 0; finale.boss.arrive = Math.min(finale.boss.arrive, time - 5); const L = finaleLayout(); finale.shipX = (L.left + (col + .5) * L.cw) / W; };\n  window.__finaleOpen = col => { finale.invaders.forEach(v => { if (v.c === col) v.alive = false; }); finale.boss.hp = 1; };\n  window.__wave = n => { finale.bolts = []; startWave(n); finale.boss.arrive -= 2; finale.nextBossShot = time + .1; };\n  window.__forceDaily = () => { DAILY_GOALS.length = 0; DAILY_GOALS.push({ id: "win", text: t => "WIN " + t, check: () => rank === 1 }); renderDaily(); };\n  window.__weatherNow = () => { nextWeatherAt = time; };\n  window.__say = text => robotSay(text);\n  window.__musicLoading = p => { soundtrackReady = false; soundtrackProgress = p; };\n  window.__musicLoaded = () => { soundtrackReady = true; soundtrackProgress = 1; };\n  window.__finaleKillShip = () => { shield = 0; finale.invulnUntil = 0; finale.bolts = [{ kind: "zap", x: finale.shipX * W, y: finaleLayout().shipY, vx: 0, vy: 0, dmg: 1 }]; };\n  window.__finale = () => finale && { lives: finale.lives, shield, phase: finale.phase, wall: finale.invaders && finale.invaders.filter(v => v.alive).length, hp: finale.boss && finale.boss.hp, wave: finale.wave, waves: finale.waves, kind: finale.cfg && finale.cfg.type.kind, rows: finale.cfg && finale.cfg.rows, attacks: finale.bolts && finale.bolts.filter(b => b.kind !== "zap").map(b => b.kind) };\n  window.__eliminateRivals = () => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
+    '  applyPerf(); applyLanguage(); resize(); buildTrack(); requestAnimationFrame(frame);\n  window.__testState = () => ({ tutorialStep: tutorial ? tutorial.step : -1,  weather: weather && weather.type, meteors: bombs.filter(b => b.meteor).length,  nemeses: rivals.filter(r => r.nemesis).map(r => ({ name: r.nemesis.name, hull: r.hull, alive: r.alive })),  power: Object.keys(power).filter(k => power[k] > time), slip, missiles: missiles.length, mines: mines.length, rivalsAlive: rivals.filter(r => r.alive).length, empd: rivals.filter(r => r.empUntil > time).length, bubbleHits, powerups: segments.filter(s => s.powerup).map(s => ({ index: s.index, lane: s.powerup.lane, type: s.powerup.type })), lives, raceInvulnUntil, speed,  racerCrashes: crashingUfos.filter(c => c.kind === \'racer\').length, blasts2: megaBlasts.length, ufoKills, boss: boss && { hp: boss.hp, lane: boss.lane, dying: !!boss.dying }, bossAttacks: bossAttacks.length, hyperTime, stargates: segments.filter(s => s.stargate).map(s => ({ index: s.index, lane: s.stargate.lane })), energy, ufoList: ufos.map(u => ({ lane: u.lane, slot: u.slot })), crashing: crashingUfos.length, blasts: megaBlasts.length, confetti: confetti.length, callout: callout && callout.text, dying: rivals.filter(r => r.dying).length, explosions: explosions.length, mode, cup: cup && { round: cup.round, done: !!cup.done, player: cup.player, tracks: cup.tracks.join() }, trackIndex, survival: survival && survival.level, ufoCount: ufos.length, rivalMissiles: rivalMissiles.length, hazardsAt: segments.filter(s => s.hazard && s.hazard.type !== "cat").map(s => ({ index: s.index, lane: s.hazard.lane, type: s.hazard.type })), drift, driftTime, segCurves: segments.map(s => s.curve), curves: [100, 400, 700].map(i => segments[i].curve), credits: profile.credits, jumpHeight, shortcuts: segments.filter(s => s.shortcut).map(s => ({ index: s.index, lane: s.shortcut.lane })), playerX, distance, shield, lap, rank, time, jumpHeight, jumpBoostTimer, laserAmmo, bombs: bombs.length, ufos: ufos.length, enemyShots: enemyShots.length, cats: segments.filter(s => s.hazard && s.hazard.type === \'cat\').map(s => ({ index: s.index, phase: s.hazard.phase })), trampolines: segments.filter(s => s.trampoline).map(s => ({ index: s.index, lane: s.trampoline.lane })), pads: segments.filter(s => s.pad).map(s => ({ index: s.index, lane: s.padLane })) });\n  window.__setReserves = (hull, cells, boost) => { shield = hull; laserAmmo = cells; laserCharge = 0; energy = boost; };\n  window.__setRacePosition = (d, x) => { distance = d; position = mod(d, LENGTH); playerX = x; };\n  window.__setUfoKills = n => { ufoKills = n; };\n  window.__placeSecond = (gap, lane) => { const r = rivals[1]; r.alive = true; r.distance = distance + 1050 + gap; r.lane = lane; r.x = lane; r.speed = speed; r.boostCooldown = 1e6; r.laserCooldown = 1e6; return r; };\n  window.__curves = () => segments.map(s => s.curve);\n  window.__mission = (id, n) => mission(id, n);\n  window.__finaleName = () => finale.cfg.name;\n  window.__wreck = () => { lives = 0; destroyPlayer(); };\n  window.__placeRival = (gap, lane) => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); const r = rivals[0]; r.alive = true; r.distance = distance + 1050 + gap; r.lane = lane; r.x = lane; r.speed = speed; r.boostCooldown = 1e6; return r; };\n  window.__setBossHp = n => { if (boss) boss.hp = n; };\n  window.__finaleAim = col => { finale.formVx = 0; finale.boss.v = 0; finale.boss.off = 0; finale.cool = 0; finale.rowSwing = 0; finale.rowPhase = 0; finale.boss.arrive = Math.min(finale.boss.arrive, time - 5); const L = finaleLayout(); finale.shipX = (L.left + (col + .5) * L.cw) / W; };\n  window.__finaleOpen = col => { finale.invaders.forEach(v => { if (v.c === col) v.alive = false; }); finale.boss.hp = 1; };\n  window.__wave = n => { finale.bolts = []; startWave(n); finale.boss.arrive -= 2; finale.nextBossShot = time + .1; };\n  window.__forceDaily = () => { DAILY_GOALS.length = 0; DAILY_GOALS.push({ id: "win", text: t => "WIN " + t, check: () => rank === 1 }); renderDaily(); };\n  window.__weatherNow = () => { nextWeatherAt = time; };\n  window.__say = text => robotSay(text);\n  window.__musicLoading = p => { soundtrackReady = false; soundtrackProgress = p; };\n  window.__musicLoaded = () => { soundtrackReady = true; soundtrackProgress = 1; };\n  window.__finaleKillShip = () => { shield = 0; finale.invulnUntil = 0; finale.bolts = [{ kind: "zap", x: finale.shipX * W, y: finaleLayout().shipY, vx: 0, vy: 0, dmg: 1 }]; };\n  window.__finale = () => finale && { lives: finale.lives, shield, phase: finale.phase, wall: finale.invaders && finale.invaders.filter(v => v.alive).length, hp: finale.boss && finale.boss.hp, wave: finale.wave, waves: finale.waves, kind: finale.cfg && finale.cfg.type.kind, rows: finale.cfg && finale.cfg.rows, attacks: finale.bolts && finale.bolts.filter(b => b.kind !== "zap").map(b => b.kind) };\n  window.__chaos = () => ({ poofs: catPoofs, knock: catKnock, leaps: catLeaps.length, hole: !!blackHole, song: songIndex, songSrc: String(audio.src || ""), maze: maze && { eaten: maze.eaten, total: maze.total, hearts: maze.hearts, cleared: !!maze.clearedAt, player: [maze.player.c, maze.player.r], reachable: (() => { const d = mazeDistances(); return [...maze.fruit.keys()].every(i => d[i] >= 0); })() } });\n  window.__catPoof = c => catPoof(c);\n  window.__mazeEatAll = () => { const z = maze; for (const cell of [...z.fruit.keys()]) { z.fruit.delete(cell); z.eaten++; } mazeCleared(); };\n  window.__mazeCatch = () => { maze.readyUntil = 0; maze.invulnUntil = 0; const p = maze.player, c = maze.cats[0]; Object.assign(c, { c: p.c, r: p.r, t: 0, d: null, releaseAt: 0 }); };\n  window.__sayClip = (text, clip) => robotSay(text, clip);\n  window.__eliminateRivals = () => { rivals.forEach(r => { r.distance = -1e7; r.speed = 0; r.laserCooldown = 1e6; }); };\n  window.__disableAirRaid = () => { ufos = []; bombs = []; enemyShots = []; rivals.forEach(r => { r.laserCooldown = 100000; }); };\n})();');
   vm.runInNewContext(source, sandbox);
   const step = seconds => { for (let i = 0; i < Math.ceil(seconds * 20); i++) { now += 50; frame(now); } };
   const key = (code, type = 'keydown') => (windowEvents[type] || []).forEach(fn => fn({ code, repeat: false, target: element('body'), preventDefault() {} }));
@@ -139,7 +139,7 @@ test('rival pilots fire hostile lasers that create a dodge warning', () => {
 });
 
 test('UFOs drop bombs, trampolines jump and boost, and cats reload lasers', () => {
-  const { element: el, step, key, inspect, setRacePosition, disableAirRaid } = harness();
+  const { element: el, step, key, inspect, setRacePosition, disableAirRaid, sandbox } = harness();
   const ramp = inspect().trampolines[0], cat = inspect().cats[0];
   el('start').fire('click'); key('ArrowUp'); step(3.05);
   assert.equal(inspect().ufos, 2);
@@ -161,6 +161,7 @@ test('UFOs drop bombs, trampolines jump and boost, and cats reload lasers', () =
   step(.05);
   assert.equal(Number(el('laser-count').textContent), Math.min(10, ammoBeforeCat + 1));
   assert.match(el('race-message').textContent, /CAT PIXEL-POOF/);
+  assert.equal(sandbox.__chaos().poofs, 1, 'the cat counts towards the black hole'); assert.equal(sandbox.__chaos().leaps, 1, 'and leaps at the screen');
 });
 
 test('shield reaches zero, triggers the chain explosion, and resets on retry', () => {
@@ -578,8 +579,8 @@ test('achievements unlock and are listed in the trophy cabinet', () => {
   for (const id of ['first-race', 'podium', 'win', 'flawless']) assert.ok(got.includes(id), id);
   assert.match(el('achievement').innerHTML, /ACHIEVEMENT UNLOCKED/);
   el('garage').fire('click'); el('open-trophies').fire('click');
-  assert.match(el('trophy-count').textContent, /^4 \/ 19$/);
-  assert.match(el('open-trophies').textContent, /4\/19/);
+  assert.match(el('trophy-count').textContent, /^4 \/ 20$/);
+  assert.match(el('open-trophies').textContent, /4\/20/);
 });
 
 test('the boss roster has eight different bosses before any MK II repeat', () => {
@@ -1070,4 +1071,89 @@ test('error log: crashes are recorded on the device and can be copied as a repor
   assert.match(el('error-report').value, /error report/);
   el('error-clear').fire('click');
   assert.equal(el('error-count').textContent, 'NO ERRORS RECORDED');
+});
+
+test('a cat leaps at the screen and poofs the ship back', () => {
+  const { step, key, inspect, sandbox, disableAirRaid, eliminateRivals, element: el } = harness({ profile: { unlocked: 8, tutorialDone: true } });
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid(); eliminateRivals(); step(2);
+  const before = inspect().distance;
+  sandbox.__catPoof('#ff9bf2'); step(.4);
+  assert.ok(inspect().distance < before, 'pushed back along the track');
+  assert.equal(inspect().callout, '🐱 POOF ×1');
+  assert.equal(inspect().mode, 'racing');
+  step(1); assert.equal(sandbox.__chaos().leaps, 0, 'the leap is over'); assert.ok(inspect().distance > before - 3000);
+});
+
+test('the fourth cat opens a black hole that drops the pilot into the maze; clearing it starts the invasion', () => {
+  const { step, key, inspect, sandbox, disableAirRaid, eliminateRivals, element: el } = harness({ profile: { unlocked: 8, tutorialDone: true } });
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid(); eliminateRivals(); step(1);
+  for (let i = 0; i < 3; i++) { sandbox.__catPoof(); step(.6); }
+  assert.equal(inspect().mode, 'racing'); assert.equal(inspect().callout, '⚠ ONE MORE CAT = BLACK HOLE');
+  sandbox.__catPoof(); step(.1);
+  assert.equal(inspect().mode, 'blackhole'); assert.equal(el('body').classList.contains('blackhole'), true);
+  step(4.6);
+  assert.equal(inspect().mode, 'maze');
+  const m = sandbox.__chaos().maze;
+  assert.ok(m.total > 80, 'a maze full of fruit'); assert.equal(m.reachable, true, 'every fruit can be reached'); assert.equal(m.hearts, 3);
+  // Steering eats fruit.
+  key('ArrowUp', 'keyup'); step(2.3); key('ArrowUp'); step(.6);
+  assert.ok(sandbox.__chaos().maze.eaten >= 2, 'fruit eaten on the way');
+  // Paused and resumed like a race.
+  key('Escape'); assert.equal(inspect().mode, 'paused'); key('Escape'); assert.equal(inspect().mode, 'maze');
+  sandbox.__mazeEatAll(); step(.1);
+  assert.equal(sandbox.__chaos().maze.cleared, true); assert.equal(inspect().callout, 'MAZE CLEARED!');
+  assert.ok(JSON.parse(sandbox.localStorage.getItem('morbid-profile-v1')).achievements.maze, 'trophy unlocked');
+  step(2.6);
+  assert.equal(inspect().mode, 'invasion', 'straight into the invasion alarm and countdown');
+  assert.equal(sandbox.__chaos().maze, null);
+  step(12); assert.equal(inspect().mode, 'final', 'the boss fight follows the countdown');
+  assert.equal(sandbox.localStorage.getItem('morbid-errors-v1'), undefined, 'no frame errors on the way');
+});
+
+test('terminator cats catching the pilot three times ends the run', () => {
+  const { step, key, inspect, sandbox, disableAirRaid, eliminateRivals, element: el } = harness({ profile: { unlocked: 8, tutorialDone: true } });
+  el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid(); eliminateRivals();
+  for (let i = 0; i < 4; i++) sandbox.__catPoof();
+  step(4.6); assert.equal(inspect().mode, 'maze');
+  for (let i = 0; i < 3; i++) { sandbox.__mazeCatch(); step(.1); }
+  assert.equal(sandbox.__chaos().maze.hearts, 0);
+  step(2.2);
+  assert.equal(inspect().mode, 'finished');
+  assert.equal(el('result-title').textContent, 'CAUGHT BY TERMINATOR CATS.');
+  assert.equal(el('results').classList.contains('hidden'), false);
+});
+
+test('no black hole outside the grand prix', () => {
+  const { step, key, inspect, sandbox, element: el } = harness({ profile: { unlocked: 8, tutorialDone: true } });
+  sandbox.morbidSettings.set('gameMode', 'trial');
+  el('start').fire('click'); key('ArrowUp'); step(3.05);
+  for (let i = 0; i < 5; i++) { sandbox.__catPoof(); step(.3); }
+  assert.equal(inspect().mode, 'racing');
+});
+
+test('MIX takes turns between Redemption and Brain Wash at every race start; a fixed song stays', () => {
+  const { step, sandbox, element: el } = harness({ profile: { unlocked: 8, tutorialDone: true } });
+  const race = () => { el('start').fire('click'); step(.2); const song = sandbox.__chaos().song; el('quit').fire('click'); step(.1); return song; };
+  assert.deepEqual([race(), race(), race()], [0, 1, 0], 'Redemption first, then Brain Wash, then Redemption');
+  assert.match(sandbox.__chaos().songSrc, /Redemption\.mp3$/);
+  sandbox.morbidSettings.set('music', 'brainwash');
+  assert.deepEqual([race(), race()], [1, 1]);
+  assert.match(el('song-title').textContent, /Brain Wash/); assert.match(sandbox.__chaos().songSrc, /Brain_Wash_8-Bit_Edition\.mp3$/);
+});
+
+test('in German the announcer speaks German', () => {
+  const { sandbox, element: el } = harness();
+  sandbox.morbidSettings.set('subtitles', 'on'); sandbox.morbidSettings.set('lang', 'de');
+  sandbox.__sayClip('First place. Flawless victory', 'first-place');
+  assert.equal(el('subtitle').textContent, '🔊 ERSTER PLATZ. MAKELLOSER SIEG');
+  sandbox.morbidSettings.set('lang', 'en');
+  sandbox.__sayClip('First place. Flawless victory', 'first-place');
+  assert.equal(el('subtitle').textContent, '🔊 FIRST PLACE. FLAWLESS VICTORY');
+});
+
+test('every German announcer line has a rendered clip', () => {
+  const lines = require('node:child_process').execFileSync(process.execPath, ['tools/voice-de.js'], { encoding: 'utf8' }).trim().split('\n');
+  assert.ok(lines.length >= 30);
+  for (const clip of lines) for (const ext of ['mp3', 'webm']) assert.ok(fs.existsSync(`voice/de/${clip}.${ext}`), `voice/de/${clip}.${ext}`);
+  for (const clip of ['black-hole', 'terminator-cats']) assert.ok(fs.existsSync(`voice/${clip}.mp3`));
 });
