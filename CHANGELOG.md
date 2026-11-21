@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.21.0](https://github.com/Jan-Frederic/Zero/compare/v1.20.0...v1.21.0) (2026-11-21)
+
+
+### Features
+
+* **maze:** slower terminator cats and super candies that let you eat them ([a2f5c67](https://github.com/Jan-Frederic/Zero/commit/a2f5c67a228b60d42312f9b9cd5e55b30812f5cf))
+
 # [1.20.0](https://github.com/Jan-Frederic/Zero/compare/v1.19.2...v1.20.0) (2026-11-21)
 
 
