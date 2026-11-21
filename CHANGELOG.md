@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.20.0](https://github.com/Jan-Frederic/Zero/compare/v1.19.2...v1.20.0) (2026-11-21)
+
+
+### Features
+
+* Brain Wash song with DJ mix, German announcer, leaping cats, black hole and the terminator cat maze ([2674a3f](https://github.com/Jan-Frederic/Zero/commit/2674a3f2a88fb35c622942382c5fdef2b6e5e359))
+
 ## [1.19.2](https://github.com/Jan-Frederic/Zero/compare/v1.19.1...v1.19.2) (2026-11-16)
 
 
