@@ -20,7 +20,7 @@ concatenated in file-name order rather than imported as ES modules.
 | `06-i18n.js` | English → German translation (DOM and canvas text) |
 | `07-track.js` | circuits, machines, track building and resizing |
 | `08-nemesis.js` | named nemesis rivals (data is used by the voice clip list) |
-| `09-audio.js` | audio graph, soundtrack preloading, sound effects, robot voice, jets |
+| `09-audio.js` | audio graph, the two songs (preloading, MIX), sound effects, robot voice (English/German), jets |
 | `10-effects.js` | race messages, callouts, explosions, confetti |
 | `11-powerups.js` | power-ups: magnet, shield bubble, time warp, multi-laser |
 | `12-hyperdrive.js` | star gates and the hyperdrive |
@@ -40,7 +40,8 @@ concatenated in file-name order rather than imported as ES modules.
 | `26-dialogs.js` | settings wiring, stats/profile transfer, health warning, changelog, easter egg |
 | `27-garage.js` | upgrade and paint shop |
 | `28-share.js` | share card |
-| `29-init.js` | start-up |
+| `29-cat-chaos.js` | cats leaping at the screen, the black hole and the maze with the terminator cats |
+| `30-init.js` | start-up |
 
 **Load order matters.** Function declarations are hoisted across all parts, but `const`/`let` values that are
 computed while the script loads must be declared in an earlier part than the code that reads them — for example

@@ -3,7 +3,7 @@
   // Defaults: gyro steering in landscape. (v2 key: earlier builds saved touch/portrait implicitly.)
   const SETTINGS_KEY = 'morbid-settings-v2';
   const reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const settings = { hud: 'normal', lang: /^de\b/i.test((typeof navigator !== 'undefined' && navigator.language) || '') ? 'de' : 'en', perf: 'auto', perfAuto: false, calm: reducedMotion, cb: false, subtitles: false, difficulty: 'normal', haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
+  const settings = { music: 'mix', hud: 'normal', lang: /^de\b/i.test((typeof navigator !== 'undefined' && navigator.language) || '') ? 'de' : 'en', perf: 'auto', perfAuto: false, calm: reducedMotion, cb: false, subtitles: false, difficulty: 'normal', haptics: true, steering: window.matchMedia?.('(pointer: coarse)')?.matches ? 'gyro' : 'touch', screen: 'landscape' };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch { /* defaults */ }
   // Difficulty: rival pace, damage taken, extra lives and credit payout.
   const DIFFICULTY = {

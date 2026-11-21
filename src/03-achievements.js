@@ -6,6 +6,7 @@
     { id: 'win', icon: '🏆', name: 'PURE OVERDRIVE', info: 'Win a race.' },
     { id: 'flawless', icon: '💎', name: 'NOT A SCRATCH', info: 'Win a race without losing a life.' },
     { id: 'cats10', icon: '🐱', name: 'CRAZY CAT PILOT', info: 'Pixel-poof 10 cats.' },
+    { id: 'maze', icon: '🕳', name: 'EVENT HORIZON', info: 'Escape the maze inside the black hole.' },
     { id: 'ufo25', icon: '🛸', name: 'ALIEN KILLER', info: 'Shoot down 25 UFOs.' },
     { id: 'rivals50', icon: '💥', name: 'DEMOLITION DERBY', info: 'Destroy 50 rivals.' },
     { id: 'mothership', icon: '🌌', name: 'MOTHERSHIP DOWN', info: 'Destroy a mothership.' },

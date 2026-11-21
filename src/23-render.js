@@ -422,6 +422,7 @@
   }
   function render() {
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
+    if (maze) { renderMaze(); return; }
     ctx.save();
     if (photo && photo.zoom !== 1) { ctx.translate(W / 2, H * .55); ctx.scale(photo.zoom, photo.zoom); ctx.translate(-W / 2, -H * .55); }
     if (shakeAmount() > .03 && (mode === 'racing' || mode === 'wrecked' || mode === 'invasion' || mode === 'respawning')) ctx.translate(Math.sin(time * 121) * shakeAmount() * 8, Math.cos(time * 93) * shakeAmount() * 5);
@@ -433,7 +434,7 @@
     const shipSize = Math.min(W * (isMenu ? .085 : .074), isMenu ? 130 : 110);
     if (mutator('night') && !isMenu) drawNight(shipX, shipY);
     if (mode === 'wrecked' && wreckBurst) drawExplosion(shipX, shipY, shipSize * .9, wreckBurst);
-    else if (mode === 'respawning' || (photo && photo.hideShip) || (time < raceInvulnUntil && Math.sin(time * 40) < 0)) { /* exploded / blinking / hidden for a photo */ }
+    else if (mode === 'respawning' || mode === 'blackhole' || (photo && photo.hideShip) || (time < raceInvulnUntil && Math.sin(time * 40) < 0)) { /* exploded / blinking / hidden for a photo */ }
     else {
       if (jumpHeight > 30 && mode === 'racing') {
         ctx.save(); ctx.globalAlpha = clamp(1 - jumpHeight / 420, .18, .7); ctx.fillStyle = m.color; ctx.shadowColor = m.color; ctx.shadowBlur = 18;
@@ -464,6 +465,8 @@
     }
     if (gesture.id !== null && (mode === 'racing' || mode === 'countdown')) drawStick();
     if (mode === 'invasion' && finale) drawAlarm();
+    if (blackHole && mode === 'blackhole') drawBlackHole(shipX, shipY, shipSize);
+    if (catLeaps.length) drawCatLeaps();
     // A light scanline texture ties the entire scene together.
     ctx.fillStyle = '#05051b12'; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
     ctx.restore();

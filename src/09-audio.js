@@ -6,10 +6,31 @@
     ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
     ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
     ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
-  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', 'terminator-cats', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
+  // German announcer: voice/de/<clip> is rendered from these lines by tools/make-voice.sh (which reads this table).
+  // Clips without a German line (the wordless boss screams) use the English file in both languages.
+  const VOICE_DE = {
+    'alien-killer': 'Alien-Killer!', 'fatality': 'Tödlich!', 'ufo-obliterated': 'U F O pulverisiert!', 'abduct-this': 'Entführ doch das hier!',
+    'invasion-cancelled': 'Invasion abgesagt!', 'close-encounter': 'Unheimliche Begegnung der tödlichen Art!', 'saucer-smashed': 'Untertasse zertrümmert!',
+    'green-men-down': 'Grüne Männchen erledigt!', 'probe-denied': 'Sonde abgelehnt!', 'area-51': 'Area einundfünfzig sagt danke!', 'toasted-saucer': 'Geröstete Untertasse!',
+    'mothership': 'Das Mutterschiff wird davon erfahren!', 'ultra-kill': 'Ultra-Abschuss!', 'galactic-humiliation': 'Galaktische Demütigung!',
+    'no-parking': 'Parkverbot an meinem Himmel!', 'return-to-sender': 'Zurück an den Absender!',
+    'hyperdrive-initiated': 'Hyperantrieb aktiviert!', 'first-place': 'Erster Platz. Makelloser Sieg!', 'mothership-warning': 'Warnung! Mutterschiff im Anflug!',
+    'mothership-down': 'Mutterschiff zerstört. Du bist eine Legende!', 'invasion-incoming': 'Warnung! Invasion im Anmarsch!', 'congratulations': 'Herzlichen Glückwunsch, Erdling!',
+    'next-boss': 'Warnung! Nächster Boss im Anflug!', 'scream-robot': 'Fehler. Fehler. Systemausfall. Abschaaaltung',
+    'black-hole': 'Warnung! Schwarzes Loch! Alles wird eingesogen!', 'terminator-cats': 'Terminator-Katzen aktiviert. Friss alle Früchte und lauf!',
+    'taunt-vex': 'Hier ist Vex. Du gehst unter, Anfänger!', 'down-vex': 'Unmöglich! Vex ist raus!',
+    'taunt-kronos': 'Kronos beherrscht diese Strecke!', 'down-kronos': 'Kronos wird zurückkehren!',
+    'taunt-null9': 'Null Neun. Ziel erfasst.', 'down-null9': 'Null Neun. Offline.',
+    'taunt-blaze': 'Ha! Friss meine Abgase!', 'down-blaze': 'Neeein, mein wunderschönes Schiff!',
+  };
+  const voiceLang = () => settings.lang === 'de' ? 'de' : 'en';
+  const voiceKey = (clip, lang = voiceLang()) => lang === 'de' && VOICE_DE[clip] ? `de/${clip}` : clip;
+  const fetchVoice = (key, ext = AUDIO_EXT) => fetch(`voice/${key}.${ext}`).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error(`voice ${key} missing`)));
   const voiceBuffers = new Map();
   let voiceSource = null;
-  let subtitleAt = -9, voicesStarted = false, speechPrimed = false;
+  let subtitleAt = -9, speechPrimed = false;
+  const voicesStarted = new Set();
   // Safari 16.4+: play like a media app, so sound also comes out with the iPhone's silent switch on
   // (the music runs through Web Audio, which iOS would otherwise mute together with the ringer).
   function audioSessionPlayback() { try { const s = /** @type {any} */ (navigator).audioSession; if (s && s.type !== 'playback') s.type = 'playback'; } catch { /* not supported */ } }
@@ -35,14 +56,19 @@
       setupJet(); loadVoices();
     } catch { /* The soundtrack still plays if Web Audio is unavailable. */ }
   }
-  // ---- Soundtrack preloading: the whole MP3 is downloaded into memory as soon as the page opens and played
-  // from a local blob, so playback can never run dry mid-race. Races wait (briefly) until it is ready.
+  // ---- Soundtrack: two Morbid Fingers songs. Both are downloaded into memory as soon as the page opens and played
+  // from local blobs, so playback can never run dry mid-race; the start button waits for them (renderStartButton).
   // WebM/Opus copies are ~40 % smaller; browsers that cannot play them get the MP3s.
   // Apple's WebKit gets the MP3s: its WebM/Opus support differs between iOS versions, especially in decodeAudioData.
-  function soundtrackUrl(ext) { return String((audio.getAttribute && audio.getAttribute('src')) || audio.src || '').replace(/\.mp3$/, '.' + ext); }
+  /** @type {{ id: string, name: string, title: string, file: string, blob?: string|null, received?: number, total?: number, mp3Only?: boolean }[]} */
+  const SONGS = [
+    { id: 'redemption', name: 'REDEMPTION', title: 'Redemption (Live, 2003)', file: 'Morbid_Fingers%20-%20live-%20Emmerich_Juli_2003%20-%2003%20Redemption' },
+    { id: 'brainwash', name: 'BRAIN WASH', title: 'Brain Wash (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Brain_Wash_8-Bit_Edition' },
+  ];
   const AUDIO_EXT = (() => { try { return !appleWebKit && audio.canPlayType && audio.canPlayType('audio/webm; codecs="opus"') ? 'webm' : 'mp3'; } catch { return 'mp3'; } })();
-  const MP3_SOUNDTRACK_URL = soundtrackUrl('mp3');
-  const SOUNDTRACK_URL = soundtrackUrl(AUDIO_EXT);
+  const songUrl = (song, ext = AUDIO_EXT) => `${song.file}.${ext}`;
+  const songSrc = i => { const song = SONGS[i]; return song.mp3Only ? songUrl(song, 'mp3') : song.blob || songUrl(song); };
+  let songIndex = 0;
   let soundtrackReady = false, soundtrackProgress = 0, soundtrackPromise = null, musicWanted = false, musicBlocked = false;
   // Plays the soundtrack; if the browser refuses (Safari outside a tap), the next tap starts it (see wakeAudio).
   function tryPlay() {
@@ -51,7 +77,27 @@
     return Promise.resolve();
   }
   const SILENCE = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=='; // 0.1 s of silence
-
+  const playingSilence = () => String(audio.src || '').startsWith('data:');
+  // Share of the soundtrack downloaded so far (a song whose size is not known yet counts with an estimate).
+  function downloadShare() {
+    let got = 0, all = 0;
+    for (const song of SONGS) { const total = song.total || 3e6; all += total; got += Math.min(total, song.received || 0); }
+    return all ? Math.min(.99, got / all) : 0;
+  }
+  async function downloadSong(song) {
+    const response = await fetch(songUrl(song));
+    if (!response.ok) throw new Error(String(response.status));
+    const total = Number(response.headers.get('content-length')) || 0;
+    song.total = total || song.total; song.received = 0;
+    let blob;
+    if (response.body && response.body.getReader && total) {
+      const reader = response.body.getReader(), chunks = [];
+      for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); song.received += value.length; soundtrackProgress = downloadShare(); updateMusic(); }
+      blob = new Blob(chunks, { type: AUDIO_EXT === 'webm' ? 'audio/webm' : 'audio/mpeg' });
+    } else blob = await response.blob();
+    song.received = song.total = song.total || blob.size || 1; soundtrackProgress = downloadShare();
+    song.blob = URL.createObjectURL(blob);
+  }
   function preloadSoundtrack() {
     if (soundtrackPromise) return soundtrackPromise;
     if (typeof fetch !== 'function' || typeof URL === 'undefined' || !URL.createObjectURL || typeof Blob === 'undefined') {
@@ -59,32 +105,46 @@
     }
     soundtrackPromise = (async () => {
       updateMusic();
-      try {
-        const response = await fetch(SOUNDTRACK_URL);
-        if (!response.ok) throw new Error(String(response.status));
-        const total = Number(response.headers.get('content-length')) || 0;
-        let blob;
-        if (response.body && response.body.getReader && total) {
-          const reader = response.body.getReader(), chunks = []; let received = 0;
-          for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); received += value.length; soundtrackProgress = Math.min(.99, received / total); updateMusic(); }
-          blob = new Blob(chunks, { type: AUDIO_EXT === 'webm' ? 'audio/webm' : 'audio/mpeg' });
-        } else blob = await response.blob();
-        const resume = !audio.paused && !String(audio.src || '').startsWith('data:'), at = String(audio.src || '').startsWith('data:') ? 0 : audio.currentTime || 0;
-        audio.src = URL.createObjectURL(blob); audio.preload = 'auto'; audio.load();
-        const failed = await new Promise(done => { audio.addEventListener('canplaythrough', () => done(false), { once: true }); audio.addEventListener('error', () => done(true), { once: true }); setTimeout(() => done(false), 4000); });
-        // The browser could not play the WebM copy after all: stream the MP3 instead.
-        if (failed && SOUNDTRACK_URL !== MP3_SOUNDTRACK_URL) { audio.src = MP3_SOUNDTRACK_URL; audio.preload = 'auto'; audio.load(); }
-        if (at) try { audio.currentTime = at; } catch { /* keep the start */ }
-        if (resume || musicWanted) tryPlay();
-      } catch {
-        // Offline without a cached copy or a failed download: fall back to normal streaming.
-        audio.src = SOUNDTRACK_URL; audio.preload = 'auto'; try { audio.load(); } catch { /* ignore */ }
-        if (musicWanted) tryPlay();
-      }
+      // A failed download (offline without a cached copy) falls back to streaming that song.
+      await Promise.all(SONGS.map(song => downloadSong(song).catch(() => { song.blob = null; })));
+      // Move the current song over to its local copy, keeping its position if it is already playing.
+      const resume = !audio.paused && !playingSilence(), at = playingSilence() ? 0 : audio.currentTime || 0;
+      audio.src = songSrc(songIndex); audio.preload = 'auto'; try { audio.load(); } catch { /* ignore */ }
+      if (at) audio.addEventListener('loadedmetadata', () => { try { audio.currentTime = at; } catch { /* keep the start */ } }, { once: true });
+      if (resume || musicWanted) tryPlay();
       soundtrackReady = true; soundtrackProgress = 1; updateMusic();
     })();
     return soundtrackPromise;
   }
+  // The browser could not play a WebM copy after all: stream that song's MP3 instead.
+  audio.addEventListener('error', () => {
+    const song = SONGS[songIndex];
+    if (!song || song.mp3Only || AUDIO_EXT === 'mp3' || playingSilence()) return;
+    song.mp3Only = true; audio.src = songSrc(songIndex); try { audio.load(); } catch { /* ignore */ }
+    if (musicWanted && !muted) tryPlay();
+  });
+  // Shows the song in the music player and switches the audio element over to it (from the start).
+  function selectSong(i) {
+    if (!SONGS[i]) return;
+    const changed = i !== songIndex; songIndex = i;
+    if ($('song-title')) $('song-title').textContent = `— ${SONGS[i].title}`;
+    if (changed && !playingSilence()) { audio.src = songSrc(i); try { audio.load(); } catch { /* ignore */ } }
+  }
+  // MUSIC setting: 'mix' (DJ Morbid Fingers: the songs take turns at every race start) or one song all the time.
+  function raceSong() {
+    const fixed = SONGS.findIndex(song => song.id === settings.music);
+    if (fixed >= 0) return fixed;
+    const next = (Number(settings.mixNext) || 0) % SONGS.length;
+    settings.mixNext = next + 1; saveSettings(); return next;
+  }
+  // Picking one song in the settings switches to it right away (the tap lets it play on Safari too).
+  settingHooks.music = v => {
+    const i = SONGS.findIndex(song => song.id === v);
+    if (i < 0 || i === songIndex || mode !== 'menu') return;
+    const wasPlaying = !audio.paused; selectSong(i); if (wasPlaying) playMusic();
+  };
+  // Called from the race start (inside the player's tap, so Safari lets the new song play).
+  function startRaceMusic() { selectSong(raceSong()); playMusic(); }
   function playMusic() {
     // iOS ignores audio.volume, so with Web Audio the music level is set on its gain node instead (see setupAudio).
     setupAudio(); musicWanted = true; audio.volume = musicSource ? 1 : .24;
@@ -95,6 +155,7 @@
       const unlock = audio.play(); if (unlock && unlock.then) unlock.then(() => { if (!soundtrackReady) audio.pause(); }).catch(() => {});
       updateMusic(); return;
     }
+    if (playingSilence()) audio.src = songSrc(songIndex);
     tryPlay().then(() => { if (musicBlocked) $('music-status').textContent = 'SOUNDTRACK / TAP TO PLAY'; });
   }
   function updateMusic() {
@@ -174,10 +235,16 @@
   // Voice clips are downloaded right away (no audio context needed) and decoded once audio is unlocked.
   const voiceData = new Map();
   let voicesLoaded = 0;
+  // Downloads the announcer clips of the current language (counted for the start button).
   function prefetchVoices() {
     if (typeof fetch !== 'function') { voicesLoaded = VOICE_CLIPS.length; return; }
-    for (const clip of VOICE_CLIPS) fetch(`voice/${clip}.${AUDIO_EXT}`).then(r => r.ok ? r.arrayBuffer() : null)
-      .then(data => { if (data) voiceData.set(clip, data); }).catch(() => {}).finally(() => { voicesLoaded++; });
+    for (const clip of VOICE_CLIPS) { const key = voiceKey(clip); fetchVoice(key).then(data => { voiceData.set(key, data); }).catch(() => {}).finally(() => { voicesLoaded++; }); }
+  }
+  // Language switched: fetch (and, with sound on, decode) the other set of clips in the background.
+  function voiceLanguageChanged() {
+    if (typeof fetch !== 'function') return;
+    if (audioContext) { loadVoices(); return; }
+    for (const clip of VOICE_CLIPS) { const key = voiceKey(clip); if (!voiceData.has(key)) fetchVoice(key).then(data => { voiceData.set(key, data); }).catch(() => {}); }
   }
   // ---- Download progress (soundtrack 85 %, voices 15 %) and the start button that waits for it.
   const bootProgress = () => clamp(soundtrackProgress * .85 + voicesLoaded / VOICE_CLIPS.length * .15, 0, 1);
@@ -206,17 +273,22 @@
   // Callback form: older Safari has no promise-based decodeAudioData.
   const decodeClip = data => new Promise((ok, fail) => { try { const p = audioContext.decodeAudioData(data, ok, fail); if (p && p.catch) p.catch(fail); } catch (e) { fail(e); } });
   function loadVoices() {
-    if (!audioContext || voicesStarted || typeof fetch !== 'function') return;
-    voicesStarted = true;
-    for (const clip of VOICE_CLIPS) (voiceData.has(clip) ? Promise.resolve(voiceData.get(clip).slice(0)) : fetch(`voice/${clip}.${AUDIO_EXT}`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()))
-      .then(decodeClip).catch(() => AUDIO_EXT === 'mp3' ? Promise.reject() : fetch(`voice/${clip}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()).then(decodeClip))
-      .then(buffer => voiceBuffers.set(clip, buffer)).catch(() => {});
+    if (!audioContext || typeof fetch !== 'function') return;
+    for (const clip of VOICE_CLIPS) {
+      const key = voiceKey(clip); if (voicesStarted.has(key)) continue; voicesStarted.add(key);
+      (voiceData.has(key) ? Promise.resolve(voiceData.get(key).slice(0)) : fetchVoice(key))
+        .then(decodeClip).catch(() => AUDIO_EXT === 'mp3' ? Promise.reject() : fetchVoice(key, 'mp3').then(decodeClip))
+        .then(buffer => voiceBuffers.set(key, buffer)).catch(() => { voicesStarted.delete(key); });
+    }
   }
   // Retro robot announcer: plays the pre-rendered clip; falls back to the system voice if it is not loaded.
+  // In German the announcer speaks the German line (pre-rendered clip, else the system's German voice).
   function robotSay(text, clip) {
+    const de = voiceLang() === 'de';
+    if (de && clip && VOICE_DE[clip]) text = VOICE_DE[clip];
     if (settings.subtitles && text && $('subtitle')) { $('subtitle').textContent = `🔊 ${String(text).replace(/[!.]+$/, '').toUpperCase()}`; $('subtitle').classList.add('visible'); subtitleAt = frameClock; }
     if (muted) return;
-    const buffer = clip && voiceBuffers.get(clip);
+    const buffer = clip && voiceBuffers.get(voiceKey(clip));
     if (buffer && audioContext) {
       try {
         if (voiceSource) try { voiceSource.stop(); } catch { /* already ended */ }
@@ -228,14 +300,15 @@
         return;
       } catch { /* fall through to speech */ }
     }
-    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance || !text) return;
     try {
       speechSynthesis.cancel();
       // Staccato word-by-word delivery, the lowest pitch and a novelty robot voice where the OS has one.
       const words = text.replace(/[!.,]/g, '').trim().split(/\s+/);
       const voice = new SpeechSynthesisUtterance(words.join('. '));
-      const voices = speechSynthesis.getVoices(), english = voices.filter(v => /^en/i.test(v.lang));
-      voice.voice = english.find(v => /zarvox|trinoids|ralph|robot/i.test(v.name)) || english.find(v => /fred|albert|male|daniel|david/i.test(v.name)) || english[0] || null;
+      const voices = speechSynthesis.getVoices(), own = voices.filter(v => (de ? /^de/i : /^en/i).test(v.lang));
+      voice.lang = de ? 'de-DE' : 'en-US';
+      voice.voice = own.find(v => /zarvox|trinoids|ralph|robot/i.test(v.name)) || own.find(v => /fred|albert|male|daniel|david|markus|yannick|stefan/i.test(v.name)) || own[0] || null;
       voice.pitch = 0; voice.rate = .72; voice.volume = 1;
       speechSynthesis.speak(voice);
       playRobotCarrier(words.length * .42 + .3);
