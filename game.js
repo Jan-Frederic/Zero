@@ -438,7 +438,7 @@
     'UFO BOMB RUN': 'UFO-BOMBENANGRIFF', 'DODGE!': 'AUSWEICHEN!', 'UFO HIT': 'UFO GETROFFEN', 'IT IS GOING DOWN!': 'ES STÜRZT AB!', 'WARNING: MOTHERSHIP!': 'WARNUNG: MUTTERSCHIFF!',
     'WEBBED!  SLOWED DOWN': 'EINGESPONNEN!  VERLANGSAMT', '🎮 GAMEPAD CONNECTED': '🎮 GAMEPAD VERBUNDEN', 'AIRBORNE': 'IN DER LUFT', 'TRAMPOLINE BOOST': 'TRAMPOLIN-BOOST',
     'BUBBLE POPPED!': 'BLASE GEPLATZT!', 'CATASTROPHIC FAILURE / SHIELDS OFFLINE': 'TOTALAUSFALL / SCHILDE OFFLINE', 'CAT PIXEL-POOF!  LASER +1': 'KATZEN-PIXEL-POFF!  LASER +1', '⚠ ONE MORE CAT = BLACK HOLE': '⚠ NOCH EINE KATZE = SCHWARZES LOCH', '⚠ BLACK HOLE ⚠': '⚠ SCHWARZES LOCH ⚠', 'POOF!': 'POFF!',
-    'MAZE CLEARED!': 'LABYRINTH GESCHAFFT!', 'CAUGHT!': 'ERWISCHT!', 'BLACK HOLE MAZE': 'LABYRINTH IM SCHWARZEN LOCH', 'EAT ALL THE FRUIT!': 'FRISS ALLE FRÜCHTE!',
+    'MAZE CLEARED!': 'LABYRINTH GESCHAFFT!', '🍬 SUPER CANDY! EAT THE CATS!': '🍬 SUPER-BONBON! FRISS DIE KATZEN!', 'CAT CRUNCHED!': 'KATZE VERSPEIST!', 'CAT CRUNCHED': 'KATZE VERSPEIST', '🍬 SUPER CANDY: EAT THE CATS FOR A WHILE': '🍬 SUPER-BONBON: FRISS EINE WEILE DIE KATZEN', 'CAUGHT!': 'ERWISCHT!', 'BLACK HOLE MAZE': 'LABYRINTH IM SCHWARZEN LOCH', 'EAT ALL THE FRUIT!': 'FRISS ALLE FRÜCHTE!',
     'SWIPE TO STEER · DODGE THE TERMINATOR CATS': 'WISCHEN ZUM LENKEN · WEICH DEN TERMINATOR-KATZEN AUS', 'ARROW KEYS / WASD · DODGE THE TERMINATOR CATS': 'PFEILTASTEN / WASD · WEICH DEN TERMINATOR-KATZEN AUS',
     'THE INVASION IS COMING…': 'DIE INVASION KOMMT …', 'CAUGHT BY TERMINATOR CATS.': 'VON TERMINATOR-KATZEN ERWISCHT.', 'Eat every fruit to escape the black hole.': 'Friss jede Frucht, um dem Schwarzen Loch zu entkommen.',
     'EVENT HORIZON': 'EREIGNISHORIZONT', 'Escape the maze inside the black hole.': 'Entkomme dem Labyrinth im Schwarzen Loch.',
@@ -4577,10 +4577,11 @@
     }
     if (swallow > .8) { ctx.fillStyle = `rgba(255,255,255,${(swallow - .8) * 5})`; ctx.fillRect(-40, -40, W + 80, H + 80); }
   }
-  // ---- The maze inside the black hole. Original layout: '#' wall, '.' fruit, 'P' player start, 'C' terminator cat.
+  // ---- The maze inside the black hole. Original layout: '#' wall, '.' fruit, 'O' super candy, 'P' player start, 'C' terminator cat.
+  // A super candy lets the pilot eat the terminator cats for a while; an eaten cat is off the board for a few seconds.
   const MAZE_MAP = [
     '###############',
-    '#......#......#',
+    '#O.....#.....O#',
     '#.##.#.#.#.##.#',
     '#.#..#...#..#.#',
     '#.#.###.###.#.#',
@@ -4594,21 +4595,23 @@
     '#.#.###.###.#.#',
     '#.#..#.P.#..#.#',
     '#.##.#.#.#.##.#',
-    '#......#......#',
+    '#O.....#.....O#',
     '###############',
   ];
   const MAZE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-  const MAZE_PLAYER_SPEED = 6.2, MAZE_CAT_SPEED = 4.4, MAZE_HEARTS = 3, MAZE_READY = 2.2, FRUIT_KINDS = 3;
+  const MAZE_PLAYER_SPEED = 6.2, MAZE_CAT_SPEED = 3.5, MAZE_HEARTS = 3, MAZE_READY = 2.2, FRUIT_KINDS = 3;
+  const CANDY_TIME = 8, CAT_GONE_TIME = 6, SCARED_PACE = .55;
   function startMaze() {
-    const rows = MAZE_MAP.length, cols = MAZE_MAP[0].length, wall = new Uint8Array(rows * cols), fruit = new Map(), cats = [];
+    const rows = MAZE_MAP.length, cols = MAZE_MAP[0].length, wall = new Uint8Array(rows * cols), fruit = new Map(), candies = new Set(), cats = [];
     let start = { c: 1, r: 1 };
     MAZE_MAP.forEach((row, r) => [...row].forEach((ch, c) => {
       if (ch === '#') wall[r * cols + c] = 1;
       else if (ch === '.') fruit.set(r * cols + c, (r * 7 + c * 3) % FRUIT_KINDS);
+      else if (ch === 'O') candies.add(r * cols + c);
       else if (ch === 'P') start = { c, r };
-      else if (ch === 'C') cats.push({ home: { c, r }, c, r, t: 0, d: null, kind: cats.length, releaseAt: 0, seen: 0 });
+      else if (ch === 'C') cats.push({ home: { c, r }, c, r, t: 0, d: null, kind: cats.length, releaseAt: 0, scaredUntil: 0, goneUntil: 0 });
     }));
-    maze = { rows, cols, wall, fruit, total: fruit.size, eaten: 0, start, cats, hearts: MAZE_HEARTS, at: time, invulnUntil: 0, clearedAt: 0, lostAt: 0, chomp: 0, want: null, dist: null, distFrom: -1,
+    maze = { rows, cols, wall, fruit, candies, candyUntil: 0, catsEaten: 0, total: fruit.size, eaten: 0, start, cats, hearts: MAZE_HEARTS, at: time, invulnUntil: 0, clearedAt: 0, lostAt: 0, chomp: 0, want: null, dist: null, distFrom: -1,
       player: { c: start.c, r: start.r, t: 0, d: null, face: 0 } };
     resetMazeActors(MAZE_READY);
     mode = 'maze'; blackHole = null; screenFlash = 1; keys.clear(); resetGesture();
@@ -4618,7 +4621,8 @@
   function resetMazeActors(delay) {
     const z = maze; z.readyUntil = time + delay; z.invulnUntil = z.readyUntil + .8;
     Object.assign(z.player, { c: z.start.c, r: z.start.r, t: 0, d: null }); z.want = null;
-    z.cats.forEach((cat, i) => Object.assign(cat, { c: cat.home.c, r: cat.home.r, t: 0, d: null, releaseAt: z.readyUntil + i * 2.2 }));
+    z.candyUntil = 0;
+    z.cats.forEach((cat, i) => Object.assign(cat, { c: cat.home.c, r: cat.home.r, t: 0, d: null, releaseAt: z.readyUntil + i * 3, scaredUntil: 0, goneUntil: 0 }));
   }
   const mazeOpen = (c, r) => { const z = maze; return c >= 0 && r >= 0 && c < z.cols && r < z.rows && !z.wall[r * z.cols + c]; };
   const mazeX = a => a.c + .5 + (a.d ? a.d[0] * a.t : 0), mazeY = a => a.r + .5 + (a.d ? a.d[1] * a.t : 0);
@@ -4663,12 +4667,13 @@
     let options = MAZE_DIRS.filter(d => mazeOpen(cat.c + d[0], cat.r + d[1]) && !(back && d[0] === back[0] && d[1] === back[1]));
     if (!options.length) options = back ? [back] : [];
     if (options.length < 2) return options[0] || null;
+    const dist = mazeDistances(), at = d => { const v = dist[(cat.r + d[1]) * z.cols + cat.c + d[0]]; return v < 0 ? 999 : v; };
+    if (time < cat.scaredUntil) return options.reduce((best, d) => at(d) > at(best) ? d : best);
     if (cat.kind === 2 && random(time * 13 + cat.c * 7 + cat.r) < .35) return options[Math.floor(random(time * 31 + cat.r) * options.length)];
     if (cat.kind === 1) {
       const ahead = p.d || [0, 0], tx = p.c + ahead[0] * 3, ty = p.r + ahead[1] * 3;
       return options.reduce((best, d) => Math.hypot(cat.c + d[0] - tx, cat.r + d[1] - ty) < Math.hypot(cat.c + best[0] - tx, cat.r + best[1] - ty) ? d : best);
     }
-    const dist = mazeDistances(), at = d => { const v = dist[(cat.r + d[1]) * z.cols + cat.c + d[0]]; return v < 0 ? 999 : v; };
     return options.reduce((best, d) => at(d) < at(best) ? d : best);
   }
   function updateMaze(dt) {
@@ -4687,16 +4692,37 @@
         playToneSweep(660 + (z.eaten % 4) * 110, 990 + (z.eaten % 4) * 110, .07, 'square', .035);
         if (!z.fruit.size) mazeCleared();
       }
+      if (z.candies.has(cell)) { z.candies.delete(cell); eatSuperCandy(); }
     });
     if (p.d) p.face = Math.atan2(p.d[1], p.d[0]) + Math.PI / 2;
     if (z.clearedAt) return;
-    // Cats get faster as the fruit disappears.
-    const pace = MAZE_CAT_SPEED * (1 + .32 * z.eaten / z.total);
+    // Cats get a little faster as the fruit disappears; scared cats crawl.
+    const pace = MAZE_CAT_SPEED * (1 + .2 * z.eaten / z.total);
     for (const cat of z.cats) {
+      if (cat.goneUntil) {
+        if (time < cat.goneUntil) continue;
+        Object.assign(cat, { c: cat.home.c, r: cat.home.r, t: 0, d: null, goneUntil: 0, scaredUntil: 0, releaseAt: time + .8 }); // respawn in the den
+        playToneSweep(200, 900, .3, 'sawtooth', .04);
+      }
       if (time < cat.releaseAt) continue;
-      mazeMove(cat, pace, dt, catDecide);
-      if (time > z.invulnUntil && Math.hypot(mazeX(cat) - mazeX(p), mazeY(cat) - mazeY(p)) < .62) { mazeCaught(); return; }
+      const scared = time < cat.scaredUntil;
+      mazeMove(cat, pace * (scared ? SCARED_PACE : 1), dt, catDecide);
+      if (Math.hypot(mazeX(cat) - mazeX(p), mazeY(cat) - mazeY(p)) < .62) {
+        if (scared) eatTerminatorCat(cat);
+        else if (time > z.invulnUntil) { mazeCaught(); return; }
+      }
     }
+  }
+  // Super candy: every cat on the board turns scared (and turns around) for a while.
+  function eatSuperCandy() {
+    const z = maze; z.candyUntil = time + CANDY_TIME; z.chomp = time;
+    for (const cat of z.cats) if (!cat.goneUntil) { cat.scaredUntil = z.candyUntil; if (cat.d && cat.t > 0) { cat.c += cat.d[0]; cat.r += cat.d[1]; cat.t = 1 - cat.t; cat.d = [-cat.d[0], -cat.d[1]]; } }
+    showCallout('🍬 SUPER CANDY! EAT THE CATS!', '#80faff'); playToneSweep(300, 1600, .45, 'triangle', .07); buzz([30, 30, 30]);
+  }
+  function eatTerminatorCat(cat) {
+    const z = maze; z.catsEaten++; cat.goneUntil = time + CAT_GONE_TIME; cat.scaredUntil = 0;
+    addCredits(25 * Math.min(4, z.catsEaten), 'CAT CRUNCHED');
+    showCallout('CAT CRUNCHED!', '#80faff'); playNoiseBurst(.25, .2, 5000, 400); playToneSweep(1200, 200, .3, 'square', .06); shake = Math.max(shake, .5);
   }
   function mazeCaught() {
     const z = maze; z.hearts--; shake = 1.2; screenFlash = .8; buzz([120, 60, 240]);
@@ -4761,8 +4787,9 @@
       const c = cellIndex % z.cols, r = Math.floor(cellIndex / z.cols), x = ox + (c + .5) * cell, y = oy + (r + .5) * cell + Math.sin(time * 4 + cellIndex) * cell * .04;
       drawFruit(x, y, cell * .2, kind);
     }
-    // Terminator cats.
-    for (const cat of z.cats) drawTerminatorCat(ox + mazeX(cat) * cell, oy + mazeY(cat) * cell, cell * .92, time < cat.releaseAt, cat);
+    for (const cellIndex of z.candies) drawSuperCandy(ox + (cellIndex % z.cols + .5) * cell, oy + (Math.floor(cellIndex / z.cols) + .5) * cell, cell * .36, cellIndex);
+    // Terminator cats (eaten ones are off the board until they respawn).
+    for (const cat of z.cats) if (!cat.goneUntil) drawTerminatorCat(ox + mazeX(cat) * cell, oy + mazeY(cat) * cell, cell * .92, time < cat.releaseAt, cat);
     // The player's ship, facing where it flies; blinking while protected.
     const p = z.player, m = machines[shipIndex];
     if (!z.lostAt && !(time < z.invulnUntil && time > z.readyUntil && Math.sin(time * 30) < 0)) drawShip(ox + mazeX(p) * cell, oy + mazeY(p) * cell, cell * .82, m.color, m.dark, 0, true, false, true, p.face);
@@ -4773,11 +4800,18 @@
     ctx.textAlign = 'left'; ctx.fillStyle = '#ff456d'; ctx.fillText('♥'.repeat(Math.max(0, z.hearts)) + '♡'.repeat(Math.max(0, MAZE_HEARTS - z.hearts)), 14, L.top / 2);
     ctx.textAlign = 'center'; ctx.fillStyle = '#ddff46'; ctx.fillText('BLACK HOLE MAZE', W / 2, L.top / 2);
     ctx.textAlign = 'right'; ctx.fillStyle = '#fff'; ctx.fillText(`FRUIT ${z.eaten}/${z.total}`, W - 64, L.top / 2);
+    // Super candy timer under the title.
+    const candyLeft = z.candyUntil - time;
+    if (candyLeft > 0 && !z.clearedAt) {
+      const bw = Math.min(W * .5, 260), bx = W / 2 - bw / 2, by = L.top - 8;
+      ctx.fillStyle = '#ffffff22'; ctx.fillRect(bx, by, bw, 5); ctx.fillStyle = candyLeft < 2 && Math.sin(time * 20) < 0 ? '#ffffff' : '#80faff'; ctx.fillRect(bx, by, bw * candyLeft / CANDY_TIME, 5);
+    }
     // Big centre messages.
-    const msg = z.over ? null : z.clearedAt ? ['MAZE CLEARED!', 'THE INVASION IS COMING…'] : z.lostAt ? ['CAUGHT!', ''] : time < z.readyUntil ? ['EAT ALL THE FRUIT!', window.matchMedia?.('(pointer: coarse)')?.matches ? 'SWIPE TO STEER · DODGE THE TERMINATOR CATS' : 'ARROW KEYS / WASD · DODGE THE TERMINATOR CATS'] : null;
+    const msg = z.over ? null : z.clearedAt ? ['MAZE CLEARED!', 'THE INVASION IS COMING…'] : z.lostAt ? ['CAUGHT!', ''] : time < z.readyUntil ? ['EAT ALL THE FRUIT!', window.matchMedia?.('(pointer: coarse)')?.matches ? 'SWIPE TO STEER · DODGE THE TERMINATOR CATS' : 'ARROW KEYS / WASD · DODGE THE TERMINATOR CATS', '🍬 SUPER CANDY: EAT THE CATS FOR A WHILE'] : null;
     if (msg) {
       ctx.textAlign = 'center'; ctx.font = `900 ${Math.round(Math.min(W * .08, 54))}px 'Barlow Condensed', sans-serif`;
       ctx.lineWidth = 6; ctx.strokeStyle = '#04020e'; ctx.strokeText(msg[0], W / 2, H * .44); ctx.fillStyle = z.lostAt ? '#ff456d' : '#ddff46'; ctx.fillText(msg[0], W / 2, H * .44);
+      if (msg[2]) { ctx.font = `700 ${Math.round(Math.max(12, Math.min(W * .032, 20)))}px 'Barlow Condensed', sans-serif`; ctx.lineWidth = 4; ctx.strokeStyle = '#04020e'; ctx.strokeText(msg[2], W / 2, H * .44 + Math.min(W * .07, 44) * 1.8); ctx.fillStyle = '#80faff'; ctx.fillText(msg[2], W / 2, H * .44 + Math.min(W * .07, 44) * 1.8); }
       if (msg[1]) { ctx.font = `700 ${Math.round(Math.max(12, Math.min(W * .032, 20)))}px 'Barlow Condensed', sans-serif`; ctx.lineWidth = 4; ctx.strokeText(msg[1], W / 2, H * .44 + Math.min(W * .07, 44)); ctx.fillStyle = '#fff'; ctx.fillText(msg[1], W / 2, H * .44 + Math.min(W * .07, 44)); }
     }
     if (flashAmount(screenFlash) > .015) { ctx.fillStyle = `rgba(255,255,255,${flashAmount(screenFlash) * .7})`; ctx.fillRect(-20, -20, W + 40, H + 40); }
@@ -4797,8 +4831,21 @@
     }
     ctx.restore();
   }
-  // Chrome cat skull with one glowing red eye and steel fangs.
+  // Super candy: a big wrapped sweet, pulsing in rainbow colours.
+  function drawSuperCandy(x, y, s, seed) {
+    const pulse = 1 + Math.sin(time * 6 + seed) * .12, hue = (time * 120 + seed * 40) % 360;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(time * 2 + seed) * .3); ctx.scale(pulse, pulse);
+    ctx.shadowColor = `hsl(${hue},100%,65%)`; ctx.shadowBlur = s * 1.2;
+    for (const side of [-1, 1]) polygon([[side * s * .7, 0], [side * s * 1.35, -s * .55], [side * s * 1.35, s * .55]], `hsl(${(hue + 120) % 360},100%,70%)`);
+    ctx.beginPath(); ctx.arc(0, 0, s * .78, 0, TAU); ctx.fillStyle = `hsl(${hue},100%,62%)`; ctx.fill();
+    ctx.shadowBlur = 0; ctx.strokeStyle = '#ffffffcc'; ctx.lineWidth = Math.max(1, s * .16);
+    ctx.beginPath(); ctx.arc(0, 0, s * .45, -2.4, .2); ctx.stroke();
+    ctx.restore();
+  }
+  // Chrome cat skull with one glowing red eye and steel fangs; scared it turns blue, with a wobbly mouth.
   function drawTerminatorCat(x, y, s, waiting, cat) {
+    const scaredLeft = cat.scaredUntil - time;
+    if (scaredLeft > 0) { drawScaredCat(x, y, s, scaredLeft < 2 && Math.sin(time * 18) < 0); return; }
     ctx.save(); ctx.translate(x, y); if (waiting) ctx.globalAlpha = .55 + Math.sin(time * 6 + cat.kind) * .2;
     const look = cat.d ? cat.d[0] : 0, step = Math.sin(time * 14 + cat.kind) * s * .05;
     ctx.shadowColor = '#ff2020'; ctx.shadowBlur = s * .4;
@@ -4815,6 +4862,17 @@
     // Scurrying paws.
     ctx.fillStyle = '#8e97a9'; ctx.fillRect(-s * .32, s * .3 + step, s * .14, s * .1); ctx.fillRect(s * .18, s * .3 - step, s * .14, s * .1);
     ctx.restore();
+  }
+  function drawScaredCat(x, y, s, blink) {
+    ctx.save(); ctx.translate(x + Math.sin(time * 30) * s * .03, y);
+    const body = blink ? '#f2f4ff' : '#3b4fd8', rim = blink ? '#ff456d' : '#9fb0ff';
+    for (const side of [-1, 1]) polygon([[side * s * .4, -s * .05], [side * s * .36, -s * .52], [side * s * .1, -s * .3]], body, rim, Math.max(1, s * .04));
+    ctx.beginPath(); ctx.ellipse(0, 0, s * .42, s * .36, 0, 0, TAU); ctx.fillStyle = body; ctx.fill(); ctx.lineWidth = Math.max(1, s * .03); ctx.strokeStyle = rim; ctx.stroke();
+    ctx.fillStyle = blink ? '#3b4fd8' : '#ffffff';
+    for (const side of [-1, 1]) { ctx.beginPath(); ctx.arc(side * s * .15, -s * .07, s * .06, 0, TAU); ctx.fill(); }
+    ctx.strokeStyle = blink ? '#3b4fd8' : '#ffffff'; ctx.lineWidth = Math.max(1, s * .05); ctx.beginPath();
+    for (let i = 0; i <= 6; i++) { const mx = -s * .22 + i * s * .073, my = s * .16 + (i % 2 ? -1 : 1) * s * .04; if (i) ctx.lineTo(mx, my); else ctx.moveTo(mx, my); }
+    ctx.stroke(); ctx.restore();
   }
   // ==== Start-up.
   // Lets the update job wait until no race is in progress.
