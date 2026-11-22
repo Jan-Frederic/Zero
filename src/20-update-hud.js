@@ -22,6 +22,7 @@
     if (mode === 'invasion' || mode === 'final' || mode === 'disco') { updateFinale(dt); return; }
     if (mode === 'blackhole') { updateBlackHole(dt); return; }
     if (mode === 'maze') { updateMaze(dt); return; }
+    if (mode === 'timetunnel') { updateTimeTunnel(); return; }
     if (mode === 'paused' || mode === 'finished') return;
     if (hintTime > 0) { hintTime -= dt; if (hintTime <= 0 || gesture.moved) { hintTime = 0; document.body.classList.remove('hinting'); } }
     if (mode === 'countdown') {
