@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.22.0](https://github.com/Jan-Frederic/Zero/compare/v1.21.0...v1.22.0) (2026-11-22)
+
+
+### Features
+
+* **maze:** five hearts, slower terminator cats, black hole on the 5th cat and a new announcer line ([04b23c9](https://github.com/Jan-Frederic/Zero/commit/04b23c9eb3e71af170e53d94fda0bc26476e74bd))
+
 # [1.21.0](https://github.com/Jan-Frederic/Zero/compare/v1.20.0...v1.21.0) (2026-11-21)
 
 
