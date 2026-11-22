@@ -1,6 +1,6 @@
-  // ==== Cat chaos: cats leap at the screen and poof the ship back; the 4th cat opens a black hole that swallows the
+  // ==== Cat chaos: cats leap at the screen and poof the ship back; the 5th cat opens a black hole that swallows the
   // race, and inside it waits a maze full of fruit guarded by terminator cats. Eat every fruit to face the invasion.
-  const CAT_KNOCK = 1500, CAT_HOLE_AT = 4, CAT_LEAP_TIME = .95, HOLE_PULL = 3.2, HOLE_SWALLOW = 1.3;
+  const CAT_KNOCK = 1500, CAT_HOLE_AT = 5, CAT_LEAP_TIME = .95, HOLE_PULL = 3.2, HOLE_SWALLOW = 1.3;
   let catPoofs = 0, catKnock = 0, catLeaps = [], blackHole = null, maze = null;
   function resetCatChaos() {
     catPoofs = 0; catKnock = 0; catLeaps = []; blackHole = null; maze = null;
@@ -79,7 +79,7 @@
     boss = null; bossAttacks = []; hyperTime = 0; document.body.classList.remove('boss', 'hyper', 'boosting', 'critical', 'hinting'); document.body.classList.add('blackhole');
     const kinds = ['ship', 'ufo', 'cat', 'rock'], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#66aaff', '#ff774b'];
     blackHole = { at: time, buf: null, debris: Array.from({ length: 34 }, (_, i) => ({ kind: kinds[i % 4], a: random(i * 3 + time) * TAU, r: .45 + random(i * 7 + time) * .6, delay: random(i * 11 + time) * 1.6, s: 10 + random(i * 5) * 16, color: colors[i % colors.length], spin: (random(i) - .5) * 12 })) };
-    showCallout('⚠ BLACK HOLE ⚠', '#ff9b2e'); robotSay('Warning! Black hole! Everything is being sucked in!', 'black-hole');
+    showCallout('⚠ BLACK HOLE ⚠', '#ff9b2e'); robotSay('Whoa whoa whoa! Massive black hole. Terminator cats attack!', 'black-hole');
     playToneSweep(90, 18, 4.4, 'sawtooth', .14); playNoiseBurst(4.5, .2, 1600, 50); buzz([80, 60, 200, 80, 400]);
   }
   function updateBlackHole(dt) {
@@ -162,7 +162,7 @@
     '###############',
   ];
   const MAZE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-  const MAZE_PLAYER_SPEED = 6.2, MAZE_CAT_SPEED = 3.5, MAZE_HEARTS = 3, MAZE_READY = 2.2, FRUIT_KINDS = 3;
+  const MAZE_PLAYER_SPEED = 6.2, MAZE_CAT_SPEED = 3, MAZE_HEARTS = 5, MAZE_READY = 2.2, FRUIT_KINDS = 3;
   const CANDY_TIME = 8, CAT_GONE_TIME = 6, SCARED_PACE = .55;
   function startMaze() {
     const rows = MAZE_MAP.length, cols = MAZE_MAP[0].length, wall = new Uint8Array(rows * cols), fruit = new Map(), candies = new Set(), cats = [];
@@ -179,7 +179,6 @@
     resetMazeActors(MAZE_READY);
     mode = 'maze'; blackHole = null; screenFlash = 1; keys.clear(); resetGesture();
     document.body.classList.remove('blackhole'); document.body.classList.add('maze');
-    robotSay('Terminator cats activated. Eat all the fruit and run!', 'terminator-cats');
   }
   function resetMazeActors(delay) {
     const z = maze; z.readyUntil = time + delay; z.invulnUntil = z.readyUntil + .8;
