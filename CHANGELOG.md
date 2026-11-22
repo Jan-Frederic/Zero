@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.28.0](https://github.com/Jan-Frederic/Zero/compare/v1.27.0...v1.28.0) (2026-11-22)
+
+
+### Features
+
+* rivals get stronger shields, and DJ MoFo is now DJ MoFi ([541d2f7](https://github.com/Jan-Frederic/Zero/commit/541d2f7d7b740a5d7c5d79fdc483259de19e41fd))
+
 # [1.27.0](https://github.com/Jan-Frederic/Zero/compare/v1.26.0...v1.27.0) (2026-11-22)
 
 
