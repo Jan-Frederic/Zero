@@ -1,13 +1,14 @@
 name: Release and deploy to GitHub Pages
 
 # Conventional commits drive the version: fix → patch, feat → minor, BREAKING CHANGE → major.
-# Every push and pull request is tested. On main, semantic-release tags/publishes a release when
+# Every pull request and every push to main is tested. On main, semantic-release tags/publishes a release when
 # commits warrant one, and the site is deployed stamped with the current version so installed apps update.
 
 on:
-  # Releases and deploys only happen on main; every other branch and every pull request is tested.
+  # Releases and deploys only happen on main. Other branches are tested through their pull request
+  # (not on every push as well, which ran the whole suite twice and doubled the artifact storage).
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -48,18 +49,19 @@ jobs:
       - run: npm run smoke
       # Layout regression: start screen and dialogs compared with tests/visual/ baselines.
       - run: npm run visual
+      # Screenshots and diffs only when something failed, kept for a few days (Actions storage is limited).
       - uses: actions/upload-artifact@v7
-        if: always()
+        if: failure()
         with:
           name: smoke-screenshots
           path: smoke-shots/
-          retention-days: 14
+          retention-days: 3
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: visual-diff
           path: visual-diff/
-          retention-days: 14
+          retention-days: 3
 
   # Lighthouse on the minified deploy build: performance, accessibility, best practices, SEO with minimum scores.
   lighthouse:
@@ -74,12 +76,13 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run lighthouse
+      # The scores are in the log; the full report is only kept when a minimum was missed.
       - uses: actions/upload-artifact@v7
-        if: always()
+        if: failure()
         with:
           name: lighthouse-report
           path: lighthouse/
-          retention-days: 14
+          retention-days: 3
 
   release:
     needs: [test, smoke, lighthouse]
@@ -145,5 +148,6 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
+          retention-days: 1
       - id: deployment
         uses: actions/deploy-pages@v5
