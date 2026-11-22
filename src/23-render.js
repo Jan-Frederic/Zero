@@ -268,10 +268,11 @@
               // Spin accelerates and the ship sags as its anti-gravity fails.
               const t = clamp((time - r.dying.started) / WRECK_TIME, 0, 1);
               const flicker = Math.sin(time * 40) > .3 ? '#ffffff' : r.color;
-              drawShip(rx, ry + rw * .02 * t, rw * .115, t > .7 ? flicker : r.color, '#1d1828', 0, false, false, false, r.dying.spin * (t * t * 14 + t * 2));
+              if (fruitRace) drawFruitRacer(rx, ry + rw * .02 * t, rw * .115, r, r.dying.spin * (t * t * 14 + t * 2));
+              else drawShip(rx, ry + rw * .02 * t, rw * .115, t > .7 ? flicker : r.color, '#1d1828', 0, false, false, false, r.dying.spin * (t * t * 14 + t * 2));
               drawSmoke(rx, ry, rw * .115, r);
             } else {
-              drawShip(rx, ry, rw * .115, r.color, r.dark || '#393156', Math.sin(time + r.seed) * .1, false, r.boosting);
+              if (fruitRace) drawFruitRacer(rx, ry, rw * .115, r); else drawShip(rx, ry, rw * .115, r.color, r.dark || '#393156', Math.sin(time + r.seed) * .1, false, r.boosting);
               if (r.bubbleUntil > time) { ctx.save(); ctx.strokeStyle = '#4df8ff'; ctx.globalAlpha = .55 + .25 * Math.sin(time * 8); ctx.lineWidth = Math.max(1.5, rw * .006); ctx.beginPath(); ctx.ellipse(rx, ry - rw * .03, rw * .16, rw * .1, 0, 0, TAU); ctx.stroke(); ctx.restore(); }
               if (r.nemesis && rw * .115 > 26) {
                 const fs = Math.max(11, Math.min(15, rw * .03)); ctx.save(); ctx.font = `${fs}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center';
@@ -422,6 +423,7 @@
   }
   function render() {
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
+    if (mode === 'timetunnel' && timeTunnel) { renderTimeTunnel(); return; }
     if (maze) { renderMaze(); return; }
     ctx.save();
     if (photo && photo.zoom !== 1) { ctx.translate(W / 2, H * .55); ctx.scale(photo.zoom, photo.zoom); ctx.translate(-W / 2, -H * .55); }

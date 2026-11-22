@@ -438,9 +438,9 @@
     'UFO BOMB RUN': 'UFO-BOMBENANGRIFF', 'DODGE!': 'AUSWEICHEN!', 'UFO HIT': 'UFO GETROFFEN', 'IT IS GOING DOWN!': 'ES STÜRZT AB!', 'WARNING: MOTHERSHIP!': 'WARNUNG: MUTTERSCHIFF!',
     'WEBBED!  SLOWED DOWN': 'EINGESPONNEN!  VERLANGSAMT', '🎮 GAMEPAD CONNECTED': '🎮 GAMEPAD VERBUNDEN', 'AIRBORNE': 'IN DER LUFT', 'TRAMPOLINE BOOST': 'TRAMPOLIN-BOOST',
     'BUBBLE POPPED!': 'BLASE GEPLATZT!', 'CATASTROPHIC FAILURE / SHIELDS OFFLINE': 'TOTALAUSFALL / SCHILDE OFFLINE', 'CAT PIXEL-POOF!  LASER +1': 'KATZEN-PIXEL-POFF!  LASER +1', '⚠ ONE MORE CAT = BLACK HOLE': '⚠ NOCH EINE KATZE = SCHWARZES LOCH', '⚠ BLACK HOLE ⚠': '⚠ SCHWARZES LOCH ⚠', 'POOF!': 'POFF!',
-    'MAZE CLEARED!': 'LABYRINTH GESCHAFFT!', '🍬 SUPER CANDY! EAT THE CATS!': '🍬 SUPER-BONBON! FRISS DIE KATZEN!', 'CAT CRUNCHED!': 'KATZE VERSPEIST!', 'CAT CRUNCHED': 'KATZE VERSPEIST', '🍬 SUPER CANDY: EAT THE CATS FOR A WHILE': '🍬 SUPER-BONBON: FRISS EINE WEILE DIE KATZEN', 'CAUGHT!': 'ERWISCHT!', 'BLACK HOLE MAZE': 'LABYRINTH IM SCHWARZEN LOCH', 'EAT ALL THE FRUIT!': 'FRISS ALLE FRÜCHTE!',
+    'MAZE CLEARED!': 'LABYRINTH GESCHAFFT!', 'THE SINGULARITY AWAKENS…': 'DIE SINGULARITÄT ERWACHT …', '⏳ TIME TUNNEL': '⏳ ZEITTUNNEL', '🍒 FRUIT RACE! 🍋': '🍒 FRUCHT-RENNEN! 🍋', 'BACK ON THE TRACK': 'ZURÜCK AUF DER STRECKE', 'ALL RIVALS ARE FRUIT': 'ALLE GEGNER SIND FRÜCHTE', '🍬 SUPER CANDY! EAT THE CATS!': '🍬 SUPER-BONBON! FRISS DIE KATZEN!', 'CAT CRUNCHED!': 'KATZE VERSPEIST!', 'CAT CRUNCHED': 'KATZE VERSPEIST', '🍬 SUPER CANDY: EAT THE CATS FOR A WHILE': '🍬 SUPER-BONBON: FRISS EINE WEILE DIE KATZEN', 'CAUGHT!': 'ERWISCHT!', 'BLACK HOLE MAZE': 'LABYRINTH IM SCHWARZEN LOCH', 'EAT ALL THE FRUIT!': 'FRISS ALLE FRÜCHTE!',
     'SWIPE TO STEER · DODGE THE TERMINATOR CATS': 'WISCHEN ZUM LENKEN · WEICH DEN TERMINATOR-KATZEN AUS', 'ARROW KEYS / WASD · DODGE THE TERMINATOR CATS': 'PFEILTASTEN / WASD · WEICH DEN TERMINATOR-KATZEN AUS',
-    'THE INVASION IS COMING…': 'DIE INVASION KOMMT …', 'CAUGHT BY TERMINATOR CATS.': 'VON TERMINATOR-KATZEN ERWISCHT.', 'Eat every fruit to escape the black hole.': 'Friss jede Frucht, um dem Schwarzen Loch zu entkommen.',
+    'CAUGHT BY TERMINATOR CATS.': 'VON TERMINATOR-KATZEN ERWISCHT.', 'Eat every fruit to escape the black hole.': 'Friss jede Frucht, um dem Schwarzen Loch zu entkommen.',
     'EVENT HORIZON': 'EREIGNISHORIZONT', 'Escape the maze inside the black hole.': 'Entkomme dem Labyrinth im Schwarzen Loch.',
     'CAT PIXEL-POOF!  LASER FULL': 'KATZEN-PIXEL-POFF!  LASER VOLL', 'DRONE COLLISION': 'DROHNEN-KOLLISION', 'ENEMY LASER HIT': 'FEINDLICHER LASERTREFFER',
     'FINAL LAP — MAKE IT COUNT': 'LETZTE RUNDE — JETZT ZÄHLT ES', 'FINISH TOP 3 TO UNLOCK THE NEXT CIRCUIT  ·  WIN TO FACE THE INVASION!': 'TOP 3 SCHALTET DIE NÄCHSTE STRECKE FREI  ·  SIEG FÜHRT ZUR INVASION!',
@@ -770,7 +770,7 @@
     ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
     ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
     ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
-  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', 'time-tunnel', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
   // German announcer: voice/de/<clip> is rendered from these lines by tools/make-voice.sh (which reads this table).
   // Clips without a German line (the wordless boss screams) use the English file in both languages.
   const VOICE_DE = {
@@ -782,7 +782,7 @@
     'hyperdrive-initiated': 'Hyperantrieb aktiviert!', 'first-place': 'Erster Platz. Makelloser Sieg!', 'mothership-warning': 'Warnung! Mutterschiff im Anflug!',
     'mothership-down': 'Mutterschiff zerstört. Du bist eine Legende!', 'invasion-incoming': 'Warnung! Invasion im Anmarsch!', 'congratulations': 'Herzlichen Glückwunsch, Erdling!',
     'next-boss': 'Warnung! Nächster Boss im Anflug!', 'scream-robot': 'Fehler. Fehler. Systemausfall. Abschaaaltung',
-    'black-hole': 'Uiuiui! Krasses Schwarzes Loch. Terminator-Katzen greifen an!!!',
+    'black-hole': 'Uiuiui! Krasses Schwarzes Loch. Terminator-Katzen greifen an!!!', 'time-tunnel': 'Zeitsprung! Alle Gegner sind jetzt Früchte!',
     'taunt-vex': 'Hier ist Vex. Du gehst unter, Anfänger!', 'down-vex': 'Unmöglich! Vex ist raus!',
     'taunt-kronos': 'Kronos beherrscht diese Strecke!', 'down-kronos': 'Kronos wird zurückkehren!',
     'taunt-null9': 'Null Neun. Ziel erfasst.', 'down-null9': 'Null Neun. Offline.',
@@ -2316,6 +2316,7 @@
     if (mode === 'invasion' || mode === 'final' || mode === 'disco') { updateFinale(dt); return; }
     if (mode === 'blackhole') { updateBlackHole(dt); return; }
     if (mode === 'maze') { updateMaze(dt); return; }
+    if (mode === 'timetunnel') { updateTimeTunnel(); return; }
     if (mode === 'paused' || mode === 'finished') return;
     if (hintTime > 0) { hintTime -= dt; if (hintTime <= 0 || gesture.moved) { hintTime = 0; document.body.classList.remove('hinting'); } }
     if (mode === 'countdown') {
@@ -3735,10 +3736,11 @@
               // Spin accelerates and the ship sags as its anti-gravity fails.
               const t = clamp((time - r.dying.started) / WRECK_TIME, 0, 1);
               const flicker = Math.sin(time * 40) > .3 ? '#ffffff' : r.color;
-              drawShip(rx, ry + rw * .02 * t, rw * .115, t > .7 ? flicker : r.color, '#1d1828', 0, false, false, false, r.dying.spin * (t * t * 14 + t * 2));
+              if (fruitRace) drawFruitRacer(rx, ry + rw * .02 * t, rw * .115, r, r.dying.spin * (t * t * 14 + t * 2));
+              else drawShip(rx, ry + rw * .02 * t, rw * .115, t > .7 ? flicker : r.color, '#1d1828', 0, false, false, false, r.dying.spin * (t * t * 14 + t * 2));
               drawSmoke(rx, ry, rw * .115, r);
             } else {
-              drawShip(rx, ry, rw * .115, r.color, r.dark || '#393156', Math.sin(time + r.seed) * .1, false, r.boosting);
+              if (fruitRace) drawFruitRacer(rx, ry, rw * .115, r); else drawShip(rx, ry, rw * .115, r.color, r.dark || '#393156', Math.sin(time + r.seed) * .1, false, r.boosting);
               if (r.bubbleUntil > time) { ctx.save(); ctx.strokeStyle = '#4df8ff'; ctx.globalAlpha = .55 + .25 * Math.sin(time * 8); ctx.lineWidth = Math.max(1.5, rw * .006); ctx.beginPath(); ctx.ellipse(rx, ry - rw * .03, rw * .16, rw * .1, 0, 0, TAU); ctx.stroke(); ctx.restore(); }
               if (r.nemesis && rw * .115 > 26) {
                 const fs = Math.max(11, Math.min(15, rw * .03)); ctx.save(); ctx.font = `${fs}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center';
@@ -3889,6 +3891,7 @@
   }
   function render() {
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
+    if (mode === 'timetunnel' && timeTunnel) { renderTimeTunnel(); return; }
     if (maze) { renderMaze(); return; }
     ctx.save();
     if (photo && photo.zoom !== 1) { ctx.translate(W / 2, H * .55); ctx.scale(photo.zoom, photo.zoom); ctx.translate(-W / 2, -H * .55); }
@@ -4436,15 +4439,17 @@
     shareFile(clipBlob, `morbid-racers-finish.${ext}`, `My finish in Morbid Racers 🏁 ${tracks[trackIndex].name}`, 'https://jan-frederic.github.io/Zero/').then(ok => { if (ok) unlockAchievement('share'); });
   });
   // ==== Cat chaos: cats leap at the screen and poof the ship back; the 5th cat opens a black hole that swallows the
-  // race, and inside it waits a maze full of fruit guarded by terminator cats. Eat every fruit to face the invasion.
+  // race, and inside it waits a maze full of fruit guarded by terminator cats. Eat every fruit and the singularity
+  // swallows the maze: a time tunnel throws the pilot back onto the track, where every rival is now a fruit.
   const CAT_KNOCK = 1500, CAT_HOLE_AT = 5, CAT_LEAP_TIME = .95, HOLE_PULL = 3.2, HOLE_SWALLOW = 1.3;
-  let catPoofs = 0, catKnock = 0, catLeaps = [], blackHole = null, maze = null;
+  let catPoofs = 0, catKnock = 0, catLeaps = [], blackHole = null, maze = null, timeTunnel = null, holeUsed = false, fruitRace = false;
+  const TUNNEL_SWALLOW = 1.4, TUNNEL_TIME = 4.2;
   function resetCatChaos() {
-    catPoofs = 0; catKnock = 0; catLeaps = []; blackHole = null; maze = null;
+    catPoofs = 0; catKnock = 0; catLeaps = []; blackHole = null; maze = null; timeTunnel = null; holeUsed = false; fruitRace = false;
     document.body.classList.remove('maze', 'blackhole');
   }
-  // The black hole only opens in a grand prix race (other modes have no invasion to land in).
-  const holeAllowed = () => gameMode() === 'race' && !tutorial && !finale && !blackHole && mode === 'racing';
+  // The black hole opens once per race, and only in a grand prix.
+  const holeAllowed = () => gameMode() === 'race' && !tutorial && !finale && !blackHole && !holeUsed && mode === 'racing';
   // ---- Cat hit on the track: the cat leaps at the screen and the ship is poofed back.
   function catPoof(color) {
     catPoofs++; catKnock = CAT_KNOCK; speed = Math.min(speed, 1200);
@@ -4512,7 +4517,7 @@
   }
   // ---- Black hole: the race scene spirals into it, then the ship is swallowed.
   function startBlackHole() {
-    mode = 'blackhole'; catKnock = 0; keys.clear(); resetGesture(); cancelClip();
+    mode = 'blackhole'; holeUsed = true; catKnock = 0; keys.clear(); resetGesture(); cancelClip();
     boss = null; bossAttacks = []; hyperTime = 0; document.body.classList.remove('boss', 'hyper', 'boosting', 'critical', 'hinting'); document.body.classList.add('blackhole');
     const kinds = ['ship', 'ufo', 'cat', 'rock'], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#66aaff', '#ff774b'];
     blackHole = { at: time, buf: null, debris: Array.from({ length: 34 }, (_, i) => ({ kind: kinds[i % 4], a: random(i * 3 + time) * TAU, r: .45 + random(i * 7 + time) * .6, delay: random(i * 11 + time) * 1.6, s: 10 + random(i * 5) * 16, color: colors[i % colors.length], spin: (random(i) - .5) * 12 })) };
@@ -4677,7 +4682,7 @@
   }
   function updateMaze(dt) {
     const z = maze;
-    if (z.clearedAt) { if (time - z.clearedAt > 2.4) leaveMazeForInvasion(); return; }
+    if (z.clearedAt) { if (time - z.clearedAt > 2.4 && mode === 'maze') startTimeTunnel(); return; }
     if (z.lostAt) { if (!z.over && time - z.lostAt > 2) showMazeLost(); return; }
     const want = mazeInput(); if (want) z.want = want;
     if (time < z.readyUntil) return;
@@ -4734,11 +4739,78 @@
     unlockAchievement('maze'); addCredits(z.total * 2 + 150, 'BLACK HOLE MAZE');
     showCallout('MAZE CLEARED!', '#3dffa6'); launchConfetti(); playFanfare();
   }
-  // All fruit eaten: straight into the invasion (alarm, countdown, boss fight).
-  function leaveMazeForInvasion() {
-    maze = null; document.body.classList.remove('maze');
-    $('hud').classList.add('hidden'); rivals = []; ufos = []; bombs = []; enemyShots = []; shield = 100;
-    startInvasion();
+  // ---- All fruit eaten: the singularity swallows the maze and a time tunnel throws the pilot back onto the track.
+  function startTimeTunnel() {
+    mode = 'timetunnel'; timeTunnel = { at: time, buf: null, voiced: false }; keys.clear(); resetGesture();
+    playToneSweep(70, 2600, 3.8, 'sawtooth', .07); playNoiseBurst(4, .12, 300, 9000); buzz([40, 40, 40, 40, 300]);
+  }
+  function updateTimeTunnel() {
+    const tt = timeTunnel, t = time - tt.at;
+    if (t > TUNNEL_SWALLOW && maze) { maze = null; document.body.classList.remove('maze'); document.body.classList.add('blackhole'); screenFlash = 1; }
+    if (t > TUNNEL_SWALLOW + .3 && !tt.voiced) { tt.voiced = true; robotSay('Time warp! Your rivals are fruit now!', 'time-tunnel'); }
+    if (t > TUNNEL_TIME) resumeFruitRace();
+  }
+  // Back in the race where it was left, catapulted at top speed, and every rival is a fruit now.
+  function resumeFruitRace() {
+    timeTunnel = null; fruitRace = true; mode = 'racing'; catPoofs = 0; catKnock = 0;
+    document.body.classList.remove('maze', 'blackhole'); $('hud').classList.remove('hidden');
+    rivals.forEach((r, i) => { r.fruitKind = i % FRUIT_KINDS; });
+    speed = Math.max(speed, 12000 * machines[shipIndex].top); raceInvulnUntil = time + 2.5; screenFlash = 1; shake = .8; keys.clear(); resetGesture();
+    showCallout('🍒 FRUIT RACE! 🍋', '#ddff46'); showMessage('BACK ON THE TRACK  ·  ALL RIVALS ARE FRUIT', 2.6);
+    updateHUD();
+  }
+  function renderTimeTunnel() {
+    const tt = timeTunnel, t = time - tt.at, cx = W / 2, cy = H / 2, big = Math.max(W, H);
+    if (maze) {
+      // The maze spirals into a white-hot singularity.
+      renderMaze();
+      const e = Math.pow(clamp(t / TUNNEL_SWALLOW, 0, 1), 2);
+      if (!tt.buf) try { tt.buf = document.createElement('canvas'); } catch { tt.buf = false; }
+      if (tt.buf && canvas.width) {
+        const buf = tt.buf; if (buf.width !== canvas.width || buf.height !== canvas.height) { buf.width = canvas.width; buf.height = canvas.height; }
+        const g = buf.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, buf.width, buf.height); g.drawImage(canvas, 0, 0);
+        ctx.save(); ctx.fillStyle = '#02010a'; ctx.fillRect(-20, -20, W + 40, H + 40);
+        ctx.translate(cx, cy); ctx.rotate(e * 5); ctx.scale(Math.max(.01, 1 - e * .97), Math.max(.01, 1 - e * .97)); ctx.translate(-cx, -cy); ctx.drawImage(buf, 0, 0, W, H); ctx.restore();
+      }
+      const glow = ctx.createRadialGradient(cx, cy, 1, cx, cy, big * (.03 + e * .45));
+      glow.addColorStop(0, '#ffffff'); glow.addColorStop(.25, '#bff8ffee'); glow.addColorStop(.6, '#9d6aff55'); glow.addColorStop(1, '#9d6aff00');
+      ctx.fillStyle = glow; ctx.fillRect(-20, -20, W + 40, H + 40);
+      return;
+    }
+    // The time tunnel: rainbow rings rushing past, star streaks, the ship in the middle.
+    const k = clamp((t - TUNNEL_SWALLOW) / (TUNNEL_TIME - TUNNEL_SWALLOW), 0, 1);
+    ctx.save(); ctx.fillStyle = '#03010f'; ctx.fillRect(-20, -20, W + 40, H + 40);
+    for (let i = 0; i < 60; i++) {
+      const a = random(i) * TAU, d = mod(random(i + 7) + time * (1.2 + random(i + 3)), 1), r1 = big * d * d * .8, r2 = r1 + big * .05 * d;
+      ctx.globalAlpha = d; line(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1, cx + Math.cos(a) * r2, cy + Math.sin(a) * r2, i % 2 ? '#ffffff' : '#80faff', 1 + d * 2);
+    }
+    ctx.globalAlpha = 1;
+    for (let i = 0; i < 24; i++) {
+      const depth = 1 - mod(i / 24 + time * .9, 1), r = big * .05 / Math.max(.04, depth);
+      if (r > big * 1.5) continue;
+      const ox = Math.sin(time * 1.7 + depth * 4) * W * .06 * (1 - depth), oy = Math.cos(time * 1.3 + depth * 3) * H * .05 * (1 - depth);
+      ctx.save(); ctx.translate(cx + ox, cy + oy); ctx.rotate(time * .6 + i * .3);
+      ctx.strokeStyle = `hsl(${(i * 28 + time * 220) % 360},100%,62%)`; ctx.globalAlpha = clamp(1.2 - depth, .15, 1); ctx.lineWidth = Math.max(1.5, r * .06);
+      ctx.beginPath(); for (let j = 0; j <= 6; j++) { const a = j * TAU / 6; if (j) ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r * .8); else ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r * .8); } ctx.stroke();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    const m = machines[shipIndex];
+    drawShip(cx + Math.sin(time * 3) * W * .02, cy + H * .2 + Math.cos(time * 4) * H * .01, Math.min(W * .1, 130) * (.8 + k * .4), m.color, m.dark, Math.sin(time * 3) * .4, true, false, true);
+    ctx.font = `900 ${Math.round(Math.min(W * .08, 56))}px 'Barlow Condensed', sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 6; ctx.strokeStyle = '#03010f'; ctx.strokeText('⏳ TIME TUNNEL', W / 2, H * .14); ctx.fillStyle = '#80faff'; ctx.fillText('⏳ TIME TUNNEL', W / 2, H * .14);
+    if (k > .85) { ctx.fillStyle = `rgba(255,255,255,${(k - .85) / .15})`; ctx.fillRect(-20, -20, W + 40, H + 40); }
+    if (flashAmount(screenFlash) > .015) { ctx.fillStyle = `rgba(255,255,255,${flashAmount(screenFlash) * .8})`; ctx.fillRect(-20, -20, W + 40, H + 40); }
+    ctx.restore();
+  }
+  // A rival in the fruit race: a big hovering fruit with two little jets.
+  function drawFruitRacer(x, y, w, r, spin = 0) {
+    const s = w * .42;
+    ctx.save(); ctx.translate(x, y - s * .4 + Math.sin(time * 6 + r.seed) * s * .08); ctx.rotate(spin + Math.sin(time * 2 + r.seed) * .12);
+    ctx.shadowColor = '#ffffff'; ctx.shadowBlur = Math.min(24, s * .5);
+    for (const side of [-1, 1]) { const flame = s * (.5 + Math.random() * .3 + (r.boosting ? .5 : 0)); polygon([[side * s * .35 - s * .12, s * .55], [side * s * .35 + s * .12, s * .55], [side * s * .35, s * .55 + flame]], r.boosting ? '#5cfbff' : '#ffb14a'); }
+    ctx.shadowBlur = 0; drawFruit(0, 0, s, r.fruitKind || 0);
+    ctx.restore();
   }
   function showMazeLost() {
     const z = maze; z.over = true; mode = 'finished'; invasionArmed = false;
@@ -4806,7 +4878,7 @@
       ctx.fillStyle = '#ffffff22'; ctx.fillRect(bx, by, bw, 5); ctx.fillStyle = candyLeft < 2 && Math.sin(time * 20) < 0 ? '#ffffff' : '#80faff'; ctx.fillRect(bx, by, bw * candyLeft / CANDY_TIME, 5);
     }
     // Big centre messages.
-    const msg = z.over ? null : z.clearedAt ? ['MAZE CLEARED!', 'THE INVASION IS COMING…'] : z.lostAt ? ['CAUGHT!', ''] : time < z.readyUntil ? ['EAT ALL THE FRUIT!', window.matchMedia?.('(pointer: coarse)')?.matches ? 'SWIPE TO STEER · DODGE THE TERMINATOR CATS' : 'ARROW KEYS / WASD · DODGE THE TERMINATOR CATS', '🍬 SUPER CANDY: EAT THE CATS FOR A WHILE'] : null;
+    const msg = z.over ? null : z.clearedAt ? ['MAZE CLEARED!', 'THE SINGULARITY AWAKENS…'] : z.lostAt ? ['CAUGHT!', ''] : time < z.readyUntil ? ['EAT ALL THE FRUIT!', window.matchMedia?.('(pointer: coarse)')?.matches ? 'SWIPE TO STEER · DODGE THE TERMINATOR CATS' : 'ARROW KEYS / WASD · DODGE THE TERMINATOR CATS', '🍬 SUPER CANDY: EAT THE CATS FOR A WHILE'] : null;
     if (msg) {
       ctx.textAlign = 'center'; ctx.font = `900 ${Math.round(Math.min(W * .08, 54))}px 'Barlow Condensed', sans-serif`;
       ctx.lineWidth = 6; ctx.strokeStyle = '#04020e'; ctx.strokeText(msg[0], W / 2, H * .44); ctx.fillStyle = z.lostAt ? '#ff456d' : '#ddff46'; ctx.fillText(msg[0], W / 2, H * .44);

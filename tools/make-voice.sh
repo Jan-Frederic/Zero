@@ -74,6 +74,7 @@ say taunt-blaze "Ha! Eat my exhaust!" en-us+Andy 60
 say down-blaze "Noooo, my beautiful ship!" en-us+Andy 60
 
 say black-hole "Whoa whoa whoa! Massive black hole. Terminator cats attack!"
+say time-tunnel "Time warp! Your rivals are fruit now!"
 fi
 
 # German announcer: the same voices and effects, lines from src/09-audio.js (VOICE_DE).
@@ -82,7 +83,7 @@ OUT=voice/de
 de() { say "$1" "$(node tools/voice-de.js "$1")" "de+${2:-UniversalRobot}" "${3:-18}"; }
 for slug in alien-killer fatality ufo-obliterated abduct-this invasion-cancelled close-encounter saucer-smashed green-men-down probe-denied \
   area-51 toasted-saucer mothership ultra-kill galactic-humiliation no-parking return-to-sender first-place mothership-warning mothership-down \
-  invasion-incoming next-boss black-hole; do de "$slug"; done
+  invasion-incoming next-boss black-hole time-tunnel; do de "$slug"; done
 de hyperdrive-initiated anikaRobot 62
 say_alien congratulations "$(node tools/voice-de.js congratulations)" de+croak
 scream scream-robot "$(node tools/voice-de.js scream-robot)" de+UniversalRobot 25 115 "aeval='val(0)*(0.45+0.55*sin(2*PI*70*t))':c=same,aresample=8000,acrusher=bits=5:mode=lin:mix=0.9,aresample=22050,aecho=0.85:0.5:15|30:0.5|0.3"
