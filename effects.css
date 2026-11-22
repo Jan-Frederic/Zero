@@ -543,3 +543,15 @@ body.blackhole .hud,body.blackhole .touch-controls{opacity:0;pointer-events:none
 body.maze .hud{visibility:hidden}body.maze .hud .pause-button{visibility:visible}
 body.maze .touch-controls,body.maze #photo-mode{display:none}
 body.maze .topbar,body.maze .bottom-bar{display:none!important}
+/* Black hole maze on touch screens: a retro D-pad on the left and a FIRE button for the laser on the right. */
+.maze-pad{display:none}
+@media (pointer:coarse){body.maze .maze-pad{display:block}}
+.maze-dpad{position:fixed;z-index:45;left:calc(20px + env(safe-area-inset-left));bottom:calc(28px + env(safe-area-inset-bottom));width:150px;height:150px;touch-action:none;-webkit-user-select:none;user-select:none}
+.maze-dpad::before,.maze-dpad::after{content:"";position:absolute;background:linear-gradient(#3a3550,#1c1830);border:2px solid #8e97a9;border-radius:10px;box-shadow:0 5px 0 #0c0a18,0 0 18px #ff46bc44}
+.maze-dpad::before{left:50px;top:0;width:50px;height:150px}
+.maze-dpad::after{left:0;top:50px;width:150px;height:50px}
+.maze-dpad i{position:absolute;z-index:1;width:50px;height:50px;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:20px;color:#c9d2e3;pointer-events:none}
+.maze-dpad .up{left:50px;top:0}.maze-dpad .down{left:50px;bottom:0}.maze-dpad .left{left:0;top:50px}.maze-dpad .right{right:0;top:50px}
+.maze-dpad[data-dir="up"] .up,.maze-dpad[data-dir="down"] .down,.maze-dpad[data-dir="left"] .left,.maze-dpad[data-dir="right"] .right{color:#ddff46;text-shadow:0 0 10px #ddff46}
+.maze-fire{position:fixed;z-index:45;right:calc(26px + env(safe-area-inset-right));bottom:calc(52px + env(safe-area-inset-bottom));width:96px;height:96px;border-radius:50%;border:4px solid #ffd0da;background:radial-gradient(circle at 35% 30%,#ff8aa3,#d8164a 60%,#8a0b2c);color:#fff;font:900 20px var(--condensed,'Barlow Condensed'),sans-serif;letter-spacing:1px;box-shadow:0 7px 0 #5a0718,0 0 26px #ff456d88;touch-action:none;-webkit-user-select:none;user-select:none}
+.maze-fire:active{transform:translateY(5px);box-shadow:0 2px 0 #5a0718,0 0 30px #ff456dcc}
