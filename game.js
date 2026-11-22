@@ -843,13 +843,18 @@
   // Apple's WebKit gets the MP3s: its WebM/Opus support differs between iOS versions, especially in decodeAudioData.
   /** @type {{ id: string, title: string, file: string, blob?: string|null, received?: number, total?: number, mp3Only?: boolean }[]} */
   const SONGS = [
-    { id: 'redemption', title: 'Redemption (Live, 2003)', file: 'Morbid_Fingers%20-%20live-%20Emmerich_Juli_2003%20-%2003%20Redemption' },
-    { id: 'brainwash', title: 'Brain Wash (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Brain_Wash_8-Bit_Edition' },
-    { id: 'virusgirl', title: 'Virus Girl (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Virus_Girl_8-Bit_Edition' },
-    { id: '100bitch', title: '100 Bitch (8-Bit Edition)', file: 'Morbid_Fingers%20-%20100_Bitch_8-Bit_Edition' },
-    { id: 'crystal', title: 'Crystal Clear Reflection Make Up (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Crystal_Clear_Reflection_Make_Up_8-Bit_Edition' },
-    { id: 'dirtytripper', title: 'Dirty Tripper (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Dirty_Tripper_8-Bit_Edition' },
-    { id: 'enough', title: 'Enough (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Enough_8-Bit_Edition' },
+    { id: 'redemption', title: 'Redemption', file: 'Morbid_Fingers%20-%20live-%20Emmerich_Juli_2003%20-%2003%20Redemption' },
+    { id: 'brainwash', title: 'Brain Wash', file: 'Morbid_Fingers%20-%20Brain_Wash_8-Bit_Edition' },
+    { id: 'virusgirl', title: 'Virus Girl', file: 'Morbid_Fingers%20-%20Virus_Girl_8-Bit_Edition' },
+    { id: '100bitch', title: '100 Bitch', file: 'Morbid_Fingers%20-%20100_Bitch_8-Bit_Edition' },
+    { id: 'crystal', title: 'Crystal Clear Reflection Make Up', file: 'Morbid_Fingers%20-%20Crystal_Clear_Reflection_Make_Up_8-Bit_Edition' },
+    { id: 'dirtytripper', title: 'Dirty Tripper', file: 'Morbid_Fingers%20-%20Dirty_Tripper_8-Bit_Edition' },
+    { id: 'enough', title: 'Enough', file: 'Morbid_Fingers%20-%20Enough_8-Bit_Edition' },
+    { id: 'imissyou', title: 'I Miss You', file: 'Morbid_Fingers%20-%20I_Miss_You_8-Bit_Edition' },
+    { id: 'manabove', title: 'Man Above His Own Planet', file: 'Morbid_Fingers%20-%20Man_Above_His_Own_Planet_8-Bit_Edition' },
+    { id: 'pornoshopbob', title: 'Porno Shop Bob', file: 'Morbid_Fingers%20-%20Porno_Shop_Bob_8-Bit_Edition' },
+    { id: 'savior', title: 'Savior', file: 'Morbid_Fingers%20-%20Savior_8-Bit_Edition' },
+    { id: 'skeletons', title: 'Skeletons', file: 'Morbid_Fingers%20-%20Skeletons_8-Bit_Edition' },
   ];
   const AUDIO_EXT = (() => { try { return !appleWebKit && audio.canPlayType && audio.canPlayType('audio/webm; codecs="opus"') ? 'webm' : 'mp3'; } catch { return 'mp3'; } })();
   const songUrl = (song, ext = AUDIO_EXT) => `${song.file}.${ext}`;
