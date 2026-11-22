@@ -77,8 +77,9 @@
       m.distance += m.speed * dt;
       if (t) m.lane = lerp(m.lane, t.x, Math.min(1, dt * 5));
       if (t && m.distance >= t.distance - 120) {
-        m.done = true; knockOut(t); createExplosion(t.distance, t.x * track.width, '#ff8a2e', 1.1); playExplosionSound(1.1);
-        showMessage(t.nemesis ? `MISSILE GOT ${t.nemesis.name}!` : 'MISSILE HIT  /  RIVAL DESTROYED', 1.1); mission('missile');
+        m.done = true; createExplosion(t.distance, t.x * track.width, '#ff8a2e', 1.1); playExplosionSound(1.1); mission('missile');
+        if (hitRival(t, HEAVY_HIT)) showMessage(t.nemesis ? `MISSILE GOT ${t.nemesis.name}!` : 'MISSILE HIT  /  RIVAL DESTROYED', 1.1);
+        else showMessage(`MISSILE HIT  /  HULL ${t.hull}/${rivalHullMax(t)}`, 1);
       } else if (time - m.started > 3) { m.done = true; createExplosion(m.distance, m.lane * track.width, '#ff8a2e', .7); }
     }
     missiles = missiles.filter(m => !m.done);
@@ -86,7 +87,7 @@
       if (time < mine.armedAt) continue;
       for (const r of rivals) {
         if (!r.alive || r.dying || Math.abs(r.distance - mine.distance) > 260 || Math.abs(r.x - mine.lane) > .2) continue;
-        mine.done = true; knockOut(r); createExplosion(mine.distance, mine.lane * track.width, '#ffe600', 1); showMessage('RIVAL HIT YOUR MINE!', 1); break;
+        mine.done = true; hitRival(r, HEAVY_HIT); createExplosion(mine.distance, mine.lane * track.width, '#ffe600', 1); showMessage('RIVAL HIT YOUR MINE!', 1); break;
       }
       if (time > mine.expires) mine.done = true;
     }

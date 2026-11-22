@@ -6,7 +6,7 @@
     ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
     ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
     ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
-  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', 'time-tunnel', 'pink-hi', 'pink-bye', 'dj-mofo', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', 'time-tunnel', 'pink-hi', 'pink-bye', 'dj-mofi', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
   // German announcer: voice/de/<clip> is rendered from these lines by tools/make-voice.sh (which reads this table).
   // Clips without a German line (the wordless boss screams) use the English file in both languages.
   const VOICE_DE = {
@@ -18,7 +18,7 @@
     'hyperdrive-initiated': 'Hyperantrieb aktiviert!', 'first-place': 'Erster Platz. Makelloser Sieg!', 'mothership-warning': 'Warnung! Mutterschiff im Anflug!',
     'mothership-down': 'Mutterschiff zerstört. Du bist eine Legende!', 'invasion-incoming': 'Warnung! Invasion im Anmarsch!', 'congratulations': 'Herzlichen Glückwunsch, Erdling!',
     'next-boss': 'Warnung! Nächster Boss im Anflug!', 'scream-robot': 'Fehler. Fehler. Systemausfall. Abschaaaltung',
-    'black-hole': 'Uiuiui! Krasses Schwarzes Loch. Terminator-Katzen greifen an!!!', 'time-tunnel': 'Zeitsprung! Alle Gegner sind jetzt Früchte!', 'pink-hi': 'Na, auch hier?', 'pink-bye': 'Tschüsselchen!', 'dj-mofo': 'Ey yo! DJ MoFo ist am Start! Party!',
+    'black-hole': 'Uiuiui! Krasses Schwarzes Loch. Terminator-Katzen greifen an!!!', 'time-tunnel': 'Zeitsprung! Alle Gegner sind jetzt Früchte!', 'pink-hi': 'Na, auch hier?', 'pink-bye': 'Tschüsselchen!', 'dj-mofi': 'Ey yo! DJ MoFi ist am Start! Party!',
     'taunt-vex': 'Hier ist Vex. Du gehst unter, Anfänger!', 'down-vex': 'Unmöglich! Vex ist raus!',
     'taunt-kronos': 'Kronos beherrscht diese Strecke!', 'down-kronos': 'Kronos wird zurückkehren!',
     'taunt-null9': 'Null Neun. Ziel erfasst.', 'down-null9': 'Null Neun. Offline.',
@@ -185,7 +185,7 @@
   }
   function changeSong(i) {
     cancelTuning(); selectSong(i); prefetchUpcoming();
-    if (dj && dj.shown) dj.record = { at: time, song: i }; // DJ MoFo puts the record on
+    if (dj && dj.shown) dj.record = { at: time, song: i }; // DJ MoFi puts the record on
     if (musicWanted && !muted) tryPlay(); else updateMusic();
   }
   // Between songs: the radio crackles, whistles and catches snippets of other stations before it locks on.
@@ -205,7 +205,7 @@
     if (playlistPos === 0 || (!tuning && audio.currentTime > 4)) { changeSong(songIndex); return; }
     playlistPos--; tuneTo(playlist[playlistPos], 1.1);
   }
-  // A song picked by hand (pause menu, DJ MoFo's jukebox) plays right away; the shuffle carries on after it.
+  // A song picked by hand (pause menu, DJ MoFi's jukebox) plays right away; the shuffle carries on after it.
   function playSongNow(i) {
     if (!SONGS[i]) return;
     playlist.splice(playlistPos + 1, 0, i); playlistPos++;

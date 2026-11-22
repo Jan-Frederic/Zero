@@ -9,11 +9,11 @@
     laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = laserCap(); laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
     const track = tracks[trackIndex];
     const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
-    rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace * diff().pace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
+    rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace * diff().pace, color: colors[i % colors.length], seed: i, alive: true, hull: RIVAL_HULL, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
     // Three named nemeses race at the front of the grid: tougher hulls, they hunt the player and talk trash.
     const nemesisPick = [0, 1, 2, 3].filter(i => i !== trackIndex % 4).slice(0, 3);
-    nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
+    nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: NEMESIS_HULL, speed: r.speed * 1.04, tauntAt: -99 }); });
     if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
     endlessRun = false; trialRun = gameMode() === 'trial'; survival = gameMode() === 'survival' ? { level: 1 } : null;
     $('lap-total').textContent = survival ? '∞' : String(LAP_COUNT).padStart(2, '0');
@@ -77,8 +77,7 @@
         .sort((a, b) => a.distance - b.distance).slice(0, extraBeams);
       for (const r of extra) {
         laserShots.push({ distance: r.distance, lane: r.x * track.width, color: powerOn('multi') ? POWERUPS.multi.color : machines[shipIndex].color, started: time, duration: .2, x: W * .5, y: H * .79 });
-        r.hull -= 1; createExplosion(r.distance, r.x * track.width, r.color, r.hull > 0 ? .3 : .45);
-        if (r.hull <= 0) knockOut(r);
+        createExplosion(r.distance, r.x * track.width, r.color, r.hull > 1 ? .3 : .45); hitRival(r, 1);
       }
     }
     if (target && target.bubbleUntil > time && !hyper()) {
@@ -90,13 +89,21 @@
       if (target.hull <= 0) {
         knockOut(target); showMessage(target.nemesis ? `NEMESIS ${target.nemesis.name} DESTROYED!` : 'RIVAL DESTROYED  /  +1 PLACE', 1.1);
       } else {
-        showMessage(target.nemesis ? `${target.nemesis.name} HIT  /  HULL ${target.hull}/6` : `RIVAL HIT  /  HULL ${target.hull}/3`, .8); playImpactSound(.48);
+        showMessage(target.nemesis ? `${target.nemesis.name} HIT  /  HULL ${target.hull}/${NEMESIS_HULL}` : `RIVAL HIT  /  HULL ${target.hull}/${RIVAL_HULL}`, .8); playImpactSound(.48);
       }
     } else if (laserAmmo === 0) showMessage('TARGET MISSED  /  LASERS LOW', .65);
   }
   // A beaten rival does not vanish at once: it trails smoke, spins out of control and only then explodes.
   const WRECK_TIME = 1.5;
   // A beaten rival is flung off the track: it careens across the whole screen, smoking and spinning, then explodes.
+  // Rival shields: a laser hit takes one point, missiles, mines and boost rams three; only a hull at zero knocks a rival out.
+  const RIVAL_HULL = 6, NEMESIS_HULL = 10, HEAVY_HIT = 3;
+  const rivalHullMax = r => r.nemesis ? NEMESIS_HULL : RIVAL_HULL;
+  function hitRival(r, amount) {
+    r.hull -= amount; r.stunnedUntil = time + .32;
+    if (r.hull > 0) return false;
+    knockOut(r); return true;
+  }
   function knockOut(rival) {
     if (rival.nemesis) {
       raceStats.nemeses = (raceStats.nemeses || 0) + 1; mission('nemesis'); showCallout(`${rival.nemesis.name} IS OUT!`, rival.nemesis.color);

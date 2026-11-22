@@ -240,8 +240,11 @@
       }
       if (Math.abs(r.distance - (distance + 1050)) < 340 && Math.abs(r.x * track.width - playerX) < .2 * track.width && collisionCooldown <= 0 && jumpHeight < 90) {
         if (boosting || hyper()) {
-          knockOut(r); createExplosion(r.distance, r.x * track.width, r.color, .5); if (!hyper()) speed *= .94; collisionCooldown = .45;
-          showMessage('BOOST RAM  /  RIVAL DESTROYED  /  ' + shieldText(6), 1.15); playExplosionSound(1.35);
+          // Hyperdrive smashes straight through; a boost ram costs the rival three shield points and shoves it ahead.
+          const destroyed = hyper() ? (knockOut(r), true) : hitRival(r, HEAVY_HIT);
+          createExplosion(r.distance, r.x * track.width, r.color, .5); if (!hyper()) speed *= .94; collisionCooldown = .45;
+          if (!destroyed) r.distance += 700;
+          showMessage(destroyed ? 'BOOST RAM  /  RIVAL DESTROYED  /  ' + shieldText(6) : 'BOOST RAM  /  ' + shieldText(6), 1.15); playExplosionSound(1.35);
           if (damageShield(6)) { updateHUD(); return; }
         } else {
           playerX = clamp(playerX + (playerX >= r.x * track.width ? .15 : -.15) * track.width, -edgeLimit, edgeLimit); speed *= .78; shake = .8; collisionCooldown = 1;
