@@ -1,5 +1,5 @@
-  // ==== Music UI and "Chill with DJ MoFo": the sound desk, the pause-menu player, and the elevator ride that ends in
-  // DJ MoFo's club, where every Morbid Fingers song can be played from the jukebox.
+  // ==== Music UI and "Chill with DJ MoFi": the sound desk, the pause-menu player, and the elevator ride that ends in
+  // DJ MoFi's club, where every Morbid Fingers song can be played from the jukebox.
   // ---- Sound desk (settings → MUSIC & FX): one slider per channel, a short test sound after each change.
   const VOLUME_TESTS = {
     fx: () => soundEffect(880, .25), boom: () => playExplosionSound(.7), engine: () => playJetBlast(.6),
@@ -28,13 +28,13 @@
     $('pp-next').addEventListener('click', () => { setupAudio(); musicWanted = true; nextSong(true); });
   }
 
-  // ---- Chill with DJ MoFo. Timeline of the elevator ride (seconds since the button was pressed).
+  // ---- Chill with DJ MoFi. Timeline of the elevator ride (seconds since the button was pressed).
   const DJ = { open1: 1.4, walkIn: 2, close1: 4.4, ride1: 5, open2: 8.4, pinkIn: 9, flirt: 10.6, pinkOut: 13.8, close2: 15.4, ride2: 16, burst: 18, club: 20.5 };
   let dj = null, posterImage = null, djSeeking = false;
   function startDJ() {
     if (mode !== 'menu') return;
     setupAudio(); primeSpeech();
-    // Unlock the music element inside this tap (Safari), then keep it quiet until DJ MoFo drops the first record.
+    // Unlock the music element inside this tap (Safari), then keep it quiet until DJ MoFi drops the first record.
     const unlock = audio.play(); if (unlock && unlock.catch) unlock.catch(() => {});
     audio.pause(); cancelTuning(); musicWanted = false; musicBlocked = false;
     if (!posterImage && typeof Image === 'function') { posterImage = new Image(); posterImage.src = 'images/poster-8-bit-fingers.jpg'; }
@@ -51,10 +51,10 @@
   function skipDJ() { if (dj && time - dj.at < DJ.burst) { dj.at = time - DJ.burst; dj.said = { hi: 1, bye: 1 }; stopMuzak(); } }
   function enterClub() {
     dj.shown = true; $('dj-skip').classList.add('hidden'); $('dj-club').classList.remove('hidden');
-    robotSay('Yo yo yo! DJ MoFo in the house! Party!', 'dj-mofo');
+    robotSay('Yo yo yo! DJ MoFi in the house! Party!', 'dj-mofi');
     renderMixer(); djPlay(songIndex);
   }
-  // DJ MoFo puts the record on (see changeSong): it flies from the crate onto the deck, a scratch, then the song.
+  // DJ MoFi puts the record on (see changeSong): it flies from the crate onto the deck, a scratch, then the song.
   function djPlay(i) { if (!dj) return; playScratch(); playSongNow(i); }
   function renderJukebox() {
     const list = $('dj-list'); if (!list || !list.appendChild) return;
@@ -85,14 +85,14 @@
     const t = time - dj.at;
     if (t > DJ.flirt + .1 && !dj.said.hi) { dj.said.hi = 1; robotSay('Oh hey, you here too?', 'pink-hi'); }
     if (t > DJ.pinkOut + .1 && !dj.said.bye) { dj.said.bye = 1; robotSay('Toodle-oo!', 'pink-bye'); }
-    // "Ding-dong" when the cabin stops; three blasts when DJ MoFo kicks the doors in.
+    // "Ding-dong" when the cabin stops; three blasts when DJ MoFi kicks the doors in.
     const at = moment => t >= moment && t - dt < moment;
     for (const [moment, freq] of [[DJ.open1 - .2, 1319], [DJ.open1 + .02, 1047], [DJ.open2 - .2, 1319], [DJ.open2 + .02, 1047]]) if (at(moment)) soundEffect(freq, .7);
     for (const [moment, power] of [[DJ.burst + .35, 1.5], [DJ.burst + .9, 2]]) if (at(moment)) playExplosionSound(power);
     if (t >= DJ.burst && !dj.burst) { dj.burst = true; stopMuzak(); shake = 1.6; screenFlash = 1; playExplosionSound(2); }
     if (t >= DJ.burst && t < DJ.club + 1.5 && Math.random() < dt * 6) dj.booms.push({ x: Math.random(), y: Math.random() * .8, at: time, size: .08 + Math.random() * .15 });
     if (t >= DJ.burst && Math.random() < dt * (t < DJ.club ? 5 : .5)) {
-      // DJ MoFo hurls discs around the room.
+      // DJ MoFi hurls discs around the room.
       const fromLeft = Math.random() < .5;
       dj.discs.push({ x: .5, y: .45, vx: (fromLeft ? -1 : 1) * (.35 + Math.random() * .6), vy: -(.3 + Math.random() * .5), at: time, spin: (Math.random() - .5) * 30 });
     }
@@ -278,7 +278,7 @@
     ctx.fillStyle = '#0b0a12'; ctx.fillRect(cx - cw * .14, top - ch * .11, cw * .28, ch * .08);
     ctx.fillStyle = '#ff9b2e'; ctx.font = `700 ${Math.round(ch * .055)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(`${(t > DJ.ride1 && t < DJ.open2) || (t > DJ.ride2) ? '▲' : '•'} ${floorNo}`, cx, top - ch * .07);
-    // Something is coming… the doors bulge just before DJ MoFo kicks them in.
+    // Something is coming… the doors bulge just before DJ MoFi kicks them in.
     if (t > DJ.burst - .7) { ctx.fillStyle = `rgba(255,60,60,${(t - DJ.burst + .7) * .5})`; ctx.fillRect(left, top, cw, ch); }
   }
   function drawClub(t) {
@@ -311,19 +311,19 @@
     // Dance floor tiles flashing to the beat.
     const floorTop = S.h * .78, tile = S.w / 10;
     for (let i = 0; i < 10; i++) for (let j = 0; j < 3; j++) { const on = Math.sin(time * 5 + i * 1.7 + j * 2.3 + pulse * 6) > 0; ctx.fillStyle = on ? `hsl(${(i * 36 + j * 50 + time * 60) % 360},90%,${45 + pulse * 25}%)` : '#1c1030'; ctx.fillRect(S.x + i * tile + 1, floorTop + j * (S.h - floorTop) / 3 + 1, tile - 2, (S.h - floorTop) / 3 - 2); }
-    // DJ booth: two decks, DJ MoFo with headphones behind them.
+    // DJ booth: two decks, DJ MoFi with headphones behind them.
     const boothW = big * .62, boothH = big * .14, bx = cx - boothW / 2, by = floorTop - boothH;
-    const mofoSize = big * .42, bob = Math.sin(time * MUZAK_BPM / 60 * Math.PI) * big * .012 * (1 + pulse * 2);
+    const mofiSize = big * .42, bob = Math.sin(time * MUZAK_BPM / 60 * Math.PI) * big * .012 * (1 + pulse * 2);
     const enter = 1 - Math.pow(1 - k, 3);
-    drawTerminatorCat(cx, by - mofoSize * .18 + bob + (1 - enter) * S.h * .6, mofoSize, false, { kind: 0, d: null, scaredUntil: 0 }, big * .04);
+    drawTerminatorCat(cx, by - mofiSize * .18 + bob + (1 - enter) * S.h * .6, mofiSize, false, { kind: 0, d: null, scaredUntil: 0 }, big * .04);
     // Headphones and shades.
-    const hy = by - mofoSize * .18 + bob + (1 - enter) * S.h * .6;
-    ctx.strokeStyle = '#1b1e28'; ctx.lineWidth = Math.max(3, mofoSize * .04); ctx.beginPath(); ctx.arc(cx, hy - mofoSize * .05, mofoSize * .44, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
-    for (const side of [-1, 1]) { ctx.fillStyle = '#ff2b6a'; ctx.beginPath(); ctx.ellipse(cx + side * mofoSize * .42, hy - mofoSize * .02, mofoSize * .07, mofoSize * .11, 0, 0, TAU); ctx.fill(); }
-    ctx.fillStyle = '#0b0a12'; ctx.fillRect(cx - mofoSize * .26, hy - mofoSize * .14, mofoSize * .52, mofoSize * .1);
-    ctx.fillStyle = '#ff1a1a'; ctx.fillRect(cx - mofoSize * .2, hy - mofoSize * .11, mofoSize * .1, mofoSize * .03);
+    const hy = by - mofiSize * .18 + bob + (1 - enter) * S.h * .6;
+    ctx.strokeStyle = '#1b1e28'; ctx.lineWidth = Math.max(3, mofiSize * .04); ctx.beginPath(); ctx.arc(cx, hy - mofiSize * .05, mofiSize * .44, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+    for (const side of [-1, 1]) { ctx.fillStyle = '#ff2b6a'; ctx.beginPath(); ctx.ellipse(cx + side * mofiSize * .42, hy - mofiSize * .02, mofiSize * .07, mofiSize * .11, 0, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = '#0b0a12'; ctx.fillRect(cx - mofiSize * .26, hy - mofiSize * .14, mofiSize * .52, mofiSize * .1);
+    ctx.fillStyle = '#ff1a1a'; ctx.fillRect(cx - mofiSize * .2, hy - mofiSize * .11, mofiSize * .1, mofiSize * .03);
     ctx.fillStyle = '#1b1e28'; ctx.fillRect(bx, by, boothW, boothH); ctx.strokeStyle = '#ff46bc'; ctx.lineWidth = 2; ctx.strokeRect(bx, by, boothW, boothH);
-    ctx.fillStyle = '#ff46bc'; ctx.font = `900 ${Math.round(boothH * .32)}px 'Barlow Condensed', sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('DJ MOFO', cx, by + boothH * .62);
+    ctx.fillStyle = '#ff46bc'; ctx.font = `900 ${Math.round(boothH * .32)}px 'Barlow Condensed', sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('DJ MOFI', cx, by + boothH * .62);
     for (const side of [-1, 1]) {
       const dx = cx + side * boothW * .32, dy = by + boothH * .15, rr = boothH * .55;
       ctx.fillStyle = '#2b3040'; ctx.beginPath(); ctx.ellipse(dx, dy, rr * 1.15, rr * .45, 0, 0, TAU); ctx.fill();

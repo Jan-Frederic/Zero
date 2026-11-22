@@ -438,7 +438,7 @@
     'UFO BOMB RUN': 'UFO-BOMBENANGRIFF', 'DODGE!': 'AUSWEICHEN!', 'UFO HIT': 'UFO GETROFFEN', 'IT IS GOING DOWN!': 'ES STÜRZT AB!', 'WARNING: MOTHERSHIP!': 'WARNUNG: MUTTERSCHIFF!',
     'WEBBED!  SLOWED DOWN': 'EINGESPONNEN!  VERLANGSAMT', '🎮 GAMEPAD CONNECTED': '🎮 GAMEPAD VERBUNDEN', 'AIRBORNE': 'IN DER LUFT', 'TRAMPOLINE BOOST': 'TRAMPOLIN-BOOST',
     'BUBBLE POPPED!': 'BLASE GEPLATZT!', 'CATASTROPHIC FAILURE / SHIELDS OFFLINE': 'TOTALAUSFALL / SCHILDE OFFLINE', 'CAT PIXEL-POOF!  LASER +1': 'KATZEN-PIXEL-POFF!  LASER +1', '⚠ ONE MORE CAT = BLACK HOLE': '⚠ NOCH EINE KATZE = SCHWARZES LOCH', '⚠ BLACK HOLE ⚠': '⚠ SCHWARZES LOCH ⚠', 'POOF!': 'POFF!',
-    'MAZE CLEARED!': 'LABYRINTH GESCHAFFT!', '🎚 MUSIC & FX': '🎚 MUSIK & FX', '🐱 CHILL WITH DJ MOFO': '🐱 CHILLEN MIT DJ MOFO', 'MORBID FINGERS · SOUND DESK': 'MORBID FINGERS · MISCHPULT', 'MUSIC & FX': 'MUSIK & FX',
+    'MAZE CLEARED!': 'LABYRINTH GESCHAFFT!', '🎚 MUSIC & FX': '🎚 MUSIK & FX', '🐱 CHILL WITH DJ MOFI': '🐱 CHILLEN MIT DJ MOFI', 'MORBID FINGERS · SOUND DESK': 'MORBID FINGERS · MISCHPULT', 'MUSIC & FX': 'MUSIK & FX',
     '🎸 MUSIC': '🎸 MUSIK', '✨ EFFECTS': '✨ EFFEKTE', '💥 EXPLOSIONS': '💥 EXPLOSIONEN', '🔥 ENGINES & JETS': '🔥 MOTOREN & DÜSEN', '🤖 ANNOUNCER': '🤖 ANSAGER',
     'LEAVE THE CLUB ✕': 'CLUB VERLASSEN ✕', 'SKIP ▸▸': 'ÜBERSPRINGEN ▸▸', 'Oh hey, you here too?': 'Na, auch hier?', 'Toodle-oo!': 'Tschüsselchen!',
     'RADIO / TUNING IN…': 'RADIO / SENDERSUCHE …', 'VOL': 'LAUT', 'THE SINGULARITY AWAKENS…': 'DIE SINGULARITÄT ERWACHT …', '⏳ TIME TUNNEL': '⏳ ZEITTUNNEL', '🍒 FRUIT RACE! 🍋': '🍒 FRUCHT-RENNEN! 🍋', 'BACK ON THE TRACK': 'ZURÜCK AUF DER STRECKE', 'ALL RIVALS ARE FRUIT': 'ALLE GEGNER SIND FRÜCHTE', '🍬 SUPER CANDY! EAT THE CATS!': '🍬 SUPER-BONBON! FRISS DIE KATZEN!', 'CAT CRUNCHED!': 'KATZE VERSPEIST!', 'CAT CRUNCHED': 'KATZE VERSPEIST', '🍬 SUPER CANDY: EAT THE CATS FOR A WHILE': '🍬 SUPER-BONBON: FRISS EINE WEILE DIE KATZEN', 'CAUGHT!': 'ERWISCHT!', 'BLACK HOLE MAZE': 'LABYRINTH IM SCHWARZEN LOCH', 'EAT ALL THE FRUIT!': 'FRISS ALLE FRÜCHTE!',
@@ -539,7 +539,7 @@
     [/^BEST (.+)$/, 'BESTZEIT $1'], [/^LAP (\d+) \/ (\d+) — KEEP PUSHING$/, 'RUNDE $1 / $2 — WEITER SO'], [/^P(\d+) FINISH$/, 'PLATZ $1'], [/^TIME TRIAL \/ (.+)$/, 'ZEITFAHREN / $1'],
     [/^\+(\d+) CR EARNED  ·  (\d+) CR TOTAL$/, '+$1 CR VERDIENT  ·  $2 CR GESAMT'], [/^DIFFICULTY: (\w+) · (.*?)(\d+)% CREDITS$/, (m, d, l, c) => `SCHWIERIGKEIT: ${tr(d)} · ${l.replace('+1 LIFE', '+1 LEBEN').replace('-1 LIFE', '-1 LEBEN')}${c} % CREDITS`],
     [/^SHIP DESTROYED  \/  (\d+) LI(?:VES|FE) LEFT$/, 'SCHIFF ZERSTÖRT  /  NOCH $1 LEBEN'], [/^SHIP DESTROYED!  (\d+) LI(?:VES|FE) LEFT$/, 'SCHIFF ZERSTÖRT!  NOCH $1 LEBEN'],
-    [/^MOTHERSHIP HIT  \/  (\d+)%$/, 'MUTTERSCHIFF GETROFFEN  /  $1 %'], [/^RIVAL HIT  \/  HULL (.+)$/, 'RIVALE GETROFFEN  /  RUMPF $1'], [/^(.+) HIT  \/  HULL (\d\/6)$/, '$1 GETROFFEN  /  RUMPF $2'],
+    [/^MOTHERSHIP HIT  \/  (\d+)%$/, 'MUTTERSCHIFF GETROFFEN  /  $1 %'], [/^RIVAL HIT  \/  HULL (.+)$/, 'RIVALE GETROFFEN  /  RUMPF $1'], [/^MISSILE HIT  \/  HULL (.+)$/, 'RAKETENTREFFER  /  RUMPF $1'], [/^(.+) HIT  \/  HULL (\d+\/\d+)$/, '$1 GETROFFEN  /  RUMPF $2'],
     [/^EMP  \/  (\d+) RIVALS STALLED$/, 'EMP  /  $1 RIVALEN LAHMGELEGT'], [/^MISSILE GOT (.+)!$/, 'RAKETE ERWISCHT $1!'],
     [/^4 RACES · F1 POINTS · (.+)$/, '4 RENNEN · F1-PUNKTE · $1'], [/^CHAMPIONSHIP · RACE (\d+)\/(\d+)$/, 'MEISTERSCHAFT · RENNEN $1/$2'], [/^NEXT: (.+)$/, 'NÄCHSTES: $1'],
     [/^CUP P(\d+)\.$/, 'CUP PLATZ $1.'], [/^(\d+)\. (.+)$/, (m, n, name) => `${n}. ${tr(name)}`], [/^(\d+) PTS$/, '$1 PKT'],
@@ -773,7 +773,7 @@
     ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
     ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
     ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
-  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', 'time-tunnel', 'pink-hi', 'pink-bye', 'dj-mofo', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', 'time-tunnel', 'pink-hi', 'pink-bye', 'dj-mofi', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
   // German announcer: voice/de/<clip> is rendered from these lines by tools/make-voice.sh (which reads this table).
   // Clips without a German line (the wordless boss screams) use the English file in both languages.
   const VOICE_DE = {
@@ -785,7 +785,7 @@
     'hyperdrive-initiated': 'Hyperantrieb aktiviert!', 'first-place': 'Erster Platz. Makelloser Sieg!', 'mothership-warning': 'Warnung! Mutterschiff im Anflug!',
     'mothership-down': 'Mutterschiff zerstört. Du bist eine Legende!', 'invasion-incoming': 'Warnung! Invasion im Anmarsch!', 'congratulations': 'Herzlichen Glückwunsch, Erdling!',
     'next-boss': 'Warnung! Nächster Boss im Anflug!', 'scream-robot': 'Fehler. Fehler. Systemausfall. Abschaaaltung',
-    'black-hole': 'Uiuiui! Krasses Schwarzes Loch. Terminator-Katzen greifen an!!!', 'time-tunnel': 'Zeitsprung! Alle Gegner sind jetzt Früchte!', 'pink-hi': 'Na, auch hier?', 'pink-bye': 'Tschüsselchen!', 'dj-mofo': 'Ey yo! DJ MoFo ist am Start! Party!',
+    'black-hole': 'Uiuiui! Krasses Schwarzes Loch. Terminator-Katzen greifen an!!!', 'time-tunnel': 'Zeitsprung! Alle Gegner sind jetzt Früchte!', 'pink-hi': 'Na, auch hier?', 'pink-bye': 'Tschüsselchen!', 'dj-mofi': 'Ey yo! DJ MoFi ist am Start! Party!',
     'taunt-vex': 'Hier ist Vex. Du gehst unter, Anfänger!', 'down-vex': 'Unmöglich! Vex ist raus!',
     'taunt-kronos': 'Kronos beherrscht diese Strecke!', 'down-kronos': 'Kronos wird zurückkehren!',
     'taunt-null9': 'Null Neun. Ziel erfasst.', 'down-null9': 'Null Neun. Offline.',
@@ -952,7 +952,7 @@
   }
   function changeSong(i) {
     cancelTuning(); selectSong(i); prefetchUpcoming();
-    if (dj && dj.shown) dj.record = { at: time, song: i }; // DJ MoFo puts the record on
+    if (dj && dj.shown) dj.record = { at: time, song: i }; // DJ MoFi puts the record on
     if (musicWanted && !muted) tryPlay(); else updateMusic();
   }
   // Between songs: the radio crackles, whistles and catches snippets of other stations before it locks on.
@@ -972,7 +972,7 @@
     if (playlistPos === 0 || (!tuning && audio.currentTime > 4)) { changeSong(songIndex); return; }
     playlistPos--; tuneTo(playlist[playlistPos], 1.1);
   }
-  // A song picked by hand (pause menu, DJ MoFo's jukebox) plays right away; the shuffle carries on after it.
+  // A song picked by hand (pause menu, DJ MoFi's jukebox) plays right away; the shuffle carries on after it.
   function playSongNow(i) {
     if (!SONGS[i]) return;
     playlist.splice(playlistPos + 1, 0, i); playlistPos++;
@@ -1343,8 +1343,9 @@
       m.distance += m.speed * dt;
       if (t) m.lane = lerp(m.lane, t.x, Math.min(1, dt * 5));
       if (t && m.distance >= t.distance - 120) {
-        m.done = true; knockOut(t); createExplosion(t.distance, t.x * track.width, '#ff8a2e', 1.1); playExplosionSound(1.1);
-        showMessage(t.nemesis ? `MISSILE GOT ${t.nemesis.name}!` : 'MISSILE HIT  /  RIVAL DESTROYED', 1.1); mission('missile');
+        m.done = true; createExplosion(t.distance, t.x * track.width, '#ff8a2e', 1.1); playExplosionSound(1.1); mission('missile');
+        if (hitRival(t, HEAVY_HIT)) showMessage(t.nemesis ? `MISSILE GOT ${t.nemesis.name}!` : 'MISSILE HIT  /  RIVAL DESTROYED', 1.1);
+        else showMessage(`MISSILE HIT  /  HULL ${t.hull}/${rivalHullMax(t)}`, 1);
       } else if (time - m.started > 3) { m.done = true; createExplosion(m.distance, m.lane * track.width, '#ff8a2e', .7); }
     }
     missiles = missiles.filter(m => !m.done);
@@ -1352,7 +1353,7 @@
       if (time < mine.armedAt) continue;
       for (const r of rivals) {
         if (!r.alive || r.dying || Math.abs(r.distance - mine.distance) > 260 || Math.abs(r.x - mine.lane) > .2) continue;
-        mine.done = true; knockOut(r); createExplosion(mine.distance, mine.lane * track.width, '#ffe600', 1); showMessage('RIVAL HIT YOUR MINE!', 1); break;
+        mine.done = true; hitRival(r, HEAVY_HIT); createExplosion(mine.distance, mine.lane * track.width, '#ffe600', 1); showMessage('RIVAL HIT YOUR MINE!', 1); break;
       }
       if (time > mine.expires) mine.done = true;
     }
@@ -1885,8 +1886,8 @@
       showCallout(`LEVEL ${survival.level}`, '#ff9b2e'); showMessage('FASTER RIVALS  ·  MORE UFOS', 1.6); playToneSweep(300, 1500, .5, 'sawtooth', .05);
     }
     // Rivals left far behind come back ahead, so the track never empties.
-    for (const r of rivals) if (r.alive && r.distance < distance - 9000) { r.distance = distance + 14000 + random(r.seed + Math.floor(time)) * 12000; r.hull = r.nemesis ? 6 : 3; }
-    for (const r of rivals) if (!r.alive && !r.dying && random(Math.floor(time * 2) + r.seed) < .002) { Object.assign(r, { alive: true, distance: distance + 20000, hull: 3 }); }
+    for (const r of rivals) if (r.alive && r.distance < distance - 9000) { r.distance = distance + 14000 + random(r.seed + Math.floor(time)) * 12000; r.hull = rivalHullMax(r); }
+    for (const r of rivals) if (!r.alive && !r.dying && random(Math.floor(time * 2) + r.seed) < .002) { Object.assign(r, { alive: true, distance: distance + 20000, hull: rivalHullMax(r) }); }
   }
   function finishSurvival() {
     const km = distance / LENGTH * KM_PER_LAP, best = profile.stats.survivalBest || 0, record = km > best;
@@ -2006,11 +2007,11 @@
     laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = laserCap(); laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
     const track = tracks[trackIndex];
     const lanes = [-.6, -.3, 0, .3, .6], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#ff774b', '#66aaff', '#e3ff6c', '#ff795e', '#a7ff54', '#61baff', '#e874ff', '#ffcb4d', '#73f1ed', '#fc69a7', '#a2ff72', '#d0a3ff', '#ff8756', '#59d8ff', '#f4f067'];
-    rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace * diff().pace, color: colors[i % colors.length], seed: i, alive: true, hull: 3, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
+    rivals = Array.from({ length: PILOT_COUNT - 1 }, (_, i) => ({ distance: 1400 + i * 760, x: lanes[i % lanes.length], lane: lanes[i % lanes.length], speed: (7800 + i * 92) * track.rivalPace * diff().pace, color: colors[i % colors.length], seed: i, alive: true, hull: RIVAL_HULL, boosting: false, boostRemaining: 0, boostCooldown: .4 + random(i + 42) * 1.7, laserCooldown: .55 + random(i + 182) * 4.2 }));
     ufos = Array.from({ length: 2 + Math.floor(trackIndex / 3) }, (_, i) => makeUfo(i, i, -10));
     // Three named nemeses race at the front of the grid: tougher hulls, they hunt the player and talk trash.
     const nemesisPick = [0, 1, 2, 3].filter(i => i !== trackIndex % 4).slice(0, 3);
-    nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: 6, speed: r.speed * 1.04, tauntAt: -99 }); });
+    nemesisPick.forEach((n, k) => { const r = rivals[rivals.length - 1 - k], def = NEMESES[n]; Object.assign(r, { nemesis: def, color: def.color, dark: def.dark, hull: NEMESIS_HULL, speed: r.speed * 1.04, tauntAt: -99 }); });
     if (gameMode() === 'trial') { rivals = []; ufos = []; rank = 1; }
     endlessRun = false; trialRun = gameMode() === 'trial'; survival = gameMode() === 'survival' ? { level: 1 } : null;
     $('lap-total').textContent = survival ? '∞' : String(LAP_COUNT).padStart(2, '0');
@@ -2074,8 +2075,7 @@
         .sort((a, b) => a.distance - b.distance).slice(0, extraBeams);
       for (const r of extra) {
         laserShots.push({ distance: r.distance, lane: r.x * track.width, color: powerOn('multi') ? POWERUPS.multi.color : machines[shipIndex].color, started: time, duration: .2, x: W * .5, y: H * .79 });
-        r.hull -= 1; createExplosion(r.distance, r.x * track.width, r.color, r.hull > 0 ? .3 : .45);
-        if (r.hull <= 0) knockOut(r);
+        createExplosion(r.distance, r.x * track.width, r.color, r.hull > 1 ? .3 : .45); hitRival(r, 1);
       }
     }
     if (target && target.bubbleUntil > time && !hyper()) {
@@ -2087,13 +2087,21 @@
       if (target.hull <= 0) {
         knockOut(target); showMessage(target.nemesis ? `NEMESIS ${target.nemesis.name} DESTROYED!` : 'RIVAL DESTROYED  /  +1 PLACE', 1.1);
       } else {
-        showMessage(target.nemesis ? `${target.nemesis.name} HIT  /  HULL ${target.hull}/6` : `RIVAL HIT  /  HULL ${target.hull}/3`, .8); playImpactSound(.48);
+        showMessage(target.nemesis ? `${target.nemesis.name} HIT  /  HULL ${target.hull}/${NEMESIS_HULL}` : `RIVAL HIT  /  HULL ${target.hull}/${RIVAL_HULL}`, .8); playImpactSound(.48);
       }
     } else if (laserAmmo === 0) showMessage('TARGET MISSED  /  LASERS LOW', .65);
   }
   // A beaten rival does not vanish at once: it trails smoke, spins out of control and only then explodes.
   const WRECK_TIME = 1.5;
   // A beaten rival is flung off the track: it careens across the whole screen, smoking and spinning, then explodes.
+  // Rival shields: a laser hit takes one point, missiles, mines and boost rams three; only a hull at zero knocks a rival out.
+  const RIVAL_HULL = 6, NEMESIS_HULL = 10, HEAVY_HIT = 3;
+  const rivalHullMax = r => r.nemesis ? NEMESIS_HULL : RIVAL_HULL;
+  function hitRival(r, amount) {
+    r.hull -= amount; r.stunnedUntil = time + .32;
+    if (r.hull > 0) return false;
+    knockOut(r); return true;
+  }
   function knockOut(rival) {
     if (rival.nemesis) {
       raceStats.nemeses = (raceStats.nemeses || 0) + 1; mission('nemesis'); showCallout(`${rival.nemesis.name} IS OUT!`, rival.nemesis.color);
@@ -2641,8 +2649,11 @@
       }
       if (Math.abs(r.distance - (distance + 1050)) < 340 && Math.abs(r.x * track.width - playerX) < .2 * track.width && collisionCooldown <= 0 && jumpHeight < 90) {
         if (boosting || hyper()) {
-          knockOut(r); createExplosion(r.distance, r.x * track.width, r.color, .5); if (!hyper()) speed *= .94; collisionCooldown = .45;
-          showMessage('BOOST RAM  /  RIVAL DESTROYED  /  ' + shieldText(6), 1.15); playExplosionSound(1.35);
+          // Hyperdrive smashes straight through; a boost ram costs the rival three shield points and shoves it ahead.
+          const destroyed = hyper() ? (knockOut(r), true) : hitRival(r, HEAVY_HIT);
+          createExplosion(r.distance, r.x * track.width, r.color, .5); if (!hyper()) speed *= .94; collisionCooldown = .45;
+          if (!destroyed) r.distance += 700;
+          showMessage(destroyed ? 'BOOST RAM  /  RIVAL DESTROYED  /  ' + shieldText(6) : 'BOOST RAM  /  ' + shieldText(6), 1.15); playExplosionSound(1.35);
           if (damageShield(6)) { updateHUD(); return; }
         } else {
           playerX = clamp(playerX + (playerX >= r.x * track.width ? .15 : -.15) * track.width, -edgeLimit, edgeLimit); speed *= .78; shake = .8; collisionCooldown = 1;
@@ -5164,8 +5175,8 @@
     for (let i = 0; i <= 6; i++) { const mx = -s * .22 + i * s * .073, my = s * .16 + (i % 2 ? -1 : 1) * s * .04; if (i) ctx.lineTo(mx, my); else ctx.moveTo(mx, my); }
     ctx.stroke(); ctx.restore();
   }
-  // ==== Music UI and "Chill with DJ MoFo": the sound desk, the pause-menu player, and the elevator ride that ends in
-  // DJ MoFo's club, where every Morbid Fingers song can be played from the jukebox.
+  // ==== Music UI and "Chill with DJ MoFi": the sound desk, the pause-menu player, and the elevator ride that ends in
+  // DJ MoFi's club, where every Morbid Fingers song can be played from the jukebox.
   // ---- Sound desk (settings → MUSIC & FX): one slider per channel, a short test sound after each change.
   const VOLUME_TESTS = {
     fx: () => soundEffect(880, .25), boom: () => playExplosionSound(.7), engine: () => playJetBlast(.6),
@@ -5194,13 +5205,13 @@
     $('pp-next').addEventListener('click', () => { setupAudio(); musicWanted = true; nextSong(true); });
   }
 
-  // ---- Chill with DJ MoFo. Timeline of the elevator ride (seconds since the button was pressed).
+  // ---- Chill with DJ MoFi. Timeline of the elevator ride (seconds since the button was pressed).
   const DJ = { open1: 1.4, walkIn: 2, close1: 4.4, ride1: 5, open2: 8.4, pinkIn: 9, flirt: 10.6, pinkOut: 13.8, close2: 15.4, ride2: 16, burst: 18, club: 20.5 };
   let dj = null, posterImage = null, djSeeking = false;
   function startDJ() {
     if (mode !== 'menu') return;
     setupAudio(); primeSpeech();
-    // Unlock the music element inside this tap (Safari), then keep it quiet until DJ MoFo drops the first record.
+    // Unlock the music element inside this tap (Safari), then keep it quiet until DJ MoFi drops the first record.
     const unlock = audio.play(); if (unlock && unlock.catch) unlock.catch(() => {});
     audio.pause(); cancelTuning(); musicWanted = false; musicBlocked = false;
     if (!posterImage && typeof Image === 'function') { posterImage = new Image(); posterImage.src = 'images/poster-8-bit-fingers.jpg'; }
@@ -5217,10 +5228,10 @@
   function skipDJ() { if (dj && time - dj.at < DJ.burst) { dj.at = time - DJ.burst; dj.said = { hi: 1, bye: 1 }; stopMuzak(); } }
   function enterClub() {
     dj.shown = true; $('dj-skip').classList.add('hidden'); $('dj-club').classList.remove('hidden');
-    robotSay('Yo yo yo! DJ MoFo in the house! Party!', 'dj-mofo');
+    robotSay('Yo yo yo! DJ MoFi in the house! Party!', 'dj-mofi');
     renderMixer(); djPlay(songIndex);
   }
-  // DJ MoFo puts the record on (see changeSong): it flies from the crate onto the deck, a scratch, then the song.
+  // DJ MoFi puts the record on (see changeSong): it flies from the crate onto the deck, a scratch, then the song.
   function djPlay(i) { if (!dj) return; playScratch(); playSongNow(i); }
   function renderJukebox() {
     const list = $('dj-list'); if (!list || !list.appendChild) return;
@@ -5251,14 +5262,14 @@
     const t = time - dj.at;
     if (t > DJ.flirt + .1 && !dj.said.hi) { dj.said.hi = 1; robotSay('Oh hey, you here too?', 'pink-hi'); }
     if (t > DJ.pinkOut + .1 && !dj.said.bye) { dj.said.bye = 1; robotSay('Toodle-oo!', 'pink-bye'); }
-    // "Ding-dong" when the cabin stops; three blasts when DJ MoFo kicks the doors in.
+    // "Ding-dong" when the cabin stops; three blasts when DJ MoFi kicks the doors in.
     const at = moment => t >= moment && t - dt < moment;
     for (const [moment, freq] of [[DJ.open1 - .2, 1319], [DJ.open1 + .02, 1047], [DJ.open2 - .2, 1319], [DJ.open2 + .02, 1047]]) if (at(moment)) soundEffect(freq, .7);
     for (const [moment, power] of [[DJ.burst + .35, 1.5], [DJ.burst + .9, 2]]) if (at(moment)) playExplosionSound(power);
     if (t >= DJ.burst && !dj.burst) { dj.burst = true; stopMuzak(); shake = 1.6; screenFlash = 1; playExplosionSound(2); }
     if (t >= DJ.burst && t < DJ.club + 1.5 && Math.random() < dt * 6) dj.booms.push({ x: Math.random(), y: Math.random() * .8, at: time, size: .08 + Math.random() * .15 });
     if (t >= DJ.burst && Math.random() < dt * (t < DJ.club ? 5 : .5)) {
-      // DJ MoFo hurls discs around the room.
+      // DJ MoFi hurls discs around the room.
       const fromLeft = Math.random() < .5;
       dj.discs.push({ x: .5, y: .45, vx: (fromLeft ? -1 : 1) * (.35 + Math.random() * .6), vy: -(.3 + Math.random() * .5), at: time, spin: (Math.random() - .5) * 30 });
     }
@@ -5444,7 +5455,7 @@
     ctx.fillStyle = '#0b0a12'; ctx.fillRect(cx - cw * .14, top - ch * .11, cw * .28, ch * .08);
     ctx.fillStyle = '#ff9b2e'; ctx.font = `700 ${Math.round(ch * .055)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(`${(t > DJ.ride1 && t < DJ.open2) || (t > DJ.ride2) ? '▲' : '•'} ${floorNo}`, cx, top - ch * .07);
-    // Something is coming… the doors bulge just before DJ MoFo kicks them in.
+    // Something is coming… the doors bulge just before DJ MoFi kicks them in.
     if (t > DJ.burst - .7) { ctx.fillStyle = `rgba(255,60,60,${(t - DJ.burst + .7) * .5})`; ctx.fillRect(left, top, cw, ch); }
   }
   function drawClub(t) {
@@ -5477,19 +5488,19 @@
     // Dance floor tiles flashing to the beat.
     const floorTop = S.h * .78, tile = S.w / 10;
     for (let i = 0; i < 10; i++) for (let j = 0; j < 3; j++) { const on = Math.sin(time * 5 + i * 1.7 + j * 2.3 + pulse * 6) > 0; ctx.fillStyle = on ? `hsl(${(i * 36 + j * 50 + time * 60) % 360},90%,${45 + pulse * 25}%)` : '#1c1030'; ctx.fillRect(S.x + i * tile + 1, floorTop + j * (S.h - floorTop) / 3 + 1, tile - 2, (S.h - floorTop) / 3 - 2); }
-    // DJ booth: two decks, DJ MoFo with headphones behind them.
+    // DJ booth: two decks, DJ MoFi with headphones behind them.
     const boothW = big * .62, boothH = big * .14, bx = cx - boothW / 2, by = floorTop - boothH;
-    const mofoSize = big * .42, bob = Math.sin(time * MUZAK_BPM / 60 * Math.PI) * big * .012 * (1 + pulse * 2);
+    const mofiSize = big * .42, bob = Math.sin(time * MUZAK_BPM / 60 * Math.PI) * big * .012 * (1 + pulse * 2);
     const enter = 1 - Math.pow(1 - k, 3);
-    drawTerminatorCat(cx, by - mofoSize * .18 + bob + (1 - enter) * S.h * .6, mofoSize, false, { kind: 0, d: null, scaredUntil: 0 }, big * .04);
+    drawTerminatorCat(cx, by - mofiSize * .18 + bob + (1 - enter) * S.h * .6, mofiSize, false, { kind: 0, d: null, scaredUntil: 0 }, big * .04);
     // Headphones and shades.
-    const hy = by - mofoSize * .18 + bob + (1 - enter) * S.h * .6;
-    ctx.strokeStyle = '#1b1e28'; ctx.lineWidth = Math.max(3, mofoSize * .04); ctx.beginPath(); ctx.arc(cx, hy - mofoSize * .05, mofoSize * .44, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
-    for (const side of [-1, 1]) { ctx.fillStyle = '#ff2b6a'; ctx.beginPath(); ctx.ellipse(cx + side * mofoSize * .42, hy - mofoSize * .02, mofoSize * .07, mofoSize * .11, 0, 0, TAU); ctx.fill(); }
-    ctx.fillStyle = '#0b0a12'; ctx.fillRect(cx - mofoSize * .26, hy - mofoSize * .14, mofoSize * .52, mofoSize * .1);
-    ctx.fillStyle = '#ff1a1a'; ctx.fillRect(cx - mofoSize * .2, hy - mofoSize * .11, mofoSize * .1, mofoSize * .03);
+    const hy = by - mofiSize * .18 + bob + (1 - enter) * S.h * .6;
+    ctx.strokeStyle = '#1b1e28'; ctx.lineWidth = Math.max(3, mofiSize * .04); ctx.beginPath(); ctx.arc(cx, hy - mofiSize * .05, mofiSize * .44, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+    for (const side of [-1, 1]) { ctx.fillStyle = '#ff2b6a'; ctx.beginPath(); ctx.ellipse(cx + side * mofiSize * .42, hy - mofiSize * .02, mofiSize * .07, mofiSize * .11, 0, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = '#0b0a12'; ctx.fillRect(cx - mofiSize * .26, hy - mofiSize * .14, mofiSize * .52, mofiSize * .1);
+    ctx.fillStyle = '#ff1a1a'; ctx.fillRect(cx - mofiSize * .2, hy - mofiSize * .11, mofiSize * .1, mofiSize * .03);
     ctx.fillStyle = '#1b1e28'; ctx.fillRect(bx, by, boothW, boothH); ctx.strokeStyle = '#ff46bc'; ctx.lineWidth = 2; ctx.strokeRect(bx, by, boothW, boothH);
-    ctx.fillStyle = '#ff46bc'; ctx.font = `900 ${Math.round(boothH * .32)}px 'Barlow Condensed', sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('DJ MOFO', cx, by + boothH * .62);
+    ctx.fillStyle = '#ff46bc'; ctx.font = `900 ${Math.round(boothH * .32)}px 'Barlow Condensed', sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('DJ MOFI', cx, by + boothH * .62);
     for (const side of [-1, 1]) {
       const dx = cx + side * boothW * .32, dy = by + boothH * .15, rr = boothH * .55;
       ctx.fillStyle = '#2b3040'; ctx.beginPath(); ctx.ellipse(dx, dy, rr * 1.15, rr * .45, 0, 0, TAU); ctx.fill();

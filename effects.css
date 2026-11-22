@@ -567,7 +567,7 @@ body.maze .topbar,body.maze .bottom-bar{display:none!important}
 .pp-buttons,.dj-buttons{display:flex;gap:10px;justify-content:center}
 .pp-buttons button,.dj-buttons button{min-width:52px;min-height:44px;font-size:20px;background:#171329;border:1px solid #ffffff30;color:#fff}
 .pp-buttons button:hover,.dj-buttons button:hover{border-color:var(--pink)}
-/* Chill with DJ MoFo: full-screen scene, skip button during the ride, jukebox beside (or under) the club. */
+/* Chill with DJ MoFi: full-screen scene, skip button during the ride, jukebox beside (or under) the club. */
 body.dj .topbar,body.dj .bottom-bar,body.dj .touch-controls{display:none!important}
 .dj-skip{position:fixed;z-index:50;right:calc(16px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom));padding:10px 16px;font:12px var(--mono);letter-spacing:1px;background:#0c0a1acc;border:1px solid #ffffff40;color:#fff}
 .dj-club{position:fixed;z-index:45;top:0;right:0;bottom:0;width:min(380px,40vw);display:flex;padding:calc(16px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) 14px;background:linear-gradient(90deg,#0c061800,#0c0618ee 12%);overflow:auto}

@@ -123,7 +123,7 @@ test('one laser shot damages a rival without destroying it', () => {
   el('start').fire('click'); key('ArrowUp'); step(3.05);
   key('KeyX'); step(.05);
   assert.equal(el('laser-count').textContent, '09');
-  assert.match(el('race-message').textContent, /RIVAL HIT  \/  HULL 2\/3/);
+  assert.match(el('race-message').textContent, /RIVAL HIT  \/  HULL 5\/6/);
   assert.equal(el('position').textContent, '30');
 });
 
@@ -223,13 +223,13 @@ test('a destroyed rival flies across the screen, smoking and spinning, then expl
   disableAirRaid();
   const before = Number(el('position').textContent);
   // Rivals swerve now, so keep firing until one of them is destroyed.
-  for (let i = 0; i < 10 && inspect().racerCrashes === 0; i++) { key('KeyX'); step(.05); key('KeyX', 'keyup'); step(.3); }
+  for (let i = 0; i < 30 && inspect().racerCrashes === 0; i++) { key('KeyX'); step(.05); key('KeyX', 'keyup'); step(.3); }
   assert.match(el('race-message').textContent, /RIVAL DESTROYED/);
-  assert.equal(inspect().racerCrashes, 1, 'the beaten rival careens across the screen');
+  assert.ok(inspect().racerCrashes >= 1, 'the beaten rival careens across the screen');
   assert.ok(Number(el('position').textContent) < before, 'the place is gained right away');
   step(.8);
-  assert.equal(inspect().racerCrashes, 1, 'still smoking and spinning');
-  step(2);
+  assert.ok(inspect().racerCrashes >= 1, 'still smoking and spinning');
+  for (let i = 0; i < 25 && inspect().racerCrashes > 0; i++) step(.2);
   assert.equal(inspect().racerCrashes, 0, 'the crash flight is over');
   assert.ok(inspect().blasts2 >= 1, 'it explodes at the end');
 });
@@ -666,7 +666,7 @@ test('three named nemeses race with tougher hulls and pay a bounty', () => {
   el('start').fire('click'); key('ArrowUp'); step(3.05);
   const nem = inspect().nemeses;
   assert.equal(nem.length, 3);
-  assert.ok(nem.every(n => n.hull === 6), 'nemeses take six hits');
+  assert.ok(nem.every(n => n.hull === 10), 'nemeses take ten hits');
   assert.equal(new Set(nem.map(n => n.name)).size, 3);
 });
 
@@ -780,11 +780,12 @@ test('attack items: missiles home in, mines catch rivals behind, EMP stalls the 
   el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid();
   const boxes = inspect().powerups.filter(p => ['missile', 'mine', 'emp'].includes(p.type));
   assert.equal(boxes.map(b => b.type).sort().join(), 'emp,mine,missile');
-  const grab = type => { const p = boxes.find(q => q.type === type); setRacePosition(p.index * 200 - 1050 - 50, p.lane * 1.2); placeRival(6000, 0); step(.05); };
-  const before = inspect().rivalsAlive;
+  let placed = null;
+  const grab = type => { const p = boxes.find(q => q.type === type); setRacePosition(p.index * 200 - 1050 - 50, p.lane * 1.2); placed = placeRival(6000, 0); step(.05); };
   grab('missile'); assert.equal(inspect().missiles, 1);
+  const hullBefore = placed.hull;
   step(3.2); assert.equal(inspect().missiles, 0);
-  assert.ok(inspect().rivalsAlive < before, 'the missile destroyed a rival');
+  assert.equal(placed.hull, hullBefore - 3, 'the missile took three shield points'); assert.equal(placed.alive, true, 'one missile no longer destroys a rival');
   grab('emp'); assert.ok(inspect().empd > 0, 'rivals ahead are stalled');
   grab('mine'); assert.equal(inspect().mines, 3);
 });
@@ -857,7 +858,7 @@ test('special machines: BLINK teleports, TWIN hits two rivals, both need a troph
   el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid();
   const a = placeRival(4000, 0), b = sandbox.__placeSecond(6000, .2);
   key('KeyX'); step(.05); key('KeyX', 'keyup');
-  assert.equal(a.hull, 2, 'main target hit'); assert.equal(b.hull, 2, 'twin beam hit a second rival');
+  assert.equal(a.hull, 5, 'main target hit'); assert.equal(b.hull, 5, 'twin beam hit a second rival');
 });
 
 test('story: one comic chapter per unlocked circuit, a new one after unlocking a circuit', () => {
@@ -970,7 +971,7 @@ test('rival AI: dodges hazards, blocks the player, fires missiles and raises a b
   // Bubble: a rival ahead absorbs one laser hit.
   const s = placeRival(5000, inspect().playerX); s.seed = 1; s.powerCooldown = 1e6; s.bubbleUntil = inspect().time + 8; s.speed = inspect().speed;
   key('KeyX'); step(.05); key('KeyX', 'keyup');
-  assert.equal(s.hull, 3, 'bubble absorbed the shot'); assert.ok(!(s.bubbleUntil > inspect().time));
+  assert.equal(s.hull, 6, 'bubble absorbed the shot'); assert.ok(!(s.bubbleUntil > inspect().time));
   void sandbox;
 });
 
@@ -1173,20 +1174,20 @@ test('sound desk: each channel has its own level, saved with the settings', () =
   sandbox.__setVolume('fx', 400); assert.equal(JSON.parse(storage.get('morbid-settings-v2')).vol.fx, 1.5, 'capped at 150 %');
 });
 
-test('Chill with DJ MoFo: elevator ride, pink racer, then the club with the jukebox', () => {
+test('Chill with DJ MoFi: elevator ride, pink racer, then the club with the jukebox', () => {
   const { step, inspect, sandbox, element: el } = harness();
   el('open-dj').fire('click');
   assert.equal(inspect().mode, 'dj'); assert.equal(el('menu').classList.contains('hidden'), true);
   assert.equal(el('dj-skip').classList.contains('hidden'), false, 'the ride can be skipped');
   step(11.2); assert.equal(inspect().callout === undefined || true, true);
   step(10);
-  assert.equal(el('dj-club').classList.contains('hidden'), false, 'DJ MoFo opens the club');
+  assert.equal(el('dj-club').classList.contains('hidden'), false, 'DJ MoFi opens the club');
   assert.equal(el('soundtrack').paused, false, 'and drops a record');
   const first = sandbox.__chaos().song;
   el('dj-next').fire('click'); assert.notEqual(sandbox.__chaos().song, first, 'next record');
   el('dj-leave').fire('click');
   assert.equal(inspect().mode, 'menu'); assert.equal(el('menu').classList.contains('hidden'), false);
-  // Skipping goes straight to DJ MoFo bursting in.
+  // Skipping goes straight to DJ MoFi bursting in.
   el('open-dj').fire('click'); el('dj-skip').fire('click'); step(3);
   assert.equal(el('dj-club').classList.contains('hidden'), false);
   assert.equal(sandbox.localStorage.getItem('morbid-errors-v1'), undefined, 'no frame errors');
@@ -1206,7 +1207,7 @@ test('every German announcer line has a rendered clip', () => {
   const lines = require('node:child_process').execFileSync(process.execPath, ['tools/voice-de.js'], { encoding: 'utf8' }).trim().split('\n');
   assert.ok(lines.length >= 30);
   for (const clip of lines) for (const ext of ['mp3', 'webm']) assert.ok(fs.existsSync(`voice/de/${clip}.${ext}`), `voice/de/${clip}.${ext}`);
-  for (const clip of ['black-hole', 'time-tunnel', 'pink-hi', 'pink-bye', 'dj-mofo']) assert.ok(fs.existsSync(`voice/${clip}.mp3`));
+  for (const clip of ['black-hole', 'time-tunnel', 'pink-hi', 'pink-bye', 'dj-mofi']) assert.ok(fs.existsSync(`voice/${clip}.mp3`));
 });
 
 test('a super candy lets the pilot eat the terminator cats; they respawn later and the candy wears off', () => {

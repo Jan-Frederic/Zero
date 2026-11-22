@@ -85,8 +85,8 @@
       showCallout(`LEVEL ${survival.level}`, '#ff9b2e'); showMessage('FASTER RIVALS  ·  MORE UFOS', 1.6); playToneSweep(300, 1500, .5, 'sawtooth', .05);
     }
     // Rivals left far behind come back ahead, so the track never empties.
-    for (const r of rivals) if (r.alive && r.distance < distance - 9000) { r.distance = distance + 14000 + random(r.seed + Math.floor(time)) * 12000; r.hull = r.nemesis ? 6 : 3; }
-    for (const r of rivals) if (!r.alive && !r.dying && random(Math.floor(time * 2) + r.seed) < .002) { Object.assign(r, { alive: true, distance: distance + 20000, hull: 3 }); }
+    for (const r of rivals) if (r.alive && r.distance < distance - 9000) { r.distance = distance + 14000 + random(r.seed + Math.floor(time)) * 12000; r.hull = rivalHullMax(r); }
+    for (const r of rivals) if (!r.alive && !r.dying && random(Math.floor(time * 2) + r.seed) < .002) { Object.assign(r, { alive: true, distance: distance + 20000, hull: rivalHullMax(r) }); }
   }
   function finishSurvival() {
     const km = distance / LENGTH * KM_PER_LAP, best = profile.stats.survivalBest || 0, record = km > best;
