@@ -40,7 +40,9 @@
   }
   // ---- Sound desk: separate levels for music, effects, explosions, engines/jets and the announcer (0-150 %).
   let boomBus, engineBus, voiceBus, busOverride = null;
-  const vol = key => clamp(settings.vol && settings.vol[key] !== undefined ? Number(settings.vol[key]) : 1, 0, 1.5);
+  // Defaults until the player moves a slider: the music loud, everything else at 60 %.
+  const VOLUME_DEFAULTS = { music: 1.5, fx: .6, boom: .6, engine: .6, voice: .6 };
+  const vol = key => clamp(settings.vol && settings.vol[key] !== undefined ? Number(settings.vol[key]) : (VOLUME_DEFAULTS[key] ?? 1), 0, 1.5);
   const fxOut = () => busOverride || sfxBus || audioContext.destination;
   function withBus(bus, fn) { const before = busOverride; busOverride = bus || null; try { fn(); } finally { busOverride = before; } }
   function applyVolumes() {

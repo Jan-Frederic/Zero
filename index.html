@@ -137,18 +137,18 @@
   <footer class="bottom-bar"><div class="music"><button id="music-toggle" aria-label="Play soundtrack"><span class="equalizer"><i></i><i></i><i></i><i></i></span></button><div><span id="music-status">SOUNDTRACK / PRESS PLAY</span><strong>MORBID FINGERS <em id="song-title" data-no-i18n>— Redemption</em></strong></div></div><div class="controls"><span><kbd>W</kbd><kbd>↑</kbd> ACCELERATE</span><span><kbd>A</kbd><kbd>D</kbd> STEER</span><span><kbd>SPACE</kbd> BOOST</span><span><kbd>X</kbd> LASER</span><span><kbd>ESC</kbd> PAUSE</span></div><span class="version">V<span id="app-version">dev</span> <b>✦</b></span></footer>
   <section id="mixer-screen" class="modal hidden" role="dialog" aria-label="Music and effects"><div class="modal-card dialog-card"><span class="eyebrow">MORBID FINGERS · SOUND DESK</span><h2>MUSIC &amp; FX</h2>
       <div class="mixer">
-        <label class="mixer-row"><span>🎸 MUSIC</span><input type="range" min="0" max="150" step="5" value="100" data-volume="music" aria-label="Music volume"><output data-volume-value="music">100%</output></label>
-        <label class="mixer-row"><span>✨ EFFECTS</span><input type="range" min="0" max="150" step="5" value="100" data-volume="fx" aria-label="Effects volume"><output data-volume-value="fx">100%</output></label>
-        <label class="mixer-row"><span>💥 EXPLOSIONS</span><input type="range" min="0" max="150" step="5" value="100" data-volume="boom" aria-label="Explosion volume"><output data-volume-value="boom">100%</output></label>
-        <label class="mixer-row"><span>🔥 ENGINES &amp; JETS</span><input type="range" min="0" max="150" step="5" value="100" data-volume="engine" aria-label="Engine and jet volume"><output data-volume-value="engine">100%</output></label>
-        <label class="mixer-row"><span>🤖 ANNOUNCER</span><input type="range" min="0" max="150" step="5" value="100" data-volume="voice" aria-label="Announcer volume"><output data-volume-value="voice">100%</output></label>
+        <label class="mixer-row"><span>🎸 MUSIC</span><input type="range" min="0" max="150" step="5" value="150" data-volume="music" aria-label="Music volume"><output data-volume-value="music">150%</output></label>
+        <label class="mixer-row"><span>✨ EFFECTS</span><input type="range" min="0" max="150" step="5" value="60" data-volume="fx" aria-label="Effects volume"><output data-volume-value="fx">60%</output></label>
+        <label class="mixer-row"><span>💥 EXPLOSIONS</span><input type="range" min="0" max="150" step="5" value="60" data-volume="boom" aria-label="Explosion volume"><output data-volume-value="boom">60%</output></label>
+        <label class="mixer-row"><span>🔥 ENGINES &amp; JETS</span><input type="range" min="0" max="150" step="5" value="60" data-volume="engine" aria-label="Engine and jet volume"><output data-volume-value="engine">60%</output></label>
+        <label class="mixer-row"><span>🤖 ANNOUNCER</span><input type="range" min="0" max="150" step="5" value="60" data-volume="voice" aria-label="Announcer volume"><output data-volume-value="voice">60%</output></label>
       </div>
       <button class="start-button" type="button" data-close-dialog><span>DONE</span><b>✓</b></button></div></section>
   <section id="dj-club" class="dj-club hidden" aria-label="DJ MoFo's jukebox">
     <div class="dj-panel"><span class="eyebrow">DJ MOFO · MORBID FINGERS</span><strong id="dj-now" data-no-i18n>—</strong>
       <input id="dj-seek" class="dj-seek" type="range" min="0" max="1000" value="0" aria-label="Song position">
       <div class="dj-buttons"><button id="dj-prev" type="button" aria-label="Previous song">⏮</button><button id="dj-play" type="button" aria-label="Play or pause">⏯</button><button id="dj-next" type="button" aria-label="Next song">⏭</button></div>
-      <label class="dj-volume"><span>VOL</span><input id="dj-volume" type="range" min="0" max="150" step="5" value="100" aria-label="Music volume"></label>
+      <label class="dj-volume"><span>VOL</span><input id="dj-volume" type="range" min="0" max="150" step="5" value="150" aria-label="Music volume"></label>
       <ol id="dj-list" class="dj-list"></ol>
       <button id="dj-leave" class="text-button dj-leave" type="button">LEAVE THE CLUB ✕</button></div>
   </section>
