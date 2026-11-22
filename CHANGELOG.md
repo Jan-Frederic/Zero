@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.23.0](https://github.com/Jan-Frederic/Zero/compare/v1.22.0...v1.23.0) (2026-11-22)
+
+
+### Features
+
+* **maze:** after the maze a time tunnel throws the pilot back into the race, where every rival is a fruit ([ab36456](https://github.com/Jan-Frederic/Zero/commit/ab3645607306d571e8ab43fd42179014a3db0629))
+
 # [1.22.0](https://github.com/Jan-Frederic/Zero/compare/v1.21.0...v1.22.0) (2026-11-22)
 
 
