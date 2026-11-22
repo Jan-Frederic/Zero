@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.24.0](https://github.com/Jan-Frederic/Zero/compare/v1.23.0...v1.24.0) (2026-11-22)
+
+
+### Features
+
+* **maze:** retro D-pad and FIRE laser, ship moves only while steering, giant terminator cat holds the board ([34622cb](https://github.com/Jan-Frederic/Zero/commit/34622cbb0d6434ae86e069bdcf0397857edf8158))
+
 # [1.23.0](https://github.com/Jan-Frederic/Zero/compare/v1.22.0...v1.23.0) (2026-11-22)
 
 
