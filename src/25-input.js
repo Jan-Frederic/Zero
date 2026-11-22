@@ -12,7 +12,7 @@
   $('prev-track').addEventListener('click', () => selectTrack(-1)); $('next-track').addEventListener('click', () => selectTrack(1));
   document.querySelectorAll('[data-ship]').forEach(button => button.addEventListener('click', () => selectShip(Number(button.dataset.ship))));
   renderShips(); window.morbidShips = { select: selectShip };
-  $('music-toggle').addEventListener('click', () => { if (audio.paused) { if (muted) toggleMute(); playMusic(); } else { audio.pause(); musicWanted = false; musicBlocked = false; updateMusic(); } });
+  $('music-toggle').addEventListener('click', toggleMusic);
   $('sound').addEventListener('click', toggleMute);
   audio.addEventListener('play', updateMusic); audio.addEventListener('pause', updateMusic);
   audio.addEventListener('error', () => { $('music-status').textContent = 'SOUNDTRACK / FILE UNAVAILABLE'; });

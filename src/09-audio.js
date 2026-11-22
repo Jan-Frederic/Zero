@@ -6,7 +6,7 @@
     ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
     ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
     ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
-  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', 'time-tunnel', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', 'time-tunnel', 'pink-hi', 'pink-bye', 'dj-mofo', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
   // German announcer: voice/de/<clip> is rendered from these lines by tools/make-voice.sh (which reads this table).
   // Clips without a German line (the wordless boss screams) use the English file in both languages.
   const VOICE_DE = {
@@ -18,7 +18,7 @@
     'hyperdrive-initiated': 'Hyperantrieb aktiviert!', 'first-place': 'Erster Platz. Makelloser Sieg!', 'mothership-warning': 'Warnung! Mutterschiff im Anflug!',
     'mothership-down': 'Mutterschiff zerstört. Du bist eine Legende!', 'invasion-incoming': 'Warnung! Invasion im Anmarsch!', 'congratulations': 'Herzlichen Glückwunsch, Erdling!',
     'next-boss': 'Warnung! Nächster Boss im Anflug!', 'scream-robot': 'Fehler. Fehler. Systemausfall. Abschaaaltung',
-    'black-hole': 'Uiuiui! Krasses Schwarzes Loch. Terminator-Katzen greifen an!!!', 'time-tunnel': 'Zeitsprung! Alle Gegner sind jetzt Früchte!',
+    'black-hole': 'Uiuiui! Krasses Schwarzes Loch. Terminator-Katzen greifen an!!!', 'time-tunnel': 'Zeitsprung! Alle Gegner sind jetzt Früchte!', 'pink-hi': 'Na, auch hier?', 'pink-bye': 'Tschüsselchen!', 'dj-mofo': 'Ey yo! DJ MoFo ist am Start! Party!',
     'taunt-vex': 'Hier ist Vex. Du gehst unter, Anfänger!', 'down-vex': 'Unmöglich! Vex ist raus!',
     'taunt-kronos': 'Kronos beherrscht diese Strecke!', 'down-kronos': 'Kronos wird zurückkehren!',
     'taunt-null9': 'Null Neun. Ziel erfasst.', 'down-null9': 'Null Neun. Offline.',
@@ -38,37 +38,65 @@
     if (audioContext && audioContext.state !== 'running' && audioContext.state !== 'closed') { audioSessionPlayback(); const p = audioContext.resume(); if (p && p.catch) p.catch(() => {}); }
     if (musicBlocked && musicWanted && audio.paused && !muted && soundtrackReady) tryPlay();
   }
+  // ---- Sound desk: separate levels for music, effects, explosions, engines/jets and the announcer (0-150 %).
+  let boomBus, engineBus, voiceBus, busOverride = null;
+  const vol = key => clamp(settings.vol && settings.vol[key] !== undefined ? Number(settings.vol[key]) : 1, 0, 1.5);
+  const fxOut = () => busOverride || sfxBus || audioContext.destination;
+  function withBus(bus, fn) { const before = busOverride; busOverride = bus || null; try { fn(); } finally { busOverride = before; } }
+  function applyVolumes() {
+    if (!audioContext || !musicGain) { audio.volume = Math.min(1, .24 * vol('music')); return; }
+    const t = audioContext.currentTime;
+    musicGain.gain.setTargetAtTime(.92 * .24 * vol('music'), t, .02); sfxBus.gain.setTargetAtTime(1.55 * vol('fx'), t, .02);
+    boomBus.gain.setTargetAtTime(1.55 * vol('boom'), t, .02); engineBus.gain.setTargetAtTime(1.55 * vol('engine'), t, .02); voiceBus.gain.setTargetAtTime(1.55 * vol('voice'), t, .02);
+  }
   function setupAudio() {
     audioSessionPlayback();
     if (audioContext) { wakeAudio(); return; }
     try {
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
       analyser = audioContext.createAnalyser(); analyser.fftSize = 128;
-      musicGain = audioContext.createGain(); musicGain.gain.value = .92 * .24; audio.volume = 1;
-      sfxBus = audioContext.createGain(); sfxBus.gain.value = 1.55;
+      musicGain = audioContext.createGain(); audio.volume = 1;
+      sfxBus = audioContext.createGain(); boomBus = audioContext.createGain(); engineBus = audioContext.createGain(); voiceBus = audioContext.createGain();
+      for (const bus of [boomBus, engineBus, voiceBus]) bus.connect(audioContext.destination);
+      applyVolumes();
       musicSource = audioContext.createMediaElementSource(audio); musicSource.connect(analyser); analyser.connect(musicGain); musicGain.connect(audioContext.destination);
       sfxBus.connect(audioContext.destination);
       frequency = new Uint8Array(analyser.frequencyBinCount);
       engineOsc = audioContext.createOscillator(); engineOsc.type = 'sawtooth';
       const filter = audioContext.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 220;
       engineGain = audioContext.createGain(); engineGain.gain.value = 0;
-      engineOsc.connect(filter); filter.connect(engineGain); engineGain.connect(sfxBus); engineOsc.start();
+      engineOsc.connect(filter); filter.connect(engineGain); engineGain.connect(engineBus); engineOsc.start();
       setupJet(); loadVoices();
     } catch { /* The soundtrack still plays if Web Audio is unavailable. */ }
   }
-  // ---- Soundtrack: two Morbid Fingers songs. Both are downloaded into memory as soon as the page opens and played
-  // from local blobs, so playback can never run dry mid-race; the start button waits for them (renderStartButton).
+  // ---- Soundtrack: the songs of Morbid Fingers, shuffled for the whole game without repeats (every song once, then a
+  // new order). When a song ends, an old radio hunts for the station of the next one. The current song is downloaded
+  // into memory before the start button opens, so playback never runs dry mid-race; the next one downloads meanwhile.
   // WebM/Opus copies are ~40 % smaller; browsers that cannot play them get the MP3s.
   // Apple's WebKit gets the MP3s: its WebM/Opus support differs between iOS versions, especially in decodeAudioData.
-  /** @type {{ id: string, name: string, title: string, file: string, blob?: string|null, received?: number, total?: number, mp3Only?: boolean }[]} */
+  /** @type {{ id: string, title: string, file: string, blob?: string|null, received?: number, total?: number, mp3Only?: boolean }[]} */
   const SONGS = [
-    { id: 'redemption', name: 'REDEMPTION', title: 'Redemption (Live, 2003)', file: 'Morbid_Fingers%20-%20live-%20Emmerich_Juli_2003%20-%2003%20Redemption' },
-    { id: 'brainwash', name: 'BRAIN WASH', title: 'Brain Wash (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Brain_Wash_8-Bit_Edition' },
+    { id: 'redemption', title: 'Redemption (Live, 2003)', file: 'Morbid_Fingers%20-%20live-%20Emmerich_Juli_2003%20-%2003%20Redemption' },
+    { id: 'brainwash', title: 'Brain Wash (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Brain_Wash_8-Bit_Edition' },
+    { id: 'virusgirl', title: 'Virus Girl (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Virus_Girl_8-Bit_Edition' },
+    { id: '100bitch', title: '100 Bitch (8-Bit Edition)', file: 'Morbid_Fingers%20-%20100_Bitch_8-Bit_Edition' },
+    { id: 'crystal', title: 'Crystal Clear Reflection Make Up (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Crystal_Clear_Reflection_Make_Up_8-Bit_Edition' },
+    { id: 'dirtytripper', title: 'Dirty Tripper (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Dirty_Tripper_8-Bit_Edition' },
+    { id: 'enough', title: 'Enough (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Enough_8-Bit_Edition' },
   ];
   const AUDIO_EXT = (() => { try { return !appleWebKit && audio.canPlayType && audio.canPlayType('audio/webm; codecs="opus"') ? 'webm' : 'mp3'; } catch { return 'mp3'; } })();
   const songUrl = (song, ext = AUDIO_EXT) => `${song.file}.${ext}`;
   const songSrc = i => { const song = SONGS[i]; return song.mp3Only ? songUrl(song, 'mp3') : song.blob || songUrl(song); };
-  let songIndex = 0;
+  // Playlist: shuffled rounds of all songs, appended as needed, so "previous" can walk back through what was played.
+  function shuffleSongs(avoid) {
+    const order = SONGS.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+    if (order.length > 1 && order[0] === avoid) [order[0], order[1]] = [order[1], order[0]];
+    return order;
+  }
+  const playlist = shuffleSongs(-1);
+  let playlistPos = 0, songIndex = playlist[0], tuning = null;
+  function upcomingSong() { if (playlistPos + 1 >= playlist.length) playlist.push(...shuffleSongs(playlist[playlist.length - 1])); return playlist[playlistPos + 1]; }
   let soundtrackReady = false, soundtrackProgress = 0, soundtrackPromise = null, musicWanted = false, musicBlocked = false;
   // Plays the soundtrack; if the browser refuses (Safari outside a tap), the next tap starts it (see wakeAudio).
   function tryPlay() {
@@ -78,13 +106,7 @@
   }
   const SILENCE = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=='; // 0.1 s of silence
   const playingSilence = () => String(audio.src || '').startsWith('data:');
-  // Share of the soundtrack downloaded so far (a song whose size is not known yet counts with an estimate).
-  function downloadShare() {
-    let got = 0, all = 0;
-    for (const song of SONGS) { const total = song.total || 3e6; all += total; got += Math.min(total, song.received || 0); }
-    return all ? Math.min(.99, got / all) : 0;
-  }
-  async function downloadSong(song) {
+  async function downloadSong(song, onProgress) {
     const response = await fetch(songUrl(song));
     if (!response.ok) throw new Error(String(response.status));
     const total = Number(response.headers.get('content-length')) || 0;
@@ -92,27 +114,44 @@
     let blob;
     if (response.body && response.body.getReader && total) {
       const reader = response.body.getReader(), chunks = [];
-      for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); song.received += value.length; soundtrackProgress = downloadShare(); updateMusic(); }
+      for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); song.received += value.length; if (onProgress) onProgress(); }
       blob = new Blob(chunks, { type: AUDIO_EXT === 'webm' ? 'audio/webm' : 'audio/mpeg' });
     } else blob = await response.blob();
-    song.received = song.total = song.total || blob.size || 1; soundtrackProgress = downloadShare();
+    song.received = song.total = song.total || blob.size || 1;
     song.blob = URL.createObjectURL(blob);
+  }
+  const songDownloads = new Map();
+  function fetchSongBlob(i, onProgress) {
+    const song = SONGS[i];
+    if (!song || song.blob || typeof fetch !== 'function' || typeof URL === 'undefined' || !URL.createObjectURL) return Promise.resolve();
+    if (!songDownloads.has(i)) songDownloads.set(i, downloadSong(song, onProgress).catch(() => { song.blob = null; }).finally(() => songDownloads.delete(i)));
+    return songDownloads.get(i);
+  }
+  // Only the current and the next song stay in memory; the next one downloads in the background.
+  function prefetchUpcoming() {
+    const next = upcomingSong();
+    SONGS.forEach((song, i) => { if (song.blob && i !== songIndex && i !== next && !String(audio.src).startsWith(song.blob)) { URL.revokeObjectURL(song.blob); song.blob = null; } });
+    if (soundtrackReady) fetchSongBlob(next);
   }
   function preloadSoundtrack() {
     if (soundtrackPromise) return soundtrackPromise;
     if (typeof fetch !== 'function' || typeof URL === 'undefined' || !URL.createObjectURL || typeof Blob === 'undefined') {
-      soundtrackReady = true; audio.preload = 'auto'; return (soundtrackPromise = Promise.resolve());
+      soundtrackReady = true; audio.preload = 'auto'; renderSongTitle(); return (soundtrackPromise = Promise.resolve());
     }
     soundtrackPromise = (async () => {
-      updateMusic();
+      renderSongTitle(); updateMusic();
+      const first = songIndex, song = SONGS[first];
       // A failed download (offline without a cached copy) falls back to streaming that song.
-      await Promise.all(SONGS.map(song => downloadSong(song).catch(() => { song.blob = null; })));
-      // Move the current song over to its local copy, keeping its position if it is already playing.
-      const resume = !audio.paused && !playingSilence(), at = playingSilence() ? 0 : audio.currentTime || 0;
-      audio.src = songSrc(songIndex); audio.preload = 'auto'; try { audio.load(); } catch { /* ignore */ }
-      if (at) audio.addEventListener('loadedmetadata', () => { try { audio.currentTime = at; } catch { /* keep the start */ } }, { once: true });
-      if (resume || musicWanted) tryPlay();
+      await fetchSongBlob(first, () => { soundtrackProgress = song.total ? Math.min(.99, song.received / song.total) : 0; updateMusic(); });
+      if (songIndex === first) {
+        // Move the current song over to its local copy, keeping its position if it is already playing.
+        const resume = !audio.paused && !playingSilence(), at = playingSilence() ? 0 : audio.currentTime || 0;
+        audio.src = songSrc(songIndex); audio.preload = 'auto'; try { audio.load(); } catch { /* ignore */ }
+        if (at) audio.addEventListener('loadedmetadata', () => { try { audio.currentTime = at; } catch { /* keep the start */ } }, { once: true });
+        if (resume || musicWanted) tryPlay();
+      }
       soundtrackReady = true; soundtrackProgress = 1; updateMusic();
+      prefetchUpcoming();
     })();
     return soundtrackPromise;
   }
@@ -123,31 +162,91 @@
     song.mp3Only = true; audio.src = songSrc(songIndex); try { audio.load(); } catch { /* ignore */ }
     if (musicWanted && !muted) tryPlay();
   });
-  // Shows the song in the music player and switches the audio element over to it (from the start).
+  // A song ended: tune the radio to the next one.
+  audio.addEventListener('ended', () => { if (musicWanted) nextSong(false); });
+  function renderSongTitle() {
+    const title = tuning ? '— 📻 ~ ~ ~' : `— ${SONGS[songIndex].title}`;
+    if ($('song-title')) $('song-title').textContent = title;
+    if ($('pp-title')) $('pp-title').textContent = tuning ? '📻 ~ ~ ~' : SONGS[songIndex].title;
+    if (typeof renderJukebox === 'function') renderJukebox();
+  }
+  // Switches the audio element to song i (from its start).
   function selectSong(i) {
     if (!SONGS[i]) return;
-    const changed = i !== songIndex; songIndex = i;
-    if ($('song-title')) $('song-title').textContent = `— ${SONGS[i].title}`;
-    if (changed && !playingSilence()) { audio.src = songSrc(i); try { audio.load(); } catch { /* ignore */ } }
+    songIndex = i; renderSongTitle();
+    if (!playingSilence() || soundtrackReady) { audio.src = songSrc(i); try { audio.load(); } catch { /* ignore */ } }
   }
-  // MUSIC setting: 'mix' (DJ Morbid Fingers: the songs take turns at every race start) or one song all the time.
-  function raceSong() {
-    const fixed = SONGS.findIndex(song => song.id === settings.music);
-    if (fixed >= 0) return fixed;
-    const next = (Number(settings.mixNext) || 0) % SONGS.length;
-    settings.mixNext = next + 1; saveSettings(); return next;
+  function changeSong(i) {
+    cancelTuning(); selectSong(i); prefetchUpcoming();
+    if (dj && dj.shown) dj.record = { at: time, song: i }; // DJ MoFo puts the record on
+    if (musicWanted && !muted) tryPlay(); else updateMusic();
   }
-  // Picking one song in the settings switches to it right away (the tap lets it play on Safari too).
-  settingHooks.music = v => {
-    const i = SONGS.findIndex(song => song.id === v);
-    if (i < 0 || i === songIndex || mode !== 'menu') return;
-    const wasPlaying = !audio.paused; selectSong(i); if (wasPlaying) playMusic();
-  };
-  // Called from the race start (inside the player's tap, so Safari lets the new song play).
-  function startRaceMusic() { selectSong(raceSong()); playMusic(); }
+  // Between songs: the radio crackles, whistles and catches snippets of other stations before it locks on.
+  function tuneTo(i, seconds) {
+    cancelTuning(); audio.pause();
+    if (!audioContext || muted || !musicWanted || !analyser) { changeSong(i); return; }
+    tuning = { song: i, stop: playRadioTuning(seconds), timer: setTimeout(() => { tuning = null; changeSong(i); }, seconds * 1000) };
+    renderSongTitle(); updateMusic();
+  }
+  function cancelTuning() {
+    if (!tuning) return;
+    clearTimeout(tuning.timer); try { tuning.stop(); } catch { /* already over */ }
+    tuning = null; renderSongTitle();
+  }
+  function nextSong(quick = true) { upcomingSong(); playlistPos++; tuneTo(playlist[playlistPos], quick ? 1.1 : 2.8); }
+  function prevSong() {
+    if (playlistPos === 0 || (!tuning && audio.currentTime > 4)) { changeSong(songIndex); return; }
+    playlistPos--; tuneTo(playlist[playlistPos], 1.1);
+  }
+  // A song picked by hand (pause menu, DJ MoFo's jukebox) plays right away; the shuffle carries on after it.
+  function playSongNow(i) {
+    if (!SONGS[i]) return;
+    playlist.splice(playlistPos + 1, 0, i); playlistPos++;
+    musicWanted = true; setupAudio(); changeSong(i);
+  }
+  function toggleMusic() {
+    if (tuning) { cancelTuning(); musicWanted = false; audio.pause(); updateMusic(); return; }
+    if (audio.paused) { if (muted) toggleMute(); playMusic(); } else { audio.pause(); musicWanted = false; musicBlocked = false; updateMusic(); }
+  }
+  function playRadioTuning(seconds) {
+    const c = audioContext, now = c.currentTime, end = now + seconds, nodes = [];
+    const out = c.createGain(); out.gain.setValueAtTime(0, now); out.gain.linearRampToValueAtTime(1, now + .06); out.gain.setValueAtTime(1, end - .2); out.gain.linearRampToValueAtTime(0, end);
+    out.connect(analyser);
+    const track = n => { nodes.push(n); return n; };
+    // Static, swept through a narrow band like a tuning dial, with fluttering reception.
+    const length = c.sampleRate, buffer = c.createBuffer(1, length, c.sampleRate), data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    const noise = track(c.createBufferSource()); noise.buffer = buffer; noise.loop = true;
+    const band = c.createBiquadFilter(); band.type = 'bandpass'; band.Q.value = 3;
+    const flutter = c.createGain();
+    for (let t = 0; t < seconds; t += .11) { band.frequency.linearRampToValueAtTime(400 + Math.random() * 3600, now + t); flutter.gain.setValueAtTime(.25 + Math.random() * .75, now + t); }
+    noise.connect(band); band.connect(flutter); flutter.connect(out); noise.start(now); noise.stop(end);
+    // Heterodyne whistles gliding up and down as the dial passes the carriers.
+    const whistle = track(c.createOscillator()), wg = c.createGain(); whistle.type = 'sine'; wg.gain.value = .12;
+    for (let t = 0; t < seconds; t += .35) whistle.frequency.linearRampToValueAtTime(500 + Math.random() * 2600, now + t);
+    whistle.connect(wg); wg.connect(out); whistle.start(now); whistle.stop(end);
+    // Snippets of other stations: a bright trumpet fanfare and a far-away voice, each only for a moment.
+    const snippet = (at, notes, type, gainValue, formant) => {
+      const o = track(c.createOscillator()), g = c.createGain(), f = c.createBiquadFilter(); o.type = type; f.type = 'bandpass'; f.frequency.value = formant; f.Q.value = 1.5;
+      notes.forEach((n, k) => o.frequency.setValueAtTime(n, now + at + k * .09));
+      g.gain.setValueAtTime(0, now + at); g.gain.linearRampToValueAtTime(gainValue, now + at + .03); g.gain.setValueAtTime(gainValue, now + at + notes.length * .09); g.gain.linearRampToValueAtTime(0, now + at + notes.length * .09 + .05);
+      o.connect(f); f.connect(g); g.connect(out); o.start(now + at); o.stop(now + at + notes.length * .09 + .1);
+    };
+    snippet(seconds * (.2 + Math.random() * .15), [784, 988, 1175, 988, 1175, 1568], 'sawtooth', .22, 1400);
+    snippet(seconds * (.5 + Math.random() * .15), [150, 170, 140, 185, 160, 150, 175], 'sawtooth', .3, 750);
+    // Locked on: a short chirp as the next song comes in.
+    const lock = track(c.createOscillator()), lg = c.createGain(); lock.type = 'sine';
+    lock.frequency.setValueAtTime(1900, end - .25); lock.frequency.exponentialRampToValueAtTime(900, end - .05);
+    lg.gain.setValueAtTime(0, end - .25); lg.gain.linearRampToValueAtTime(.15, end - .22); lg.gain.linearRampToValueAtTime(0, end - .05);
+    lock.connect(lg); lg.connect(out); lock.start(end - .25); lock.stop(end);
+    return () => { for (const n of nodes) try { n.stop(); } catch { /* done */ } setTimeout(() => out.disconnect(), 100); };
+  }
+  // Kept for the race start: the shuffle simply keeps playing (started inside the player's tap for Safari).
+  function startRaceMusic() { playMusic(); }
   function playMusic() {
     // iOS ignores audio.volume, so with Web Audio the music level is set on its gain node instead (see setupAudio).
-    setupAudio(); musicWanted = true; audio.volume = musicSource ? 1 : .24;
+    setupAudio(); musicWanted = true; audio.volume = musicSource ? 1 : Math.min(1, .24 * vol('music'));
+    if (tuning) return;
     if (!soundtrackReady) {
       // Unlock the audio element inside the user's tap (needed on iOS), but don't stream it twice:
       // it starts for real as soon as the preloaded copy is ready.
@@ -155,13 +254,14 @@
       const unlock = audio.play(); if (unlock && unlock.then) unlock.then(() => { if (!soundtrackReady) audio.pause(); }).catch(() => {});
       updateMusic(); return;
     }
-    if (playingSilence()) audio.src = songSrc(songIndex);
+    if (playingSilence() || !audio.src || audio.ended) { audio.src = songSrc(songIndex); try { audio.load(); } catch { /* ignore */ } }
     tryPlay().then(() => { if (musicBlocked) $('music-status').textContent = 'SOUNDTRACK / TAP TO PLAY'; });
   }
   function updateMusic() {
     const playing = !audio.paused && !muted;
     document.body.classList.toggle('playing', playing);
-    $('music-status').textContent = !soundtrackReady ? `SOUNDTRACK / LOADING ${Math.round(soundtrackProgress * 100)}%` : muted ? 'SOUNDTRACK / MUTED' : playing ? 'NOW PLAYING / LOCAL SOUNDTRACK' : 'SOUNDTRACK / PRESS PLAY';
+    $('music-status').textContent = !soundtrackReady ? `SOUNDTRACK / LOADING ${Math.round(soundtrackProgress * 100)}%` : muted ? 'SOUNDTRACK / MUTED' : tuning ? 'RADIO / TUNING IN…' : playing ? 'NOW PLAYING / LOCAL SOUNDTRACK' : 'SOUNDTRACK / PRESS PLAY';
+    const playButton = $('pp-play'); if (playButton) { playButton.textContent = playing || tuning ? '⏸' : '▶'; playButton.setAttribute('aria-label', playing || tuning ? 'Pause music' : 'Play music'); }
     $('music-toggle').setAttribute('aria-label', audio.paused ? 'Play soundtrack' : 'Pause soundtrack');
     $('sound').textContent = muted ? '♪̸' : '♫';
     $('sound').setAttribute('aria-label', muted ? 'Unmute soundtrack' : 'Mute soundtrack');
@@ -173,7 +273,7 @@
     osc.type = type; osc.frequency.setValueAtTime(freq, audioContext.currentTime);
     osc.frequency.exponentialRampToValueAtTime(freq * .5, audioContext.currentTime + duration);
     gain.gain.setValueAtTime(.06, audioContext.currentTime); gain.gain.exponentialRampToValueAtTime(.001, audioContext.currentTime + duration);
-    osc.connect(gain); gain.connect(sfxBus || audioContext.destination); osc.start(); osc.stop(audioContext.currentTime + duration);
+    osc.connect(gain); gain.connect(fxOut()); osc.start(); osc.stop(audioContext.currentTime + duration);
     osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   }
   function playToneSweep(from, to, duration, type, volume) {
@@ -182,7 +282,7 @@
       const now = audioContext.currentTime, oscillator = audioContext.createOscillator(), gain = audioContext.createGain();
       oscillator.type = type; oscillator.frequency.setValueAtTime(from, now); oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, to), now + duration);
       gain.gain.setValueAtTime(volume, now); gain.gain.exponentialRampToValueAtTime(.001, now + duration);
-      oscillator.connect(gain); gain.connect(sfxBus || audioContext.destination); oscillator.start(now); oscillator.stop(now + duration);
+      oscillator.connect(gain); gain.connect(fxOut()); oscillator.start(now); oscillator.stop(now + duration);
       oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
     } catch { /* Synth effects are optional on browsers with limited Web Audio support. */ }
   }
@@ -195,7 +295,7 @@
       const source = audioContext.createBufferSource(), filter = audioContext.createBiquadFilter(), gain = audioContext.createGain();
       source.buffer = buffer; filter.type = 'lowpass'; filter.frequency.setValueAtTime(cutoffFrom, now); filter.frequency.exponentialRampToValueAtTime(cutoffTo, now + duration);
       gain.gain.setValueAtTime(volume, now); gain.gain.exponentialRampToValueAtTime(.001, now + duration);
-      source.connect(filter); filter.connect(gain); gain.connect(sfxBus || audioContext.destination); source.start(now); source.stop(now + duration);
+      source.connect(filter); filter.connect(gain); gain.connect(fxOut()); source.start(now); source.stop(now + duration);
       source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
     } catch { /* Keep gameplay running if a browser cannot synthesize noise. */ }
   }
@@ -208,8 +308,7 @@
   }
   function playBoostSound(power = 1) {
     buzz(Math.round(25 * power));
-    playToneSweep(95, 560, .3, 'sawtooth', .055 * power);
-    playNoiseBurst(.24, .055 * power, 3400, 260);
+    withBus(engineBus, () => { playToneSweep(95, 560, .3, 'sawtooth', .055 * power); playNoiseBurst(.24, .055 * power, 3400, 260); });
   }
   function playLaserSound() {
     playToneSweep(1750, 180, .13, 'square', .048);
@@ -217,15 +316,11 @@
   }
   function playImpactSound(power = 1) {
     buzz(Math.round(35 + 45 * Math.min(power, 1.5)));
-    playToneSweep(118, 29, .4, 'sawtooth', .095 * power);
-    playToneSweep(980, 165, .11, 'square', .045 * power);
-    playNoiseBurst(.3, .12 * power, 2400, 115);
+    withBus(boomBus, () => { playToneSweep(118, 29, .4, 'sawtooth', .095 * power); playToneSweep(980, 165, .11, 'square', .045 * power); playNoiseBurst(.3, .12 * power, 2400, 115); });
   }
   function playExplosionSound(power = 1) {
     buzz(power >= 2 ? [120, 40, 90, 40, 260] : Math.round(60 + power * 60), .02);
-    playToneSweep(148, 27, .56, 'sawtooth', .12 * power);
-    playToneSweep(740, 82, .28, 'triangle', .045 * power);
-    playNoiseBurst(.5, .16 * power, 2800, 72);
+    withBus(boomBus, () => { playToneSweep(148, 27, .56, 'sawtooth', .12 * power); playToneSweep(740, 82, .28, 'triangle', .045 * power); playNoiseBurst(.5, .16 * power, 2800, 72); });
   }
   function playCatPopSound() {
     playToneSweep(480, 1120, .1, 'triangle', .06);
@@ -293,10 +388,10 @@
       try {
         if (voiceSource) try { voiceSource.stop(); } catch { /* already ended */ }
         const source = audioContext.createBufferSource(), gain = audioContext.createGain();
-        source.buffer = buffer; gain.gain.value = 1.15; source.connect(gain); gain.connect(sfxBus || audioContext.destination);
+        source.buffer = buffer; gain.gain.value = 1.15; source.connect(gain); gain.connect(voiceBus || sfxBus || audioContext.destination);
         source.onended = () => { source.disconnect(); gain.disconnect(); if (voiceSource === source) voiceSource = null; };
         source.start(); voiceSource = source;
-        for (let i = 0; i < 4; i++) setTimeout(() => playToneSweep(900 + Math.random() * 1600, 400 + Math.random() * 2000, .04, 'square', .014), i * 40);
+        for (let i = 0; i < 4; i++) setTimeout(() => withBus(voiceBus, () => playToneSweep(900 + Math.random() * 1600, 400 + Math.random() * 2000, .04, 'square', .014)), i * 40);
         return;
       } catch { /* fall through to speech */ }
     }
@@ -309,7 +404,7 @@
       const voices = speechSynthesis.getVoices(), own = voices.filter(v => (de ? /^de/i : /^en/i).test(v.lang));
       voice.lang = de ? 'de-DE' : 'en-US';
       voice.voice = own.find(v => /zarvox|trinoids|ralph|robot/i.test(v.name)) || own.find(v => /fred|albert|male|daniel|david|markus|yannick|stefan/i.test(v.name)) || own[0] || null;
-      voice.pitch = 0; voice.rate = .72; voice.volume = 1;
+      voice.pitch = 0; voice.rate = .72; voice.volume = Math.min(1, vol('voice'));
       speechSynthesis.speak(voice);
       playRobotCarrier(words.length * .42 + .3);
     } catch { /* Speech is a bonus. */ }
@@ -321,13 +416,13 @@
       const now = audioContext.currentTime + .05;
       const carrier = audioContext.createOscillator(), mod = audioContext.createOscillator(), ring = audioContext.createGain(), out = audioContext.createGain(), filter = audioContext.createBiquadFilter();
       carrier.type = 'square'; carrier.frequency.value = 82; mod.type = 'sine'; mod.frequency.value = 31;
-      ring.gain.value = 0; mod.connect(ring.gain); carrier.connect(ring); ring.connect(filter); filter.type = 'bandpass'; filter.frequency.value = 900; filter.Q.value = 1.4; filter.connect(out); out.connect(sfxBus);
+      ring.gain.value = 0; mod.connect(ring.gain); carrier.connect(ring); ring.connect(filter); filter.type = 'bandpass'; filter.frequency.value = 900; filter.Q.value = 1.4; filter.connect(out); out.connect(voiceBus || sfxBus);
       out.gain.setValueAtTime(0, now);
       for (let t = 0; t < duration; t += .14) { out.gain.setValueAtTime(.05, now + t); out.gain.setValueAtTime(.012, now + t + .09); }
       out.gain.setValueAtTime(0, now + duration);
       carrier.start(now); mod.start(now); carrier.stop(now + duration + .05); mod.stop(now + duration + .05);
       carrier.onended = () => { carrier.disconnect(); mod.disconnect(); ring.disconnect(); filter.disconnect(); out.disconnect(); };
-      for (let i = 0; i < 6; i++) setTimeout(() => playToneSweep(600 + Math.random() * 1800, 300 + Math.random() * 2400, .05, 'square', .018), i * 45);
+      for (let i = 0; i < 6; i++) setTimeout(() => withBus(voiceBus, () => playToneSweep(600 + Math.random() * 1800, 300 + Math.random() * 2400, .05, 'square', .018)), i * 45);
     } catch { /* optional */ }
   }
   function primeSpeech() {
@@ -346,18 +441,20 @@
     jetSource = audioContext.createBufferSource(); jetSource.buffer = buffer; jetSource.loop = true;
     jetFilter = audioContext.createBiquadFilter(); jetFilter.type = 'bandpass'; jetFilter.frequency.value = 700; jetFilter.Q.value = .6;
     jetGain = audioContext.createGain(); jetGain.gain.value = 0;
-    jetSource.connect(jetFilter); jetFilter.connect(jetGain); jetGain.connect(sfxBus); jetSource.start();
+    jetSource.connect(jetFilter); jetFilter.connect(jetGain); jetGain.connect(engineBus); jetSource.start();
     jetWhine = audioContext.createOscillator(); jetWhine.type = 'sawtooth'; jetWhine.frequency.value = 900;
     const whineFilter = audioContext.createBiquadFilter(); whineFilter.type = 'highpass'; whineFilter.frequency.value = 600;
     jetWhineGain = audioContext.createGain(); jetWhineGain.gain.value = 0;
-    jetWhine.connect(whineFilter); whineFilter.connect(jetWhineGain); jetWhineGain.connect(sfxBus); jetWhine.start();
+    jetWhine.connect(whineFilter); whineFilter.connect(jetWhineGain); jetWhineGain.connect(engineBus); jetWhine.start();
   }
   function playJetBlast(power = 1) {
     buzz([30, 30, Math.round(60 * power)]);
     // Ignition: a roaring whoosh that tears upward, a deep rumble and a screaming turbine.
     const v = power * .38;
-    playNoiseBurst(1.1 * power, .32 * v, 300, 6500);
-    playNoiseBurst(1.4 * power, .22 * v, 5200, 140);
-    playToneSweep(48, 160, .9 * power, 'sawtooth', .16 * v);
-    playToneSweep(700, 3200, .8 * power, 'sawtooth', .03 * v);
+    withBus(engineBus, () => {
+      playNoiseBurst(1.1 * power, .32 * v, 300, 6500);
+      playNoiseBurst(1.4 * power, .22 * v, 5200, 140);
+      playToneSweep(48, 160, .9 * power, 'sawtooth', .16 * v);
+      playToneSweep(700, 3200, .8 * power, 'sawtooth', .03 * v);
+    });
   }

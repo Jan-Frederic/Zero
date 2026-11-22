@@ -422,6 +422,7 @@
     ctx.beginPath(); ctx.arc(gesture.originX + dx, gesture.originY + dy, 18, 0, TAU); ctx.fill(); ctx.restore();
   }
   function render() {
+    if (mode === 'dj' && dj) { renderDJ(); return; }
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
     if (mode === 'timetunnel' && timeTunnel) { renderTimeTunnel(); return; }
     if (maze) { renderMaze(); return; }
