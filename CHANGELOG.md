@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.25.0](https://github.com/Jan-Frederic/Zero/compare/v1.24.0...v1.25.0) (2026-11-22)
+
+
+### Features
+
+* **music:** all Morbid Fingers songs shuffled with radio tuning, sound desk, pause-menu player and chilling with DJ MoFo ([2af291f](https://github.com/Jan-Frederic/Zero/commit/2af291f449e37850331a3de719f0351e2b99e954))
+
 # [1.24.0](https://github.com/Jan-Frederic/Zero/compare/v1.23.0...v1.24.0) (2026-11-22)
 
 
