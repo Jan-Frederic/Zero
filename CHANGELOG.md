@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.27.0](https://github.com/Jan-Frederic/Zero/compare/v1.26.0...v1.27.0) (2026-11-22)
+
+
+### Features
+
+* **music:** default levels – music 150 %, effects, explosions, engines and announcer 60 % ([d68a0f6](https://github.com/Jan-Frederic/Zero/commit/d68a0f64b8825f983e35ef648f4113b3c11a1966))
+
 # [1.26.0](https://github.com/Jan-Frederic/Zero/compare/v1.25.0...v1.26.0) (2026-11-22)
 
 
