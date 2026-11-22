@@ -555,3 +555,28 @@ body.maze .topbar,body.maze .bottom-bar{display:none!important}
 .maze-dpad[data-dir="up"] .up,.maze-dpad[data-dir="down"] .down,.maze-dpad[data-dir="left"] .left,.maze-dpad[data-dir="right"] .right{color:#ddff46;text-shadow:0 0 10px #ddff46}
 .maze-fire{position:fixed;z-index:45;right:calc(26px + env(safe-area-inset-right));bottom:calc(52px + env(safe-area-inset-bottom));width:96px;height:96px;border-radius:50%;border:4px solid #ffd0da;background:radial-gradient(circle at 35% 30%,#ff8aa3,#d8164a 60%,#8a0b2c);color:#fff;font:900 20px var(--condensed,'Barlow Condensed'),sans-serif;letter-spacing:1px;box-shadow:0 7px 0 #5a0718,0 0 26px #ff456d88;touch-action:none;-webkit-user-select:none;user-select:none}
 .maze-fire:active{transform:translateY(5px);box-shadow:0 2px 0 #5a0718,0 0 30px #ff456dcc}
+/* Sound desk: one slider per channel. */
+.mixer{display:grid;gap:14px;margin:18px 0 6px}
+.mixer-row{display:grid;grid-template-columns:150px 1fr 52px;align-items:center;gap:12px;font:12px var(--mono);letter-spacing:.8px;color:#e6e0f5}
+.mixer-row output{text-align:right;color:var(--acid)}
+.mixer input[type=range],.dj-panel input[type=range]{width:100%;accent-color:var(--pink);height:28px;touch-action:none}
+@media(max-width:600px){.mixer-row{grid-template-columns:1fr 48px}.mixer-row span{grid-column:1/-1}}
+/* Music player in the pause menu. */
+.pause-player{display:grid;gap:6px;justify-items:center;margin:6px 0 16px;padding:12px;border:1px solid #ffffff1c;background:#0c0a1a99}
+.pause-player strong{font:600 15px var(--display);letter-spacing:.5px;color:#fff;text-align:center}
+.pp-buttons,.dj-buttons{display:flex;gap:10px;justify-content:center}
+.pp-buttons button,.dj-buttons button{min-width:52px;min-height:44px;font-size:20px;background:#171329;border:1px solid #ffffff30;color:#fff}
+.pp-buttons button:hover,.dj-buttons button:hover{border-color:var(--pink)}
+/* Chill with DJ MoFo: full-screen scene, skip button during the ride, jukebox beside (or under) the club. */
+body.dj .topbar,body.dj .bottom-bar,body.dj .touch-controls{display:none!important}
+.dj-skip{position:fixed;z-index:50;right:calc(16px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom));padding:10px 16px;font:12px var(--mono);letter-spacing:1px;background:#0c0a1acc;border:1px solid #ffffff40;color:#fff}
+.dj-club{position:fixed;z-index:45;top:0;right:0;bottom:0;width:min(380px,40vw);display:flex;padding:calc(16px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) 14px;background:linear-gradient(90deg,#0c061800,#0c0618ee 12%);overflow:auto}
+.dj-panel{display:flex;flex-direction:column;gap:12px;width:100%}
+.dj-panel strong{font:800 20px var(--display);letter-spacing:.5px;color:var(--acid);min-height:2.4em}
+.dj-volume{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;font:12px var(--mono);color:#c4b8d5}
+.dj-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.dj-list button{width:100%;text-align:left;padding:9px 12px;font:600 14px var(--display);letter-spacing:.4px;background:#171329cc;border:1px solid #ffffff1c;color:#e6e0f5}
+.dj-list .active button{border-color:var(--pink);color:#fff;background:#3a1238cc;box-shadow:0 0 14px #ff4eb855}
+.dj-list .active button::before{content:"● ";color:var(--pink)}
+.dj-leave{margin-top:4px;align-self:center}
+@media(orientation:portrait){.dj-club{top:52vh;width:100%;background:#0c0618f2;border-top:1px solid #ff4eb855}}

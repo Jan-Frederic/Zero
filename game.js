@@ -438,7 +438,10 @@
     'UFO BOMB RUN': 'UFO-BOMBENANGRIFF', 'DODGE!': 'AUSWEICHEN!', 'UFO HIT': 'UFO GETROFFEN', 'IT IS GOING DOWN!': 'ES STÜRZT AB!', 'WARNING: MOTHERSHIP!': 'WARNUNG: MUTTERSCHIFF!',
     'WEBBED!  SLOWED DOWN': 'EINGESPONNEN!  VERLANGSAMT', '🎮 GAMEPAD CONNECTED': '🎮 GAMEPAD VERBUNDEN', 'AIRBORNE': 'IN DER LUFT', 'TRAMPOLINE BOOST': 'TRAMPOLIN-BOOST',
     'BUBBLE POPPED!': 'BLASE GEPLATZT!', 'CATASTROPHIC FAILURE / SHIELDS OFFLINE': 'TOTALAUSFALL / SCHILDE OFFLINE', 'CAT PIXEL-POOF!  LASER +1': 'KATZEN-PIXEL-POFF!  LASER +1', '⚠ ONE MORE CAT = BLACK HOLE': '⚠ NOCH EINE KATZE = SCHWARZES LOCH', '⚠ BLACK HOLE ⚠': '⚠ SCHWARZES LOCH ⚠', 'POOF!': 'POFF!',
-    'MAZE CLEARED!': 'LABYRINTH GESCHAFFT!', 'THE SINGULARITY AWAKENS…': 'DIE SINGULARITÄT ERWACHT …', '⏳ TIME TUNNEL': '⏳ ZEITTUNNEL', '🍒 FRUIT RACE! 🍋': '🍒 FRUCHT-RENNEN! 🍋', 'BACK ON THE TRACK': 'ZURÜCK AUF DER STRECKE', 'ALL RIVALS ARE FRUIT': 'ALLE GEGNER SIND FRÜCHTE', '🍬 SUPER CANDY! EAT THE CATS!': '🍬 SUPER-BONBON! FRISS DIE KATZEN!', 'CAT CRUNCHED!': 'KATZE VERSPEIST!', 'CAT CRUNCHED': 'KATZE VERSPEIST', '🍬 SUPER CANDY: EAT THE CATS FOR A WHILE': '🍬 SUPER-BONBON: FRISS EINE WEILE DIE KATZEN', 'CAUGHT!': 'ERWISCHT!', 'BLACK HOLE MAZE': 'LABYRINTH IM SCHWARZEN LOCH', 'EAT ALL THE FRUIT!': 'FRISS ALLE FRÜCHTE!',
+    'MAZE CLEARED!': 'LABYRINTH GESCHAFFT!', '🎚 MUSIC & FX': '🎚 MUSIK & FX', '🐱 CHILL WITH DJ MOFO': '🐱 CHILLEN MIT DJ MOFO', 'MORBID FINGERS · SOUND DESK': 'MORBID FINGERS · MISCHPULT', 'MUSIC & FX': 'MUSIK & FX',
+    '🎸 MUSIC': '🎸 MUSIK', '✨ EFFECTS': '✨ EFFEKTE', '💥 EXPLOSIONS': '💥 EXPLOSIONEN', '🔥 ENGINES & JETS': '🔥 MOTOREN & DÜSEN', '🤖 ANNOUNCER': '🤖 ANSAGER',
+    'LEAVE THE CLUB ✕': 'CLUB VERLASSEN ✕', 'SKIP ▸▸': 'ÜBERSPRINGEN ▸▸', 'Oh hey, you here too?': 'Na, auch hier?', 'Toodle-oo!': 'Tschüsselchen!',
+    'RADIO / TUNING IN…': 'RADIO / SENDERSUCHE …', 'VOL': 'LAUT', 'THE SINGULARITY AWAKENS…': 'DIE SINGULARITÄT ERWACHT …', '⏳ TIME TUNNEL': '⏳ ZEITTUNNEL', '🍒 FRUIT RACE! 🍋': '🍒 FRUCHT-RENNEN! 🍋', 'BACK ON THE TRACK': 'ZURÜCK AUF DER STRECKE', 'ALL RIVALS ARE FRUIT': 'ALLE GEGNER SIND FRÜCHTE', '🍬 SUPER CANDY! EAT THE CATS!': '🍬 SUPER-BONBON! FRISS DIE KATZEN!', 'CAT CRUNCHED!': 'KATZE VERSPEIST!', 'CAT CRUNCHED': 'KATZE VERSPEIST', '🍬 SUPER CANDY: EAT THE CATS FOR A WHILE': '🍬 SUPER-BONBON: FRISS EINE WEILE DIE KATZEN', 'CAUGHT!': 'ERWISCHT!', 'BLACK HOLE MAZE': 'LABYRINTH IM SCHWARZEN LOCH', 'EAT ALL THE FRUIT!': 'FRISS ALLE FRÜCHTE!',
     'D-PAD TO STEER · FIRE = LASER': 'STEUERKREUZ ZUM LENKEN · FEUER = LASER', 'ARROW KEYS / WASD · SPACE = LASER': 'PFEILTASTEN / WASD · LEERTASTE = LASER', 'FIRE': 'FEUER', 'CAT BLASTED!': 'KATZE GESPRENGT!', 'CAT BLASTED': 'KATZE GESPRENGT',
     'CAUGHT BY TERMINATOR CATS.': 'VON TERMINATOR-KATZEN ERWISCHT.', 'Eat every fruit to escape the black hole.': 'Friss jede Frucht, um dem Schwarzen Loch zu entkommen.',
     'EVENT HORIZON': 'EREIGNISHORIZONT', 'Escape the maze inside the black hole.': 'Entkomme dem Labyrinth im Schwarzen Loch.',
@@ -770,7 +773,7 @@
     ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
     ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
     ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
-  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', 'time-tunnel', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', 'time-tunnel', 'pink-hi', 'pink-bye', 'dj-mofo', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
   // German announcer: voice/de/<clip> is rendered from these lines by tools/make-voice.sh (which reads this table).
   // Clips without a German line (the wordless boss screams) use the English file in both languages.
   const VOICE_DE = {
@@ -782,7 +785,7 @@
     'hyperdrive-initiated': 'Hyperantrieb aktiviert!', 'first-place': 'Erster Platz. Makelloser Sieg!', 'mothership-warning': 'Warnung! Mutterschiff im Anflug!',
     'mothership-down': 'Mutterschiff zerstört. Du bist eine Legende!', 'invasion-incoming': 'Warnung! Invasion im Anmarsch!', 'congratulations': 'Herzlichen Glückwunsch, Erdling!',
     'next-boss': 'Warnung! Nächster Boss im Anflug!', 'scream-robot': 'Fehler. Fehler. Systemausfall. Abschaaaltung',
-    'black-hole': 'Uiuiui! Krasses Schwarzes Loch. Terminator-Katzen greifen an!!!', 'time-tunnel': 'Zeitsprung! Alle Gegner sind jetzt Früchte!',
+    'black-hole': 'Uiuiui! Krasses Schwarzes Loch. Terminator-Katzen greifen an!!!', 'time-tunnel': 'Zeitsprung! Alle Gegner sind jetzt Früchte!', 'pink-hi': 'Na, auch hier?', 'pink-bye': 'Tschüsselchen!', 'dj-mofo': 'Ey yo! DJ MoFo ist am Start! Party!',
     'taunt-vex': 'Hier ist Vex. Du gehst unter, Anfänger!', 'down-vex': 'Unmöglich! Vex ist raus!',
     'taunt-kronos': 'Kronos beherrscht diese Strecke!', 'down-kronos': 'Kronos wird zurückkehren!',
     'taunt-null9': 'Null Neun. Ziel erfasst.', 'down-null9': 'Null Neun. Offline.',
@@ -802,37 +805,65 @@
     if (audioContext && audioContext.state !== 'running' && audioContext.state !== 'closed') { audioSessionPlayback(); const p = audioContext.resume(); if (p && p.catch) p.catch(() => {}); }
     if (musicBlocked && musicWanted && audio.paused && !muted && soundtrackReady) tryPlay();
   }
+  // ---- Sound desk: separate levels for music, effects, explosions, engines/jets and the announcer (0-150 %).
+  let boomBus, engineBus, voiceBus, busOverride = null;
+  const vol = key => clamp(settings.vol && settings.vol[key] !== undefined ? Number(settings.vol[key]) : 1, 0, 1.5);
+  const fxOut = () => busOverride || sfxBus || audioContext.destination;
+  function withBus(bus, fn) { const before = busOverride; busOverride = bus || null; try { fn(); } finally { busOverride = before; } }
+  function applyVolumes() {
+    if (!audioContext || !musicGain) { audio.volume = Math.min(1, .24 * vol('music')); return; }
+    const t = audioContext.currentTime;
+    musicGain.gain.setTargetAtTime(.92 * .24 * vol('music'), t, .02); sfxBus.gain.setTargetAtTime(1.55 * vol('fx'), t, .02);
+    boomBus.gain.setTargetAtTime(1.55 * vol('boom'), t, .02); engineBus.gain.setTargetAtTime(1.55 * vol('engine'), t, .02); voiceBus.gain.setTargetAtTime(1.55 * vol('voice'), t, .02);
+  }
   function setupAudio() {
     audioSessionPlayback();
     if (audioContext) { wakeAudio(); return; }
     try {
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
       analyser = audioContext.createAnalyser(); analyser.fftSize = 128;
-      musicGain = audioContext.createGain(); musicGain.gain.value = .92 * .24; audio.volume = 1;
-      sfxBus = audioContext.createGain(); sfxBus.gain.value = 1.55;
+      musicGain = audioContext.createGain(); audio.volume = 1;
+      sfxBus = audioContext.createGain(); boomBus = audioContext.createGain(); engineBus = audioContext.createGain(); voiceBus = audioContext.createGain();
+      for (const bus of [boomBus, engineBus, voiceBus]) bus.connect(audioContext.destination);
+      applyVolumes();
       musicSource = audioContext.createMediaElementSource(audio); musicSource.connect(analyser); analyser.connect(musicGain); musicGain.connect(audioContext.destination);
       sfxBus.connect(audioContext.destination);
       frequency = new Uint8Array(analyser.frequencyBinCount);
       engineOsc = audioContext.createOscillator(); engineOsc.type = 'sawtooth';
       const filter = audioContext.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 220;
       engineGain = audioContext.createGain(); engineGain.gain.value = 0;
-      engineOsc.connect(filter); filter.connect(engineGain); engineGain.connect(sfxBus); engineOsc.start();
+      engineOsc.connect(filter); filter.connect(engineGain); engineGain.connect(engineBus); engineOsc.start();
       setupJet(); loadVoices();
     } catch { /* The soundtrack still plays if Web Audio is unavailable. */ }
   }
-  // ---- Soundtrack: two Morbid Fingers songs. Both are downloaded into memory as soon as the page opens and played
-  // from local blobs, so playback can never run dry mid-race; the start button waits for them (renderStartButton).
+  // ---- Soundtrack: the songs of Morbid Fingers, shuffled for the whole game without repeats (every song once, then a
+  // new order). When a song ends, an old radio hunts for the station of the next one. The current song is downloaded
+  // into memory before the start button opens, so playback never runs dry mid-race; the next one downloads meanwhile.
   // WebM/Opus copies are ~40 % smaller; browsers that cannot play them get the MP3s.
   // Apple's WebKit gets the MP3s: its WebM/Opus support differs between iOS versions, especially in decodeAudioData.
-  /** @type {{ id: string, name: string, title: string, file: string, blob?: string|null, received?: number, total?: number, mp3Only?: boolean }[]} */
+  /** @type {{ id: string, title: string, file: string, blob?: string|null, received?: number, total?: number, mp3Only?: boolean }[]} */
   const SONGS = [
-    { id: 'redemption', name: 'REDEMPTION', title: 'Redemption (Live, 2003)', file: 'Morbid_Fingers%20-%20live-%20Emmerich_Juli_2003%20-%2003%20Redemption' },
-    { id: 'brainwash', name: 'BRAIN WASH', title: 'Brain Wash (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Brain_Wash_8-Bit_Edition' },
+    { id: 'redemption', title: 'Redemption (Live, 2003)', file: 'Morbid_Fingers%20-%20live-%20Emmerich_Juli_2003%20-%2003%20Redemption' },
+    { id: 'brainwash', title: 'Brain Wash (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Brain_Wash_8-Bit_Edition' },
+    { id: 'virusgirl', title: 'Virus Girl (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Virus_Girl_8-Bit_Edition' },
+    { id: '100bitch', title: '100 Bitch (8-Bit Edition)', file: 'Morbid_Fingers%20-%20100_Bitch_8-Bit_Edition' },
+    { id: 'crystal', title: 'Crystal Clear Reflection Make Up (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Crystal_Clear_Reflection_Make_Up_8-Bit_Edition' },
+    { id: 'dirtytripper', title: 'Dirty Tripper (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Dirty_Tripper_8-Bit_Edition' },
+    { id: 'enough', title: 'Enough (8-Bit Edition)', file: 'Morbid_Fingers%20-%20Enough_8-Bit_Edition' },
   ];
   const AUDIO_EXT = (() => { try { return !appleWebKit && audio.canPlayType && audio.canPlayType('audio/webm; codecs="opus"') ? 'webm' : 'mp3'; } catch { return 'mp3'; } })();
   const songUrl = (song, ext = AUDIO_EXT) => `${song.file}.${ext}`;
   const songSrc = i => { const song = SONGS[i]; return song.mp3Only ? songUrl(song, 'mp3') : song.blob || songUrl(song); };
-  let songIndex = 0;
+  // Playlist: shuffled rounds of all songs, appended as needed, so "previous" can walk back through what was played.
+  function shuffleSongs(avoid) {
+    const order = SONGS.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+    if (order.length > 1 && order[0] === avoid) [order[0], order[1]] = [order[1], order[0]];
+    return order;
+  }
+  const playlist = shuffleSongs(-1);
+  let playlistPos = 0, songIndex = playlist[0], tuning = null;
+  function upcomingSong() { if (playlistPos + 1 >= playlist.length) playlist.push(...shuffleSongs(playlist[playlist.length - 1])); return playlist[playlistPos + 1]; }
   let soundtrackReady = false, soundtrackProgress = 0, soundtrackPromise = null, musicWanted = false, musicBlocked = false;
   // Plays the soundtrack; if the browser refuses (Safari outside a tap), the next tap starts it (see wakeAudio).
   function tryPlay() {
@@ -842,13 +873,7 @@
   }
   const SILENCE = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=='; // 0.1 s of silence
   const playingSilence = () => String(audio.src || '').startsWith('data:');
-  // Share of the soundtrack downloaded so far (a song whose size is not known yet counts with an estimate).
-  function downloadShare() {
-    let got = 0, all = 0;
-    for (const song of SONGS) { const total = song.total || 3e6; all += total; got += Math.min(total, song.received || 0); }
-    return all ? Math.min(.99, got / all) : 0;
-  }
-  async function downloadSong(song) {
+  async function downloadSong(song, onProgress) {
     const response = await fetch(songUrl(song));
     if (!response.ok) throw new Error(String(response.status));
     const total = Number(response.headers.get('content-length')) || 0;
@@ -856,27 +881,44 @@
     let blob;
     if (response.body && response.body.getReader && total) {
       const reader = response.body.getReader(), chunks = [];
-      for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); song.received += value.length; soundtrackProgress = downloadShare(); updateMusic(); }
+      for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); song.received += value.length; if (onProgress) onProgress(); }
       blob = new Blob(chunks, { type: AUDIO_EXT === 'webm' ? 'audio/webm' : 'audio/mpeg' });
     } else blob = await response.blob();
-    song.received = song.total = song.total || blob.size || 1; soundtrackProgress = downloadShare();
+    song.received = song.total = song.total || blob.size || 1;
     song.blob = URL.createObjectURL(blob);
+  }
+  const songDownloads = new Map();
+  function fetchSongBlob(i, onProgress) {
+    const song = SONGS[i];
+    if (!song || song.blob || typeof fetch !== 'function' || typeof URL === 'undefined' || !URL.createObjectURL) return Promise.resolve();
+    if (!songDownloads.has(i)) songDownloads.set(i, downloadSong(song, onProgress).catch(() => { song.blob = null; }).finally(() => songDownloads.delete(i)));
+    return songDownloads.get(i);
+  }
+  // Only the current and the next song stay in memory; the next one downloads in the background.
+  function prefetchUpcoming() {
+    const next = upcomingSong();
+    SONGS.forEach((song, i) => { if (song.blob && i !== songIndex && i !== next && !String(audio.src).startsWith(song.blob)) { URL.revokeObjectURL(song.blob); song.blob = null; } });
+    if (soundtrackReady) fetchSongBlob(next);
   }
   function preloadSoundtrack() {
     if (soundtrackPromise) return soundtrackPromise;
     if (typeof fetch !== 'function' || typeof URL === 'undefined' || !URL.createObjectURL || typeof Blob === 'undefined') {
-      soundtrackReady = true; audio.preload = 'auto'; return (soundtrackPromise = Promise.resolve());
+      soundtrackReady = true; audio.preload = 'auto'; renderSongTitle(); return (soundtrackPromise = Promise.resolve());
     }
     soundtrackPromise = (async () => {
-      updateMusic();
+      renderSongTitle(); updateMusic();
+      const first = songIndex, song = SONGS[first];
       // A failed download (offline without a cached copy) falls back to streaming that song.
-      await Promise.all(SONGS.map(song => downloadSong(song).catch(() => { song.blob = null; })));
-      // Move the current song over to its local copy, keeping its position if it is already playing.
-      const resume = !audio.paused && !playingSilence(), at = playingSilence() ? 0 : audio.currentTime || 0;
-      audio.src = songSrc(songIndex); audio.preload = 'auto'; try { audio.load(); } catch { /* ignore */ }
-      if (at) audio.addEventListener('loadedmetadata', () => { try { audio.currentTime = at; } catch { /* keep the start */ } }, { once: true });
-      if (resume || musicWanted) tryPlay();
+      await fetchSongBlob(first, () => { soundtrackProgress = song.total ? Math.min(.99, song.received / song.total) : 0; updateMusic(); });
+      if (songIndex === first) {
+        // Move the current song over to its local copy, keeping its position if it is already playing.
+        const resume = !audio.paused && !playingSilence(), at = playingSilence() ? 0 : audio.currentTime || 0;
+        audio.src = songSrc(songIndex); audio.preload = 'auto'; try { audio.load(); } catch { /* ignore */ }
+        if (at) audio.addEventListener('loadedmetadata', () => { try { audio.currentTime = at; } catch { /* keep the start */ } }, { once: true });
+        if (resume || musicWanted) tryPlay();
+      }
       soundtrackReady = true; soundtrackProgress = 1; updateMusic();
+      prefetchUpcoming();
     })();
     return soundtrackPromise;
   }
@@ -887,31 +929,91 @@
     song.mp3Only = true; audio.src = songSrc(songIndex); try { audio.load(); } catch { /* ignore */ }
     if (musicWanted && !muted) tryPlay();
   });
-  // Shows the song in the music player and switches the audio element over to it (from the start).
+  // A song ended: tune the radio to the next one.
+  audio.addEventListener('ended', () => { if (musicWanted) nextSong(false); });
+  function renderSongTitle() {
+    const title = tuning ? '— 📻 ~ ~ ~' : `— ${SONGS[songIndex].title}`;
+    if ($('song-title')) $('song-title').textContent = title;
+    if ($('pp-title')) $('pp-title').textContent = tuning ? '📻 ~ ~ ~' : SONGS[songIndex].title;
+    if (typeof renderJukebox === 'function') renderJukebox();
+  }
+  // Switches the audio element to song i (from its start).
   function selectSong(i) {
     if (!SONGS[i]) return;
-    const changed = i !== songIndex; songIndex = i;
-    if ($('song-title')) $('song-title').textContent = `— ${SONGS[i].title}`;
-    if (changed && !playingSilence()) { audio.src = songSrc(i); try { audio.load(); } catch { /* ignore */ } }
+    songIndex = i; renderSongTitle();
+    if (!playingSilence() || soundtrackReady) { audio.src = songSrc(i); try { audio.load(); } catch { /* ignore */ } }
   }
-  // MUSIC setting: 'mix' (DJ Morbid Fingers: the songs take turns at every race start) or one song all the time.
-  function raceSong() {
-    const fixed = SONGS.findIndex(song => song.id === settings.music);
-    if (fixed >= 0) return fixed;
-    const next = (Number(settings.mixNext) || 0) % SONGS.length;
-    settings.mixNext = next + 1; saveSettings(); return next;
+  function changeSong(i) {
+    cancelTuning(); selectSong(i); prefetchUpcoming();
+    if (dj && dj.shown) dj.record = { at: time, song: i }; // DJ MoFo puts the record on
+    if (musicWanted && !muted) tryPlay(); else updateMusic();
   }
-  // Picking one song in the settings switches to it right away (the tap lets it play on Safari too).
-  settingHooks.music = v => {
-    const i = SONGS.findIndex(song => song.id === v);
-    if (i < 0 || i === songIndex || mode !== 'menu') return;
-    const wasPlaying = !audio.paused; selectSong(i); if (wasPlaying) playMusic();
-  };
-  // Called from the race start (inside the player's tap, so Safari lets the new song play).
-  function startRaceMusic() { selectSong(raceSong()); playMusic(); }
+  // Between songs: the radio crackles, whistles and catches snippets of other stations before it locks on.
+  function tuneTo(i, seconds) {
+    cancelTuning(); audio.pause();
+    if (!audioContext || muted || !musicWanted || !analyser) { changeSong(i); return; }
+    tuning = { song: i, stop: playRadioTuning(seconds), timer: setTimeout(() => { tuning = null; changeSong(i); }, seconds * 1000) };
+    renderSongTitle(); updateMusic();
+  }
+  function cancelTuning() {
+    if (!tuning) return;
+    clearTimeout(tuning.timer); try { tuning.stop(); } catch { /* already over */ }
+    tuning = null; renderSongTitle();
+  }
+  function nextSong(quick = true) { upcomingSong(); playlistPos++; tuneTo(playlist[playlistPos], quick ? 1.1 : 2.8); }
+  function prevSong() {
+    if (playlistPos === 0 || (!tuning && audio.currentTime > 4)) { changeSong(songIndex); return; }
+    playlistPos--; tuneTo(playlist[playlistPos], 1.1);
+  }
+  // A song picked by hand (pause menu, DJ MoFo's jukebox) plays right away; the shuffle carries on after it.
+  function playSongNow(i) {
+    if (!SONGS[i]) return;
+    playlist.splice(playlistPos + 1, 0, i); playlistPos++;
+    musicWanted = true; setupAudio(); changeSong(i);
+  }
+  function toggleMusic() {
+    if (tuning) { cancelTuning(); musicWanted = false; audio.pause(); updateMusic(); return; }
+    if (audio.paused) { if (muted) toggleMute(); playMusic(); } else { audio.pause(); musicWanted = false; musicBlocked = false; updateMusic(); }
+  }
+  function playRadioTuning(seconds) {
+    const c = audioContext, now = c.currentTime, end = now + seconds, nodes = [];
+    const out = c.createGain(); out.gain.setValueAtTime(0, now); out.gain.linearRampToValueAtTime(1, now + .06); out.gain.setValueAtTime(1, end - .2); out.gain.linearRampToValueAtTime(0, end);
+    out.connect(analyser);
+    const track = n => { nodes.push(n); return n; };
+    // Static, swept through a narrow band like a tuning dial, with fluttering reception.
+    const length = c.sampleRate, buffer = c.createBuffer(1, length, c.sampleRate), data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    const noise = track(c.createBufferSource()); noise.buffer = buffer; noise.loop = true;
+    const band = c.createBiquadFilter(); band.type = 'bandpass'; band.Q.value = 3;
+    const flutter = c.createGain();
+    for (let t = 0; t < seconds; t += .11) { band.frequency.linearRampToValueAtTime(400 + Math.random() * 3600, now + t); flutter.gain.setValueAtTime(.25 + Math.random() * .75, now + t); }
+    noise.connect(band); band.connect(flutter); flutter.connect(out); noise.start(now); noise.stop(end);
+    // Heterodyne whistles gliding up and down as the dial passes the carriers.
+    const whistle = track(c.createOscillator()), wg = c.createGain(); whistle.type = 'sine'; wg.gain.value = .12;
+    for (let t = 0; t < seconds; t += .35) whistle.frequency.linearRampToValueAtTime(500 + Math.random() * 2600, now + t);
+    whistle.connect(wg); wg.connect(out); whistle.start(now); whistle.stop(end);
+    // Snippets of other stations: a bright trumpet fanfare and a far-away voice, each only for a moment.
+    const snippet = (at, notes, type, gainValue, formant) => {
+      const o = track(c.createOscillator()), g = c.createGain(), f = c.createBiquadFilter(); o.type = type; f.type = 'bandpass'; f.frequency.value = formant; f.Q.value = 1.5;
+      notes.forEach((n, k) => o.frequency.setValueAtTime(n, now + at + k * .09));
+      g.gain.setValueAtTime(0, now + at); g.gain.linearRampToValueAtTime(gainValue, now + at + .03); g.gain.setValueAtTime(gainValue, now + at + notes.length * .09); g.gain.linearRampToValueAtTime(0, now + at + notes.length * .09 + .05);
+      o.connect(f); f.connect(g); g.connect(out); o.start(now + at); o.stop(now + at + notes.length * .09 + .1);
+    };
+    snippet(seconds * (.2 + Math.random() * .15), [784, 988, 1175, 988, 1175, 1568], 'sawtooth', .22, 1400);
+    snippet(seconds * (.5 + Math.random() * .15), [150, 170, 140, 185, 160, 150, 175], 'sawtooth', .3, 750);
+    // Locked on: a short chirp as the next song comes in.
+    const lock = track(c.createOscillator()), lg = c.createGain(); lock.type = 'sine';
+    lock.frequency.setValueAtTime(1900, end - .25); lock.frequency.exponentialRampToValueAtTime(900, end - .05);
+    lg.gain.setValueAtTime(0, end - .25); lg.gain.linearRampToValueAtTime(.15, end - .22); lg.gain.linearRampToValueAtTime(0, end - .05);
+    lock.connect(lg); lg.connect(out); lock.start(end - .25); lock.stop(end);
+    return () => { for (const n of nodes) try { n.stop(); } catch { /* done */ } setTimeout(() => out.disconnect(), 100); };
+  }
+  // Kept for the race start: the shuffle simply keeps playing (started inside the player's tap for Safari).
+  function startRaceMusic() { playMusic(); }
   function playMusic() {
     // iOS ignores audio.volume, so with Web Audio the music level is set on its gain node instead (see setupAudio).
-    setupAudio(); musicWanted = true; audio.volume = musicSource ? 1 : .24;
+    setupAudio(); musicWanted = true; audio.volume = musicSource ? 1 : Math.min(1, .24 * vol('music'));
+    if (tuning) return;
     if (!soundtrackReady) {
       // Unlock the audio element inside the user's tap (needed on iOS), but don't stream it twice:
       // it starts for real as soon as the preloaded copy is ready.
@@ -919,13 +1021,14 @@
       const unlock = audio.play(); if (unlock && unlock.then) unlock.then(() => { if (!soundtrackReady) audio.pause(); }).catch(() => {});
       updateMusic(); return;
     }
-    if (playingSilence()) audio.src = songSrc(songIndex);
+    if (playingSilence() || !audio.src || audio.ended) { audio.src = songSrc(songIndex); try { audio.load(); } catch { /* ignore */ } }
     tryPlay().then(() => { if (musicBlocked) $('music-status').textContent = 'SOUNDTRACK / TAP TO PLAY'; });
   }
   function updateMusic() {
     const playing = !audio.paused && !muted;
     document.body.classList.toggle('playing', playing);
-    $('music-status').textContent = !soundtrackReady ? `SOUNDTRACK / LOADING ${Math.round(soundtrackProgress * 100)}%` : muted ? 'SOUNDTRACK / MUTED' : playing ? 'NOW PLAYING / LOCAL SOUNDTRACK' : 'SOUNDTRACK / PRESS PLAY';
+    $('music-status').textContent = !soundtrackReady ? `SOUNDTRACK / LOADING ${Math.round(soundtrackProgress * 100)}%` : muted ? 'SOUNDTRACK / MUTED' : tuning ? 'RADIO / TUNING IN…' : playing ? 'NOW PLAYING / LOCAL SOUNDTRACK' : 'SOUNDTRACK / PRESS PLAY';
+    const playButton = $('pp-play'); if (playButton) { playButton.textContent = playing || tuning ? '⏸' : '▶'; playButton.setAttribute('aria-label', playing || tuning ? 'Pause music' : 'Play music'); }
     $('music-toggle').setAttribute('aria-label', audio.paused ? 'Play soundtrack' : 'Pause soundtrack');
     $('sound').textContent = muted ? '♪̸' : '♫';
     $('sound').setAttribute('aria-label', muted ? 'Unmute soundtrack' : 'Mute soundtrack');
@@ -937,7 +1040,7 @@
     osc.type = type; osc.frequency.setValueAtTime(freq, audioContext.currentTime);
     osc.frequency.exponentialRampToValueAtTime(freq * .5, audioContext.currentTime + duration);
     gain.gain.setValueAtTime(.06, audioContext.currentTime); gain.gain.exponentialRampToValueAtTime(.001, audioContext.currentTime + duration);
-    osc.connect(gain); gain.connect(sfxBus || audioContext.destination); osc.start(); osc.stop(audioContext.currentTime + duration);
+    osc.connect(gain); gain.connect(fxOut()); osc.start(); osc.stop(audioContext.currentTime + duration);
     osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   }
   function playToneSweep(from, to, duration, type, volume) {
@@ -946,7 +1049,7 @@
       const now = audioContext.currentTime, oscillator = audioContext.createOscillator(), gain = audioContext.createGain();
       oscillator.type = type; oscillator.frequency.setValueAtTime(from, now); oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, to), now + duration);
       gain.gain.setValueAtTime(volume, now); gain.gain.exponentialRampToValueAtTime(.001, now + duration);
-      oscillator.connect(gain); gain.connect(sfxBus || audioContext.destination); oscillator.start(now); oscillator.stop(now + duration);
+      oscillator.connect(gain); gain.connect(fxOut()); oscillator.start(now); oscillator.stop(now + duration);
       oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
     } catch { /* Synth effects are optional on browsers with limited Web Audio support. */ }
   }
@@ -959,7 +1062,7 @@
       const source = audioContext.createBufferSource(), filter = audioContext.createBiquadFilter(), gain = audioContext.createGain();
       source.buffer = buffer; filter.type = 'lowpass'; filter.frequency.setValueAtTime(cutoffFrom, now); filter.frequency.exponentialRampToValueAtTime(cutoffTo, now + duration);
       gain.gain.setValueAtTime(volume, now); gain.gain.exponentialRampToValueAtTime(.001, now + duration);
-      source.connect(filter); filter.connect(gain); gain.connect(sfxBus || audioContext.destination); source.start(now); source.stop(now + duration);
+      source.connect(filter); filter.connect(gain); gain.connect(fxOut()); source.start(now); source.stop(now + duration);
       source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
     } catch { /* Keep gameplay running if a browser cannot synthesize noise. */ }
   }
@@ -972,8 +1075,7 @@
   }
   function playBoostSound(power = 1) {
     buzz(Math.round(25 * power));
-    playToneSweep(95, 560, .3, 'sawtooth', .055 * power);
-    playNoiseBurst(.24, .055 * power, 3400, 260);
+    withBus(engineBus, () => { playToneSweep(95, 560, .3, 'sawtooth', .055 * power); playNoiseBurst(.24, .055 * power, 3400, 260); });
   }
   function playLaserSound() {
     playToneSweep(1750, 180, .13, 'square', .048);
@@ -981,15 +1083,11 @@
   }
   function playImpactSound(power = 1) {
     buzz(Math.round(35 + 45 * Math.min(power, 1.5)));
-    playToneSweep(118, 29, .4, 'sawtooth', .095 * power);
-    playToneSweep(980, 165, .11, 'square', .045 * power);
-    playNoiseBurst(.3, .12 * power, 2400, 115);
+    withBus(boomBus, () => { playToneSweep(118, 29, .4, 'sawtooth', .095 * power); playToneSweep(980, 165, .11, 'square', .045 * power); playNoiseBurst(.3, .12 * power, 2400, 115); });
   }
   function playExplosionSound(power = 1) {
     buzz(power >= 2 ? [120, 40, 90, 40, 260] : Math.round(60 + power * 60), .02);
-    playToneSweep(148, 27, .56, 'sawtooth', .12 * power);
-    playToneSweep(740, 82, .28, 'triangle', .045 * power);
-    playNoiseBurst(.5, .16 * power, 2800, 72);
+    withBus(boomBus, () => { playToneSweep(148, 27, .56, 'sawtooth', .12 * power); playToneSweep(740, 82, .28, 'triangle', .045 * power); playNoiseBurst(.5, .16 * power, 2800, 72); });
   }
   function playCatPopSound() {
     playToneSweep(480, 1120, .1, 'triangle', .06);
@@ -1057,10 +1155,10 @@
       try {
         if (voiceSource) try { voiceSource.stop(); } catch { /* already ended */ }
         const source = audioContext.createBufferSource(), gain = audioContext.createGain();
-        source.buffer = buffer; gain.gain.value = 1.15; source.connect(gain); gain.connect(sfxBus || audioContext.destination);
+        source.buffer = buffer; gain.gain.value = 1.15; source.connect(gain); gain.connect(voiceBus || sfxBus || audioContext.destination);
         source.onended = () => { source.disconnect(); gain.disconnect(); if (voiceSource === source) voiceSource = null; };
         source.start(); voiceSource = source;
-        for (let i = 0; i < 4; i++) setTimeout(() => playToneSweep(900 + Math.random() * 1600, 400 + Math.random() * 2000, .04, 'square', .014), i * 40);
+        for (let i = 0; i < 4; i++) setTimeout(() => withBus(voiceBus, () => playToneSweep(900 + Math.random() * 1600, 400 + Math.random() * 2000, .04, 'square', .014)), i * 40);
         return;
       } catch { /* fall through to speech */ }
     }
@@ -1073,7 +1171,7 @@
       const voices = speechSynthesis.getVoices(), own = voices.filter(v => (de ? /^de/i : /^en/i).test(v.lang));
       voice.lang = de ? 'de-DE' : 'en-US';
       voice.voice = own.find(v => /zarvox|trinoids|ralph|robot/i.test(v.name)) || own.find(v => /fred|albert|male|daniel|david|markus|yannick|stefan/i.test(v.name)) || own[0] || null;
-      voice.pitch = 0; voice.rate = .72; voice.volume = 1;
+      voice.pitch = 0; voice.rate = .72; voice.volume = Math.min(1, vol('voice'));
       speechSynthesis.speak(voice);
       playRobotCarrier(words.length * .42 + .3);
     } catch { /* Speech is a bonus. */ }
@@ -1085,13 +1183,13 @@
       const now = audioContext.currentTime + .05;
       const carrier = audioContext.createOscillator(), mod = audioContext.createOscillator(), ring = audioContext.createGain(), out = audioContext.createGain(), filter = audioContext.createBiquadFilter();
       carrier.type = 'square'; carrier.frequency.value = 82; mod.type = 'sine'; mod.frequency.value = 31;
-      ring.gain.value = 0; mod.connect(ring.gain); carrier.connect(ring); ring.connect(filter); filter.type = 'bandpass'; filter.frequency.value = 900; filter.Q.value = 1.4; filter.connect(out); out.connect(sfxBus);
+      ring.gain.value = 0; mod.connect(ring.gain); carrier.connect(ring); ring.connect(filter); filter.type = 'bandpass'; filter.frequency.value = 900; filter.Q.value = 1.4; filter.connect(out); out.connect(voiceBus || sfxBus);
       out.gain.setValueAtTime(0, now);
       for (let t = 0; t < duration; t += .14) { out.gain.setValueAtTime(.05, now + t); out.gain.setValueAtTime(.012, now + t + .09); }
       out.gain.setValueAtTime(0, now + duration);
       carrier.start(now); mod.start(now); carrier.stop(now + duration + .05); mod.stop(now + duration + .05);
       carrier.onended = () => { carrier.disconnect(); mod.disconnect(); ring.disconnect(); filter.disconnect(); out.disconnect(); };
-      for (let i = 0; i < 6; i++) setTimeout(() => playToneSweep(600 + Math.random() * 1800, 300 + Math.random() * 2400, .05, 'square', .018), i * 45);
+      for (let i = 0; i < 6; i++) setTimeout(() => withBus(voiceBus, () => playToneSweep(600 + Math.random() * 1800, 300 + Math.random() * 2400, .05, 'square', .018)), i * 45);
     } catch { /* optional */ }
   }
   function primeSpeech() {
@@ -1110,20 +1208,22 @@
     jetSource = audioContext.createBufferSource(); jetSource.buffer = buffer; jetSource.loop = true;
     jetFilter = audioContext.createBiquadFilter(); jetFilter.type = 'bandpass'; jetFilter.frequency.value = 700; jetFilter.Q.value = .6;
     jetGain = audioContext.createGain(); jetGain.gain.value = 0;
-    jetSource.connect(jetFilter); jetFilter.connect(jetGain); jetGain.connect(sfxBus); jetSource.start();
+    jetSource.connect(jetFilter); jetFilter.connect(jetGain); jetGain.connect(engineBus); jetSource.start();
     jetWhine = audioContext.createOscillator(); jetWhine.type = 'sawtooth'; jetWhine.frequency.value = 900;
     const whineFilter = audioContext.createBiquadFilter(); whineFilter.type = 'highpass'; whineFilter.frequency.value = 600;
     jetWhineGain = audioContext.createGain(); jetWhineGain.gain.value = 0;
-    jetWhine.connect(whineFilter); whineFilter.connect(jetWhineGain); jetWhineGain.connect(sfxBus); jetWhine.start();
+    jetWhine.connect(whineFilter); whineFilter.connect(jetWhineGain); jetWhineGain.connect(engineBus); jetWhine.start();
   }
   function playJetBlast(power = 1) {
     buzz([30, 30, Math.round(60 * power)]);
     // Ignition: a roaring whoosh that tears upward, a deep rumble and a screaming turbine.
     const v = power * .38;
-    playNoiseBurst(1.1 * power, .32 * v, 300, 6500);
-    playNoiseBurst(1.4 * power, .22 * v, 5200, 140);
-    playToneSweep(48, 160, .9 * power, 'sawtooth', .16 * v);
-    playToneSweep(700, 3200, .8 * power, 'sawtooth', .03 * v);
+    withBus(engineBus, () => {
+      playNoiseBurst(1.1 * power, .32 * v, 300, 6500);
+      playNoiseBurst(1.4 * power, .22 * v, 5200, 140);
+      playToneSweep(48, 160, .9 * power, 'sawtooth', .16 * v);
+      playToneSweep(700, 3200, .8 * power, 'sawtooth', .03 * v);
+    });
   }
   // ==== Race messages, callouts, explosions, confetti.
   function showCallout(text, color = '#ddff46') { callout = { text, color, started: time }; }
@@ -2312,6 +2412,7 @@
       jetWhineGain.gain.setTargetAtTime(jet * .007, now, jet ? .08 : .3);
       jetWhine.frequency.setTargetAtTime(700 + speed / 8 + (jumpBoostTimer > 0 ? 600 : 0), now, .15);
     }
+    if (mode === 'dj' && dj) { updateDJ(dt); return; }
     if (mode === 'menu') { position = mod(position + dt * 2900, LENGTH); playerX = Math.sin(time * .14) * .18; return; }
     if (mode === 'invasion' || mode === 'final' || mode === 'disco') { updateFinale(dt); return; }
     if (mode === 'blackhole') { updateBlackHole(dt); return; }
@@ -3890,6 +3991,7 @@
     ctx.beginPath(); ctx.arc(gesture.originX + dx, gesture.originY + dy, 18, 0, TAU); ctx.fill(); ctx.restore();
   }
   function render() {
+    if (mode === 'dj' && dj) { renderDJ(); return; }
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
     if (mode === 'timetunnel' && timeTunnel) { renderTimeTunnel(); return; }
     if (maze) { renderMaze(); return; }
@@ -4018,7 +4120,7 @@
   $('prev-track').addEventListener('click', () => selectTrack(-1)); $('next-track').addEventListener('click', () => selectTrack(1));
   document.querySelectorAll('[data-ship]').forEach(button => button.addEventListener('click', () => selectShip(Number(button.dataset.ship))));
   renderShips(); window.morbidShips = { select: selectShip };
-  $('music-toggle').addEventListener('click', () => { if (audio.paused) { if (muted) toggleMute(); playMusic(); } else { audio.pause(); musicWanted = false; musicBlocked = false; updateMusic(); } });
+  $('music-toggle').addEventListener('click', toggleMusic);
   $('sound').addEventListener('click', toggleMute);
   audio.addEventListener('play', updateMusic); audio.addEventListener('pause', updateMusic);
   audio.addEventListener('error', () => { $('music-status').textContent = 'SOUNDTRACK / FILE UNAVAILABLE'; });
@@ -4155,7 +4257,7 @@
   renderLock();
   // ---- Home screen dialogs: settings and changelog.
   function openDialog(id) { $(id).classList.remove('hidden'); document.body.classList.add('dialog-open'); }
-  function closeDialogs() { ['settings-screen', 'changelog-screen', 'shop-screen', 'trophy-screen', 'stats-screen', 'story-screen', 'missions-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
+  function closeDialogs() { ['settings-screen', 'mixer-screen', 'changelog-screen', 'shop-screen', 'trophy-screen', 'stats-screen', 'story-screen', 'missions-screen'].forEach(id => $(id).classList.add('hidden')); if ($('health-screen').classList.contains('hidden')) document.body.classList.remove('dialog-open'); }
   // Health warning: shown on every visit (not again after an in-app update reload within the same session).
   let healthSeen = false;
   try { healthSeen = sessionStorage.getItem('morbid-health-ok') === '1'; } catch { /* show it */ }
@@ -4415,7 +4517,7 @@
     try {
       const video = canvas.captureStream(30), tracks = [...video.getVideoTracks()];
       if (audioContext && audioContext.createMediaStreamDestination) {
-        if (!clipDest) { clipDest = audioContext.createMediaStreamDestination(); musicGain.connect(clipDest); sfxBus.connect(clipDest); }
+        if (!clipDest) { clipDest = audioContext.createMediaStreamDestination(); musicGain.connect(clipDest); for (const bus of [sfxBus, boomBus, engineBus, voiceBus]) if (bus) bus.connect(clipDest); }
         tracks.push(...clipDest.stream.getAudioTracks());
       }
       const stream = typeof MediaStream === 'function' ? new MediaStream(tracks) : video;
@@ -5054,6 +5156,346 @@
     ctx.strokeStyle = blink ? '#3b4fd8' : '#ffffff'; ctx.lineWidth = Math.max(1, s * .05); ctx.beginPath();
     for (let i = 0; i <= 6; i++) { const mx = -s * .22 + i * s * .073, my = s * .16 + (i % 2 ? -1 : 1) * s * .04; if (i) ctx.lineTo(mx, my); else ctx.moveTo(mx, my); }
     ctx.stroke(); ctx.restore();
+  }
+  // ==== Music UI and "Chill with DJ MoFo": the sound desk, the pause-menu player, and the elevator ride that ends in
+  // DJ MoFo's club, where every Morbid Fingers song can be played from the jukebox.
+  // ---- Sound desk (settings → MUSIC & FX): one slider per channel, a short test sound after each change.
+  const VOLUME_TESTS = {
+    fx: () => soundEffect(880, .25), boom: () => playExplosionSound(.7), engine: () => playJetBlast(.6),
+    voice: () => robotSay('Hyperdrive initiated', 'hyperdrive-initiated'), music: () => {},
+  };
+  function renderMixer() {
+    document.querySelectorAll('[data-volume]').forEach(el => { const input = /** @type {HTMLInputElement} */ (el); input.value = String(Math.round(vol(input.dataset.volume) * 100)); });
+    document.querySelectorAll('[data-volume-value]').forEach(out => { out.textContent = `${Math.round(vol(out.dataset.volumeValue) * 100)}%`; });
+    if ($('dj-volume')) $('dj-volume').value = String(Math.round(vol('music') * 100));
+  }
+  function setVolume(key, percent) {
+    settings.vol = Object.assign({}, settings.vol, { [key]: clamp(percent / 100, 0, 1.5) });
+    saveSettings(); applyVolumes(); renderMixer();
+  }
+  document.querySelectorAll('[data-volume]').forEach(el => {
+    const input = /** @type {HTMLInputElement} */ (el);
+    input.addEventListener('input', () => { setupAudio(); setVolume(input.dataset.volume, Number(input.value)); });
+    input.addEventListener('change', () => { const test = VOLUME_TESTS[input.dataset.volume]; if (test) test(); });
+  });
+  if ($('open-mixer')) $('open-mixer').addEventListener('click', () => { closeDialogs(); renderMixer(); openDialog('mixer-screen'); });
+  if ($('open-dj')) $('open-dj').addEventListener('click', () => { closeDialogs(); startDJ(); });
+  // ---- Pause-menu player.
+  if ($('pp-prev')) {
+    $('pp-prev').addEventListener('click', () => { setupAudio(); musicWanted = true; prevSong(); });
+    $('pp-play').addEventListener('click', toggleMusic);
+    $('pp-next').addEventListener('click', () => { setupAudio(); musicWanted = true; nextSong(true); });
+  }
+
+  // ---- Chill with DJ MoFo. Timeline of the elevator ride (seconds since the button was pressed).
+  const DJ = { open1: 1.4, walkIn: 2, close1: 4.4, ride1: 5, open2: 8.4, pinkIn: 9, flirt: 10.6, pinkOut: 13.8, close2: 15.4, ride2: 16, burst: 18, club: 20.5 };
+  let dj = null, posterImage = null, djSeeking = false;
+  function startDJ() {
+    if (mode !== 'menu') return;
+    setupAudio(); primeSpeech();
+    // Unlock the music element inside this tap (Safari), then keep it quiet until DJ MoFo drops the first record.
+    const unlock = audio.play(); if (unlock && unlock.catch) unlock.catch(() => {});
+    audio.pause(); cancelTuning(); musicWanted = false; musicBlocked = false;
+    if (!posterImage && typeof Image === 'function') { posterImage = new Image(); posterImage.src = 'images/poster-8-bit-fingers.jpg'; }
+    mode = 'dj'; dj = { at: time, said: {}, discs: [], booms: [], record: null, muzak: null, shown: false };
+    $('menu').classList.add('hidden'); document.body.classList.add('dj'); $('dj-skip').classList.remove('hidden');
+    dj.muzak = startMuzak();
+  }
+  function leaveDJ() {
+    if (!dj) return;
+    stopMuzak(); dj = null; mode = 'menu';
+    $('dj-club').classList.add('hidden'); $('dj-skip').classList.add('hidden'); $('menu').classList.remove('hidden');
+    document.body.classList.remove('dj');
+  }
+  function skipDJ() { if (dj && time - dj.at < DJ.burst) { dj.at = time - DJ.burst; dj.said = { hi: 1, bye: 1 }; stopMuzak(); } }
+  function enterClub() {
+    dj.shown = true; $('dj-skip').classList.add('hidden'); $('dj-club').classList.remove('hidden');
+    robotSay('Yo yo yo! DJ MoFo in the house! Party!', 'dj-mofo');
+    renderMixer(); djPlay(songIndex);
+  }
+  // DJ MoFo puts the record on (see changeSong): it flies from the crate onto the deck, a scratch, then the song.
+  function djPlay(i) { if (!dj) return; playScratch(); playSongNow(i); }
+  function renderJukebox() {
+    const list = $('dj-list'); if (!list || !list.appendChild) return;
+    if (!list.children || list.children.length !== SONGS.length) {
+      list.innerHTML = '';
+      SONGS.forEach((song, i) => {
+        const item = document.createElement('li'), button = document.createElement('button');
+        button.type = 'button'; button.textContent = song.title; button.setAttribute('data-no-i18n', '');
+        button.addEventListener('click', () => djPlay(i)); item.appendChild(button); list.appendChild(item);
+      });
+    }
+    [...list.children].forEach((item, i) => item.classList.toggle('active', i === songIndex));
+    if ($('dj-now')) $('dj-now').textContent = tuning ? '📻 ~ ~ ~' : SONGS[songIndex].title;
+  }
+  if ($('dj-leave')) {
+    $('dj-leave').addEventListener('click', leaveDJ);
+    $('dj-skip').addEventListener('click', skipDJ);
+    $('dj-play').addEventListener('click', toggleMusic);
+    // In the club the DJ changes records directly (no radio in between).
+    $('dj-prev').addEventListener('click', () => { musicWanted = true; playScratch(); if (playlistPos > 0 && audio.currentTime < 4) playlistPos--; changeSong(playlist[playlistPos]); });
+    $('dj-next').addEventListener('click', () => { musicWanted = true; playScratch(); upcomingSong(); playlistPos++; changeSong(playlist[playlistPos]); });
+    $('dj-volume').addEventListener('input', () => { setupAudio(); setVolume('music', Number($('dj-volume').value)); });
+    $('dj-seek').addEventListener('pointerdown', () => { djSeeking = true; });
+    $('dj-seek').addEventListener('change', () => { djSeeking = false; if (audio.duration) try { audio.currentTime = Number($('dj-seek').value) / 1000 * audio.duration; } catch { /* not seekable */ } });
+  }
+  window.addEventListener('keydown', event => { if (mode === 'dj' && event.code === 'Escape') leaveDJ(); });
+  function updateDJ(dt) {
+    const t = time - dj.at;
+    if (t > DJ.flirt + .1 && !dj.said.hi) { dj.said.hi = 1; robotSay('Oh hey, you here too?', 'pink-hi'); }
+    if (t > DJ.pinkOut + .1 && !dj.said.bye) { dj.said.bye = 1; robotSay('Toodle-oo!', 'pink-bye'); }
+    // "Ding-dong" when the cabin stops; three blasts when DJ MoFo kicks the doors in.
+    const at = moment => t >= moment && t - dt < moment;
+    for (const [moment, freq] of [[DJ.open1 - .2, 1319], [DJ.open1 + .02, 1047], [DJ.open2 - .2, 1319], [DJ.open2 + .02, 1047]]) if (at(moment)) soundEffect(freq, .7);
+    for (const [moment, power] of [[DJ.burst + .35, 1.5], [DJ.burst + .9, 2]]) if (at(moment)) playExplosionSound(power);
+    if (t >= DJ.burst && !dj.burst) { dj.burst = true; stopMuzak(); shake = 1.6; screenFlash = 1; playExplosionSound(2); }
+    if (t >= DJ.burst && t < DJ.club + 1.5 && Math.random() < dt * 6) dj.booms.push({ x: Math.random(), y: Math.random() * .8, at: time, size: .08 + Math.random() * .15 });
+    if (t >= DJ.burst && Math.random() < dt * (t < DJ.club ? 5 : .5)) {
+      // DJ MoFo hurls discs around the room.
+      const fromLeft = Math.random() < .5;
+      dj.discs.push({ x: .5, y: .45, vx: (fromLeft ? -1 : 1) * (.35 + Math.random() * .6), vy: -(.3 + Math.random() * .5), at: time, spin: (Math.random() - .5) * 30 });
+    }
+    dj.discs = dj.discs.filter(d => time - d.at < 2.2); dj.booms = dj.booms.filter(b => time - b.at < .9);
+    for (const d of dj.discs) { d.x += d.vx * dt; d.y += d.vy * dt; d.vy += 1.1 * dt; }
+    if (t >= DJ.club && !dj.shown) enterClub();
+    shake *= Math.pow(.05, dt); screenFlash = Math.max(0, screenFlash - dt * 1.5);
+    const seek = $('dj-seek');
+    if (seek && dj.shown && audio.duration && !djSeeking) seek.value = String(Math.round((audio.currentTime || 0) / audio.duration * 1000));
+  }
+
+  // ---- Elevator music: an original, gentle bossa nova loop (electric piano, vibraphone, bass, shaker), synthesized.
+  const MUZAK_BPM = 128, EIGHTH = 60 / MUZAK_BPM / 2;
+  const MUZAK_BARS = [
+    { chord: [57, 60, 64, 65], bass: [41, 48], melody: [[0, 69, 3], [3, 72, 2], [5, 76, 3]] },
+    { chord: [57, 60, 64, 65], bass: [41, 48], melody: [[0, 74, 4], [4, 72, 4]] },
+    { chord: [59, 62, 65, 67], bass: [43, 50], melody: [[0, 71, 3], [3, 74, 2], [5, 77, 3]] },
+    { chord: [59, 62, 65, 67], bass: [43, 50], melody: [[0, 76, 6]] },
+    { chord: [58, 62, 65, 67], bass: [43, 50], melody: [[0, 70, 3], [3, 74, 2], [5, 77, 3]] },
+    { chord: [58, 60, 64, 67], bass: [36, 43], melody: [[0, 76, 3], [3, 74, 2], [5, 72, 3]] },
+    { chord: [57, 60, 64, 65], bass: [41, 48], melody: [[0, 69, 8]] },
+    { chord: [58, 60, 64, 67], bass: [36, 43], melody: [[0, 67, 3], [3, 69, 2], [5, 70, 3]] },
+  ];
+  const COMP = [0, 3, 5], SHAKE = [1, .4, .7, .4, 1, .4, .7, .5];
+  const midiHz = n => 440 * Math.pow(2, (n - 69) / 12);
+  function startMuzak() {
+    if (!audioContext || !analyser || muted) return null;
+    const out = audioContext.createGain(); out.gain.value = 1.6; out.connect(analyser);
+    const m = { out, next: audioContext.currentTime + .2, step: 0, timer: 0 };
+    const note = (type, freq, at, dur, level, vibrato = 0) => {
+      const o = audioContext.createOscillator(), g = audioContext.createGain(); o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(level, at + .015); g.gain.exponentialRampToValueAtTime(level * .35, at + dur * .5); g.gain.exponentialRampToValueAtTime(.0005, at + dur);
+      if (vibrato) { const lfo = audioContext.createOscillator(), depth = audioContext.createGain(); lfo.frequency.value = 5.2; depth.gain.value = level * vibrato; lfo.connect(depth); depth.connect(g.gain); lfo.start(at); lfo.stop(at + dur); }
+      o.connect(g); g.connect(out); o.start(at); o.stop(at + dur + .05);
+    };
+    const shaker = (at, level) => {
+      const len = Math.floor(audioContext.sampleRate * .05), buf = audioContext.createBuffer(1, len, audioContext.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      const src = audioContext.createBufferSource(), f = audioContext.createBiquadFilter(), g = audioContext.createGain();
+      src.buffer = buf; f.type = 'highpass'; f.frequency.value = 6000; g.gain.value = .05 * level; src.connect(f); f.connect(g); g.connect(out); src.start(at);
+    };
+    const schedule = () => {
+      while (m.next < audioContext.currentTime + .4) {
+        const bar = MUZAK_BARS[Math.floor(m.step / 8) % MUZAK_BARS.length], slot = m.step % 8, at = m.next;
+        if (COMP.includes(slot)) for (const n of bar.chord) { note('sine', midiHz(n), at, EIGHTH * 2.4, .028); note('triangle', midiHz(n + 12), at, EIGHTH * 1.2, .008); }
+        if (slot === 0 || slot === 4) note('triangle', midiHz(bar.bass[0]), at, EIGHTH * 2.8, .12);
+        if (slot === 3 || slot === 7) note('triangle', midiHz(bar.bass[1]), at, EIGHTH * 1.2, .09);
+        for (const [s, n, len] of bar.melody) if (s === slot) note('sine', midiHz(n), at, EIGHTH * len * 1.1, .05, .35);
+        shaker(at, SHAKE[slot]);
+        m.next += EIGHTH; m.step++;
+      }
+    };
+    schedule(); m.timer = setInterval(schedule, 120);
+    return m;
+  }
+  function stopMuzak() {
+    const m = dj && dj.muzak; if (!m) return;
+    clearInterval(m.timer); dj.muzak = null;
+    try { m.out.gain.setTargetAtTime(0, audioContext.currentTime, .05); setTimeout(() => m.out.disconnect(), 600); } catch { /* gone */ }
+  }
+  function playScratch() {
+    if (!audioContext || muted) return;
+    withBus(sfxBus, () => { playNoiseBurst(.18, .25, 4000, 600); playToneSweep(300, 1400, .09, 'sawtooth', .05); setTimeout(() => playToneSweep(1300, 250, .12, 'sawtooth', .05), 100); });
+  }
+
+  // ---- Drawing.
+  function djStage() {
+    if (!dj || !dj.shown) return { x: 0, y: 0, w: W, h: H };
+    return W >= H ? { x: 0, y: 0, w: W - Math.min(380, W * .4), h: H } : { x: 0, y: 0, w: W, h: H * .52 };
+  }
+  function renderDJ() {
+    const t = time - dj.at;
+    ctx.save();
+    if (shakeAmount() > .03) ctx.translate(Math.sin(time * 121) * shakeAmount() * 8, Math.cos(time * 93) * shakeAmount() * 6);
+    if (t < DJ.burst) drawElevator(t); else drawClub(t);
+    for (const b of dj.booms) {
+      const k = (time - b.at) / .9, x = b.x * W, y = b.y * H, r = Math.min(W, H) * b.size * (.4 + k);
+      ctx.globalAlpha = 1 - k; const g = ctx.createRadialGradient(x, y, 1, x, y, r); g.addColorStop(0, '#fff6c8'); g.addColorStop(.4, '#ff9b2e'); g.addColorStop(1, '#ff2b2b00');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+    }
+    for (const d of dj.discs) drawVinyl(d.x * W, d.y * H, Math.min(W, H) * .045, (time - d.at) * d.spin);
+    if (flashAmount(screenFlash) > .015) { ctx.fillStyle = `rgba(255,255,255,${flashAmount(screenFlash) * .85})`; ctx.fillRect(-20, -20, W + 40, H + 40); }
+    ctx.restore();
+  }
+  function drawVinyl(x, y, r, spin) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(spin);
+    ctx.fillStyle = '#0d0d12'; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#2a2a36'; ctx.lineWidth = Math.max(1, r * .03); for (let i = 1; i < 5; i++) { ctx.beginPath(); ctx.arc(0, 0, r * (.45 + i * .12), 0, TAU); ctx.stroke(); }
+    ctx.fillStyle = '#ff2b6a'; ctx.beginPath(); ctx.arc(0, 0, r * .32, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, r * .05, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#ffffff55'; ctx.lineWidth = Math.max(1, r * .08); ctx.beginPath(); ctx.arc(0, 0, r * .75, -.6, .1); ctx.stroke();
+    ctx.restore();
+  }
+  // A racer with little legs, waddling from side to side; `blush` turns it red with embarrassment.
+  function drawWalker(x, y, size, walking, look, blush = 0) {
+    const step = walking ? Math.sin(time * 12) : 0, m = machines[shipIndex];
+    ctx.save(); ctx.translate(x, y); ctx.rotate(step * .16);
+    drawShip(0, 0, size, m.color, m.dark, look * .3, true, false, true);
+    for (const side of [-1, 1]) {
+      const lift = walking ? Math.max(0, Math.sin(time * 12 + (side > 0 ? Math.PI : 0))) * size * .1 : 0;
+      line(side * size * .16, size * .22, side * size * .2, size * .56 - lift, '#c9d2e3', size * .05);
+      line(side * size * .2, size * .56 - lift, side * size * .2 + (look || side) * size * .1, size * .56 - lift, '#e8edf5', size * .07);
+    }
+    if (blush > 0) {
+      ctx.globalAlpha = blush * .55; const g = ctx.createRadialGradient(0, -size * .05, 1, 0, -size * .05, size * .6); g.addColorStop(0, '#ff2040'); g.addColorStop(1, '#ff204000');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, -size * .05, size * .6, 0, TAU); ctx.fill(); ctx.globalAlpha = blush;
+      for (const side of [-1, 1]) { ctx.fillStyle = '#ff6f8f'; ctx.beginPath(); ctx.ellipse(side * size * .2, -size * .02, size * .09, size * .05, 0, 0, TAU); ctx.fill(); for (let k = 0; k < 3; k++) line(side * size * (.14 + k * .05), -size * .1, side * size * (.11 + k * .05), -size * .0, '#c0103a', Math.max(1, size * .015)); }
+      ctx.fillStyle = '#9fe6ff'; ctx.beginPath(); ctx.ellipse(size * .3, -size * .35 + Math.sin(time * 3) * size * .03, size * .04, size * .07, 0, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+  function drawPinkRacer(x, y, size, walking, wink) {
+    const step = walking ? Math.sin(time * 12 + 1) : 0;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(step * .16);
+    drawShip(0, 0, size, '#ff7ad9', '#7a1f5c', 0, false, false, true);
+    for (const side of [-1, 1]) {
+      const lift = walking ? Math.max(0, Math.sin(time * 12 + (side > 0 ? Math.PI : 0) + 1)) * size * .1 : 0;
+      line(side * size * .16, size * .22, side * size * .2, size * .56 - lift, '#ffd0ef', size * .05);
+      line(side * size * .2, size * .56 - lift, side * size * .28, size * .56 - lift, '#ff2fa8', size * .08);
+    }
+    // A bow on top and long lashes.
+    polygon([[0, -size * .42], [-size * .16, -size * .52], [-size * .16, -size * .32]], '#ff2fa8'); polygon([[0, -size * .42], [size * .16, -size * .52], [size * .16, -size * .32]], '#ff2fa8');
+    ctx.fillStyle = '#ffe0f4'; ctx.beginPath(); ctx.arc(0, -size * .42, size * .04, 0, TAU); ctx.fill();
+    if (wink) for (const side of [-1, 1]) line(side * size * .06, -size * .2, side * size * .14, -size * .24, '#2a0a20', Math.max(1, size * .02));
+    ctx.restore();
+  }
+  function drawHeart(x, y, s, color) {
+    ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x, y + s * .35);
+    ctx.bezierCurveTo(x - s * .9, y - s * .3, x - s * .35, y - s * .9, x, y - s * .35); ctx.bezierCurveTo(x + s * .35, y - s * .9, x + s * .9, y - s * .3, x, y + s * .35); ctx.fill();
+  }
+  function drawBubble(x, y, text, color) {
+    const fs = Math.max(13, Math.min(24, W * .028));
+    ctx.font = `700 ${fs}px 'Barlow Condensed', sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const label = tr(text), w = ((ctx.measureText(label) || {}).width || label.length * fs * .55) + fs * 1.4, h = fs * 2;
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = color; ctx.lineWidth = 3;
+    ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x - w / 2, y - h, w, h, h / 2); else ctx.rect(x - w / 2, y - h, w, h); ctx.fill(); ctx.stroke();
+    polygon([[x - fs * .3, y - 1], [x + fs * .3, y - 1], [x, y + fs * .6]], '#ffffff');
+    ctx.fillStyle = '#2a0a20'; ctx.fillText(text, x, y - h / 2);
+  }
+  function drawElevator(t) {
+    // Shaft: brick wall and floor slabs that scroll past while the cabin rides.
+    const ride = clamp((t - DJ.ride1) / (DJ.open2 - DJ.ride1), 0, 1) + clamp((t - DJ.ride2) / (DJ.burst - DJ.ride2), 0, 1);
+    const ease = x => x * x * (3 - 2 * x), scroll = (ease(Math.min(1, ride)) + ease(Math.max(0, ride - 1))) * H * 1.2;
+    ctx.fillStyle = '#16121f'; ctx.fillRect(-20, -20, W + 40, H + 40);
+    ctx.fillStyle = '#211a2e';
+    for (let y = -40 + (scroll % 40); y < H + 40; y += 40) for (let x = ((y / 40) % 2) * 40 - 40; x < W + 80; x += 80) ctx.fillRect(x + 2, y + 2, 76, 36);
+    for (let k = -1; k < 3; k++) { const y = mod(H * .9 + scroll, H * 1.2) - H * .2 + k * H * 1.2; ctx.fillStyle = '#3a3050'; ctx.fillRect(0, y, W, 14); }
+    // Cabin slides up into view, then waits.
+    const ch = Math.min(H * .8, W * .95), cw = ch * .78, cx = W / 2, slide = 1 - ease(clamp(t / DJ.open1, 0, 1)), top = Math.max(H * .14, (H - ch) / 2) + slide * H * 1.1;
+    const doors = Math.max(ease(clamp((t - DJ.open1) / .6, 0, 1)) * (1 - ease(clamp((t - DJ.close1) / .6, 0, 1))), ease(clamp((t - DJ.open2) / .6, 0, 1)) * (1 - ease(clamp((t - DJ.close2) / .6, 0, 1))));
+    const left = cx - cw / 2, floorY = top + ch * .9;
+    // Interior: warm wood panels, a checkered floor, a handrail and the button panel.
+    const wood = ctx.createLinearGradient(left, top, left + cw, top); wood.addColorStop(0, '#5a3a22'); wood.addColorStop(.5, '#8a5a32'); wood.addColorStop(1, '#5a3a22');
+    ctx.fillStyle = wood; ctx.fillRect(left, top, cw, ch);
+    for (let i = 1; i < 5; i++) line(left + cw * i / 5, top + ch * .05, left + cw * i / 5, floorY, '#4a2e1a', 2);
+    for (let i = 0; i < 8; i++) { ctx.fillStyle = i % 2 ? '#d8d0c0' : '#2a2a2a'; ctx.fillRect(left + cw * i / 8, floorY, cw / 8, ch * .1); }
+    line(left + cw * .05, top + ch * .55, left + cw * .95, top + ch * .55, '#d9c48a', Math.max(2, ch * .015));
+    ctx.fillStyle = '#9aa3b5'; ctx.fillRect(left + cw * .82, top + ch * .3, cw * .1, ch * .2);
+    for (let i = 0; i < 6; i++) { ctx.fillStyle = i === Math.min(5, Math.floor(ride * 2.5)) ? '#ffd24a' : '#40465a'; ctx.beginPath(); ctx.arc(left + cw * (.85 + (i % 2) * .04), top + ch * (.33 + Math.floor(i / 2) * .055), ch * .012, 0, TAU); ctx.fill(); }
+    // The racers inside.
+    const size = Math.min(cw * .24, 120), standY = floorY - size * .58;
+    const walkIn = clamp((t - DJ.walkIn) / (DJ.close1 - DJ.walkIn - .2), 0, 1), heroX = lerp(W + size, cx + cw * .14, walkIn);
+    const pinkIn = clamp((t - DJ.pinkIn) / (DJ.flirt - DJ.pinkIn), 0, 1), pinkOut = clamp((t - DJ.pinkOut) / (DJ.close2 - DJ.pinkOut), 0, 1);
+    const pinkX = t < DJ.pinkOut ? lerp(-size, cx - cw * .2, pinkIn) : lerp(cx - cw * .2, -size * 1.5, pinkOut), pinkHere = t > DJ.pinkIn && pinkOut < 1;
+    const blush = t > DJ.flirt + .8 ? Math.min(1, (t - DJ.flirt - .8) * 1.5) * (t < DJ.ride2 + .6 ? 1 : Math.max(0, 1 - (t - DJ.ride2 - .6))) : 0;
+    if (pinkHere) drawPinkRacer(pinkX, standY, size, (t < DJ.flirt) || t > DJ.pinkOut, t > DJ.flirt + .5 && t < DJ.pinkOut && Math.sin(time * 3) > .6);
+    const tapping = walkIn >= 1 && !pinkHere && Math.sin(time * 6) > 0;
+    drawWalker(heroX, standY - (tapping ? size * .02 : 0), size, walkIn > 0 && walkIn < 1, walkIn < 1 ? -1 : pinkHere ? -1 : 0, blush);
+    // Flirting: hearts float up, speech bubbles.
+    if (t > DJ.flirt && t < DJ.pinkOut + .4) for (let i = 0; i < 5; i++) { const k = mod((time - dj.at) * .6 + i / 5, 1); ctx.globalAlpha = 1 - k; drawHeart(pinkX + Math.sin(time * 2 + i) * size * .3, standY - size * (.4 + k * 1.2), size * .14, '#ff4fa8'); ctx.globalAlpha = 1; }
+    if (t > DJ.flirt && t < DJ.flirt + 2.6) drawBubble(pinkX, standY - size * .6, 'Oh hey, you here too?', '#ff4fa8');
+    if (t > DJ.pinkOut && t < DJ.pinkOut + 1.6) drawBubble(pinkX + size * .3, standY - size * .6, 'Toodle-oo!', '#ff4fa8');
+    // Glass doors in front, the frame and the floor display above.
+    for (const side of [-1, 1]) {
+      const w = cw / 2 * (1 - doors * .96), x = side < 0 ? left : left + cw - w;
+      ctx.fillStyle = 'rgba(150,220,255,.16)'; ctx.fillRect(x, top, w, ch);
+      ctx.strokeStyle = '#c9d2e3'; ctx.lineWidth = Math.max(2, cw * .012); ctx.strokeRect(x, top, w, ch);
+      line(x + w * .2, top + ch * .1, x + w * .5, top + ch * .4, 'rgba(255,255,255,.25)', Math.max(2, cw * .02));
+    }
+    ctx.strokeStyle = '#8e97a9'; ctx.lineWidth = Math.max(4, cw * .03); ctx.strokeRect(left - cw * .02, top - ch * .02, cw * 1.04, ch * 1.04);
+    const floorNo = 1 + Math.floor(ride * 3);
+    ctx.fillStyle = '#0b0a12'; ctx.fillRect(cx - cw * .14, top - ch * .11, cw * .28, ch * .08);
+    ctx.fillStyle = '#ff9b2e'; ctx.font = `700 ${Math.round(ch * .055)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(`${(t > DJ.ride1 && t < DJ.open2) || (t > DJ.ride2) ? '▲' : '•'} ${floorNo}`, cx, top - ch * .07);
+    // Something is coming… the doors bulge just before DJ MoFo kicks them in.
+    if (t > DJ.burst - .7) { ctx.fillStyle = `rgba(255,60,60,${(t - DJ.burst + .7) * .5})`; ctx.fillRect(left, top, cw, ch); }
+  }
+  function drawClub(t) {
+    const S = djStage(), cx = S.x + S.w / 2, k = clamp((t - DJ.burst) / (DJ.club - DJ.burst), 0, 1), big = Math.min(S.w, S.h), pulse = beat;
+    ctx.fillStyle = '#0c0618'; ctx.fillRect(-20, -20, W + 40, H + 40);
+    // Back wall with the poster, lit by a spot.
+    const spot = ctx.createRadialGradient(cx, S.h * .3, 1, cx, S.h * .3, big * .55); spot.addColorStop(0, '#3a1f5c'); spot.addColorStop(1, '#0c061800');
+    ctx.fillStyle = spot; ctx.fillRect(S.x, 0, S.w, S.h);
+    const ps = Math.min(S.w * .32, S.h * .5), px = S.x + S.w * .05, py = S.h * .12, pcx = px + ps / 2;
+    ctx.save(); ctx.translate(pcx, py + ps / 2); ctx.rotate(-.04); ctx.translate(-pcx, -(py + ps / 2));
+    ctx.fillStyle = '#000'; ctx.fillRect(px - 6, py - 6, ps + 12, ps + 12);
+    if (posterImage && posterImage.complete && posterImage.naturalWidth) ctx.drawImage(posterImage, px, py, ps, ps);
+    else { ctx.fillStyle = '#1a1020'; ctx.fillRect(px, py, ps, ps); ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(ps * .09)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.fillText('8-BIT FINGERS', pcx, py + ps * .2); }
+    ctx.fillStyle = '#e8e2c8cc'; for (const [x, y] of [[px, py], [px + ps, py]]) { ctx.save(); ctx.translate(x, y); ctx.rotate(x === px ? -.6 : .6); ctx.fillRect(-ps * .08, -ps * .025, ps * .16, ps * .05); ctx.restore(); }
+    ctx.restore();
+    // Disco ball and sweeping light beams.
+    const ballR = big * .065, ballX = cx + S.w * .12, ballY = ballR + 14;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 2 + Math.sin(time * (.7 + i * .13) + i) * 1.1, len = big * 1.3, hue = (i * 60 + time * 40) % 360;
+      ctx.fillStyle = `hsla(${hue},100%,60%,${.12 + pulse * .2})`; ctx.beginPath(); ctx.moveTo(ballX, ballY);
+      ctx.lineTo(ballX + Math.cos(a - .08) * len, ballY + Math.sin(a - .08) * len); ctx.lineTo(ballX + Math.cos(a + .08) * len, ballY + Math.sin(a + .08) * len); ctx.fill();
+    }
+    ctx.restore();
+    line(ballX, 0, ballX, ballY - ballR, '#8e97a9', 2);
+    ctx.save(); ctx.beginPath(); ctx.arc(ballX, ballY, ballR, 0, TAU); ctx.clip();
+    for (let y = -ballR; y < ballR; y += ballR / 4) for (let x = -ballR; x < ballR; x += ballR / 4) { const lit = Math.sin(time * 4 + x * 3 + y * 5) > .4; ctx.fillStyle = lit ? '#ffffff' : (x + y) % 2 ? '#9aa3b5' : '#5d6474'; ctx.fillRect(ballX + x + mod(time * 30, ballR / 4) - ballR / 4, ballY + y, ballR / 4 - 1, ballR / 4 - 1); }
+    ctx.restore();
+    for (let i = 0; i < 10; i++) { const a = random(i) * TAU + time * .4, r = big * (.2 + random(i + 3) * .5), x = ballX + Math.cos(a) * r, y = ballY + Math.abs(Math.sin(a)) * r * 1.2; if (Math.sin(time * 6 + i) > .3) { line(x - 4, y, x + 4, y, '#ffffff', 2); line(x, y - 4, x, y + 4, '#ffffff', 2); } }
+    // Dance floor tiles flashing to the beat.
+    const floorTop = S.h * .78, tile = S.w / 10;
+    for (let i = 0; i < 10; i++) for (let j = 0; j < 3; j++) { const on = Math.sin(time * 5 + i * 1.7 + j * 2.3 + pulse * 6) > 0; ctx.fillStyle = on ? `hsl(${(i * 36 + j * 50 + time * 60) % 360},90%,${45 + pulse * 25}%)` : '#1c1030'; ctx.fillRect(S.x + i * tile + 1, floorTop + j * (S.h - floorTop) / 3 + 1, tile - 2, (S.h - floorTop) / 3 - 2); }
+    // DJ booth: two decks, DJ MoFo with headphones behind them.
+    const boothW = big * .62, boothH = big * .14, bx = cx - boothW / 2, by = floorTop - boothH;
+    const mofoSize = big * .42, bob = Math.sin(time * MUZAK_BPM / 60 * Math.PI) * big * .012 * (1 + pulse * 2);
+    const enter = 1 - Math.pow(1 - k, 3);
+    drawTerminatorCat(cx, by - mofoSize * .18 + bob + (1 - enter) * S.h * .6, mofoSize, false, { kind: 0, d: null, scaredUntil: 0 }, big * .04);
+    // Headphones and shades.
+    const hy = by - mofoSize * .18 + bob + (1 - enter) * S.h * .6;
+    ctx.strokeStyle = '#1b1e28'; ctx.lineWidth = Math.max(3, mofoSize * .04); ctx.beginPath(); ctx.arc(cx, hy - mofoSize * .05, mofoSize * .44, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+    for (const side of [-1, 1]) { ctx.fillStyle = '#ff2b6a'; ctx.beginPath(); ctx.ellipse(cx + side * mofoSize * .42, hy - mofoSize * .02, mofoSize * .07, mofoSize * .11, 0, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = '#0b0a12'; ctx.fillRect(cx - mofoSize * .26, hy - mofoSize * .14, mofoSize * .52, mofoSize * .1);
+    ctx.fillStyle = '#ff1a1a'; ctx.fillRect(cx - mofoSize * .2, hy - mofoSize * .11, mofoSize * .1, mofoSize * .03);
+    ctx.fillStyle = '#1b1e28'; ctx.fillRect(bx, by, boothW, boothH); ctx.strokeStyle = '#ff46bc'; ctx.lineWidth = 2; ctx.strokeRect(bx, by, boothW, boothH);
+    ctx.fillStyle = '#ff46bc'; ctx.font = `900 ${Math.round(boothH * .32)}px 'Barlow Condensed', sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('DJ MOFO', cx, by + boothH * .62);
+    for (const side of [-1, 1]) {
+      const dx = cx + side * boothW * .32, dy = by + boothH * .15, rr = boothH * .55;
+      ctx.fillStyle = '#2b3040'; ctx.beginPath(); ctx.ellipse(dx, dy, rr * 1.15, rr * .45, 0, 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(dx, dy); ctx.scale(1, .4); drawVinyl(0, 0, rr, time * 6 * side); ctx.restore();
+    }
+    // The record for the chosen song flies from the crate onto the left deck.
+    if (dj.record && time - dj.record.at < .7) {
+      const q = (time - dj.record.at) / .7, fx = lerp(bx - boothW * .2, cx - boothW * .32, q), fy = lerp(by - big * .3, by + boothH * .15, q) - Math.sin(q * Math.PI) * big * .15;
+      drawVinyl(fx, fy, boothH * .55, q * 12);
+    }
+    // Our racer dancing on the floor.
+    const m = machines[shipIndex], dance = Math.sin(time * MUZAK_BPM / 60 * Math.PI);
+    drawShip(S.x + S.w * .82, floorTop + (S.h - floorTop) * .35 - Math.abs(dance) * big * .03, big * .16, m.color, m.dark, dance * .6, true, false, true, dance * .2);
   }
   // ==== Start-up.
   // Lets the update job wait until no race is in progress.

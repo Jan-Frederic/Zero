@@ -5,7 +5,7 @@ const fs = require('fs'), path = require('path');
 const esbuild = require('esbuild');
 const root = path.join(__dirname, '..'), out = path.join(root, '_site');
 const FILES = ['index.html', 'sw.js', 'manifest.webmanifest', 'og-image.jpg', 'CHANGELOG.md', '.nojekyll'];
-const DIRS = ['icons', 'voice', 'fonts'];
+const DIRS = ['icons', 'voice', 'fonts', 'images'];
 const MINIFY = ['game.js', 'pwa.js', 'style.css', 'effects.css'];
 
 fs.rmSync(out, { recursive: true, force: true }); fs.mkdirSync(out);

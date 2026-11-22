@@ -95,7 +95,7 @@
     try {
       const video = canvas.captureStream(30), tracks = [...video.getVideoTracks()];
       if (audioContext && audioContext.createMediaStreamDestination) {
-        if (!clipDest) { clipDest = audioContext.createMediaStreamDestination(); musicGain.connect(clipDest); sfxBus.connect(clipDest); }
+        if (!clipDest) { clipDest = audioContext.createMediaStreamDestination(); musicGain.connect(clipDest); for (const bus of [sfxBus, boomBus, engineBus, voiceBus]) if (bus) bus.connect(clipDest); }
         tracks.push(...clipDest.stream.getAudioTracks());
       }
       const stream = typeof MediaStream === 'function' ? new MediaStream(tracks) : video;
