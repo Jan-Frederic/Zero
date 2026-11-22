@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.26.0](https://github.com/Jan-Frederic/Zero/compare/v1.25.0...v1.26.0) (2026-11-22)
+
+
+### Features
+
+* **music:** five more Morbid Fingers songs, titles without the parentheses ([64f6722](https://github.com/Jan-Frederic/Zero/commit/64f67220fc01a91aedde6ec84c91935651c5bc67))
+
 # [1.25.0](https://github.com/Jan-Frederic/Zero/compare/v1.24.0...v1.25.0) (2026-11-22)
 
 
