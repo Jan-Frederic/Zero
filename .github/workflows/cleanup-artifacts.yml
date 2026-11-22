@@ -1,0 +1,28 @@
+name: Clean up old artifacts
+
+# Actions storage on this plan is 0.5 GB. Once a week (and on demand from the Actions tab) this deletes every
+# artifact older than a day: deployed site bundles and the screenshots/reports kept after a failed check.
+on:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo, cutoff = Date.now() - 24 * 3600 * 1000;
+            const all = await github.paginate(github.rest.actions.listArtifactsForRepo, { owner, repo, per_page: 100 });
+            const old = all.filter(a => !a.expired && new Date(a.created_at).getTime() < cutoff);
+            let freed = 0;
+            for (const a of old) {
+              await github.rest.actions.deleteArtifact({ owner, repo, artifact_id: a.id });
+              freed += a.size_in_bytes;
+            }
+            core.info(`${all.length} artifacts found, ${old.length} older than a day deleted (${(freed / 1e6).toFixed(1)} MB freed)`);
