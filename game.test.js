@@ -1084,17 +1084,17 @@ test('a cat leaps at the screen and poofs the ship back', () => {
   step(1); assert.equal(sandbox.__chaos().leaps, 0, 'the leap is over'); assert.ok(inspect().distance > before - 3000);
 });
 
-test('the fourth cat opens a black hole that drops the pilot into the maze; clearing it starts the invasion', () => {
+test('the fifth cat opens a black hole that drops the pilot into the maze; clearing it starts the invasion', () => {
   const { step, key, inspect, sandbox, disableAirRaid, eliminateRivals, element: el } = harness({ profile: { unlocked: 8, tutorialDone: true } });
   el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid(); eliminateRivals(); step(1);
-  for (let i = 0; i < 3; i++) { sandbox.__catPoof(); step(.6); }
+  for (let i = 0; i < 4; i++) { sandbox.__catPoof(); step(.6); }
   assert.equal(inspect().mode, 'racing'); assert.equal(inspect().callout, '⚠ ONE MORE CAT = BLACK HOLE');
   sandbox.__catPoof(); step(.1);
   assert.equal(inspect().mode, 'blackhole'); assert.equal(el('body').classList.contains('blackhole'), true);
   step(4.6);
   assert.equal(inspect().mode, 'maze');
   const m = sandbox.__chaos().maze;
-  assert.ok(m.total > 80, 'a maze full of fruit'); assert.equal(m.reachable, true, 'every fruit can be reached'); assert.equal(m.hearts, 3);
+  assert.ok(m.total > 80, 'a maze full of fruit'); assert.equal(m.reachable, true, 'every fruit can be reached'); assert.equal(m.hearts, 5, 'five hearts');
   // Steering eats fruit.
   key('ArrowUp', 'keyup'); step(2.3); key('ArrowUp'); step(.6);
   assert.ok(sandbox.__chaos().maze.eaten >= 2, 'fruit eaten on the way');
@@ -1110,12 +1110,12 @@ test('the fourth cat opens a black hole that drops the pilot into the maze; clea
   assert.equal(sandbox.localStorage.getItem('morbid-errors-v1'), undefined, 'no frame errors on the way');
 });
 
-test('terminator cats catching the pilot three times ends the run', () => {
+test('terminator cats catching the pilot five times ends the run', () => {
   const { step, key, inspect, sandbox, disableAirRaid, eliminateRivals, element: el } = harness({ profile: { unlocked: 8, tutorialDone: true } });
   el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid(); eliminateRivals();
-  for (let i = 0; i < 4; i++) sandbox.__catPoof();
+  for (let i = 0; i < 5; i++) sandbox.__catPoof();
   step(4.6); assert.equal(inspect().mode, 'maze');
-  for (let i = 0; i < 3; i++) { sandbox.__mazeCatch(); step(.1); }
+  for (let i = 0; i < 5; i++) { sandbox.__mazeCatch(); step(.1); }
   assert.equal(sandbox.__chaos().maze.hearts, 0);
   step(2.2);
   assert.equal(inspect().mode, 'finished');
@@ -1127,7 +1127,7 @@ test('no black hole outside the grand prix', () => {
   const { step, key, inspect, sandbox, element: el } = harness({ profile: { unlocked: 8, tutorialDone: true } });
   sandbox.morbidSettings.set('gameMode', 'trial');
   el('start').fire('click'); key('ArrowUp'); step(3.05);
-  for (let i = 0; i < 5; i++) { sandbox.__catPoof(); step(.3); }
+  for (let i = 0; i < 6; i++) { sandbox.__catPoof(); step(.3); }
   assert.equal(inspect().mode, 'racing');
 });
 
@@ -1155,13 +1155,13 @@ test('every German announcer line has a rendered clip', () => {
   const lines = require('node:child_process').execFileSync(process.execPath, ['tools/voice-de.js'], { encoding: 'utf8' }).trim().split('\n');
   assert.ok(lines.length >= 30);
   for (const clip of lines) for (const ext of ['mp3', 'webm']) assert.ok(fs.existsSync(`voice/de/${clip}.${ext}`), `voice/de/${clip}.${ext}`);
-  for (const clip of ['black-hole', 'terminator-cats']) assert.ok(fs.existsSync(`voice/${clip}.mp3`));
+  for (const clip of ['black-hole']) assert.ok(fs.existsSync(`voice/${clip}.mp3`));
 });
 
 test('a super candy lets the pilot eat the terminator cats; they respawn later and the candy wears off', () => {
   const { step, key, inspect, sandbox, disableAirRaid, eliminateRivals, element: el } = harness({ profile: { unlocked: 8, tutorialDone: true } });
   el('start').fire('click'); key('ArrowUp'); step(3.05); disableAirRaid(); eliminateRivals();
-  for (let i = 0; i < 4; i++) sandbox.__catPoof();
+  for (let i = 0; i < 5; i++) sandbox.__catPoof();
   step(4.6); assert.equal(inspect().mode, 'maze');
   assert.equal(sandbox.__chaos().maze.candies, 4, 'four super candies in the corners');
   step(2.5);
@@ -1169,11 +1169,11 @@ test('a super candy lets the pilot eat the terminator cats; they respawn later a
   assert.equal(sandbox.__chaos().maze.scared, 3, 'every cat turns scared');
   sandbox.__mazeCatch(); step(.1);
   let m = sandbox.__chaos().maze;
-  assert.equal(m.hearts, 3, 'touching a scared cat does not cost a heart'); assert.equal(m.gone, 1, 'the cat is eaten');
+  assert.equal(m.hearts, 5, 'touching a scared cat does not cost a heart'); assert.equal(m.gone, 1, 'the cat is eaten');
   assert.equal(inspect().callout, 'CAT CRUNCHED!');
   step(8.2);
   m = sandbox.__chaos().maze;
   assert.equal(m.scared, 0, 'the candy wears off'); assert.equal(m.gone, 0, 'the eaten cat is back in its den');
   sandbox.__mazeCatch(); step(.1);
-  assert.equal(sandbox.__chaos().maze.hearts, 2, 'normal cats catch again');
+  assert.equal(sandbox.__chaos().maze.hearts, 4, 'normal cats catch again');
 });

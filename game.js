@@ -770,7 +770,7 @@
     ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
     ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
     ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
-  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', 'terminator-cats', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
   // German announcer: voice/de/<clip> is rendered from these lines by tools/make-voice.sh (which reads this table).
   // Clips without a German line (the wordless boss screams) use the English file in both languages.
   const VOICE_DE = {
@@ -782,7 +782,7 @@
     'hyperdrive-initiated': 'Hyperantrieb aktiviert!', 'first-place': 'Erster Platz. Makelloser Sieg!', 'mothership-warning': 'Warnung! Mutterschiff im Anflug!',
     'mothership-down': 'Mutterschiff zerstört. Du bist eine Legende!', 'invasion-incoming': 'Warnung! Invasion im Anmarsch!', 'congratulations': 'Herzlichen Glückwunsch, Erdling!',
     'next-boss': 'Warnung! Nächster Boss im Anflug!', 'scream-robot': 'Fehler. Fehler. Systemausfall. Abschaaaltung',
-    'black-hole': 'Warnung! Schwarzes Loch! Alles wird eingesogen!', 'terminator-cats': 'Terminator-Katzen aktiviert. Friss alle Früchte und lauf!',
+    'black-hole': 'Uiuiui! Krasses Schwarzes Loch. Terminator-Katzen greifen an!!!',
     'taunt-vex': 'Hier ist Vex. Du gehst unter, Anfänger!', 'down-vex': 'Unmöglich! Vex ist raus!',
     'taunt-kronos': 'Kronos beherrscht diese Strecke!', 'down-kronos': 'Kronos wird zurückkehren!',
     'taunt-null9': 'Null Neun. Ziel erfasst.', 'down-null9': 'Null Neun. Offline.',
@@ -4435,9 +4435,9 @@
     const ext = /mp4/.test(clipBlob.type) ? 'mp4' : 'webm';
     shareFile(clipBlob, `morbid-racers-finish.${ext}`, `My finish in Morbid Racers 🏁 ${tracks[trackIndex].name}`, 'https://jan-frederic.github.io/Zero/').then(ok => { if (ok) unlockAchievement('share'); });
   });
-  // ==== Cat chaos: cats leap at the screen and poof the ship back; the 4th cat opens a black hole that swallows the
+  // ==== Cat chaos: cats leap at the screen and poof the ship back; the 5th cat opens a black hole that swallows the
   // race, and inside it waits a maze full of fruit guarded by terminator cats. Eat every fruit to face the invasion.
-  const CAT_KNOCK = 1500, CAT_HOLE_AT = 4, CAT_LEAP_TIME = .95, HOLE_PULL = 3.2, HOLE_SWALLOW = 1.3;
+  const CAT_KNOCK = 1500, CAT_HOLE_AT = 5, CAT_LEAP_TIME = .95, HOLE_PULL = 3.2, HOLE_SWALLOW = 1.3;
   let catPoofs = 0, catKnock = 0, catLeaps = [], blackHole = null, maze = null;
   function resetCatChaos() {
     catPoofs = 0; catKnock = 0; catLeaps = []; blackHole = null; maze = null;
@@ -4516,7 +4516,7 @@
     boss = null; bossAttacks = []; hyperTime = 0; document.body.classList.remove('boss', 'hyper', 'boosting', 'critical', 'hinting'); document.body.classList.add('blackhole');
     const kinds = ['ship', 'ufo', 'cat', 'rock'], colors = ['#ff46bc', '#ffda46', '#9d6aff', '#3dffa6', '#66aaff', '#ff774b'];
     blackHole = { at: time, buf: null, debris: Array.from({ length: 34 }, (_, i) => ({ kind: kinds[i % 4], a: random(i * 3 + time) * TAU, r: .45 + random(i * 7 + time) * .6, delay: random(i * 11 + time) * 1.6, s: 10 + random(i * 5) * 16, color: colors[i % colors.length], spin: (random(i) - .5) * 12 })) };
-    showCallout('⚠ BLACK HOLE ⚠', '#ff9b2e'); robotSay('Warning! Black hole! Everything is being sucked in!', 'black-hole');
+    showCallout('⚠ BLACK HOLE ⚠', '#ff9b2e'); robotSay('Whoa whoa whoa! Massive black hole. Terminator cats attack!', 'black-hole');
     playToneSweep(90, 18, 4.4, 'sawtooth', .14); playNoiseBurst(4.5, .2, 1600, 50); buzz([80, 60, 200, 80, 400]);
   }
   function updateBlackHole(dt) {
@@ -4599,7 +4599,7 @@
     '###############',
   ];
   const MAZE_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-  const MAZE_PLAYER_SPEED = 6.2, MAZE_CAT_SPEED = 3.5, MAZE_HEARTS = 3, MAZE_READY = 2.2, FRUIT_KINDS = 3;
+  const MAZE_PLAYER_SPEED = 6.2, MAZE_CAT_SPEED = 3, MAZE_HEARTS = 5, MAZE_READY = 2.2, FRUIT_KINDS = 3;
   const CANDY_TIME = 8, CAT_GONE_TIME = 6, SCARED_PACE = .55;
   function startMaze() {
     const rows = MAZE_MAP.length, cols = MAZE_MAP[0].length, wall = new Uint8Array(rows * cols), fruit = new Map(), candies = new Set(), cats = [];
@@ -4616,7 +4616,6 @@
     resetMazeActors(MAZE_READY);
     mode = 'maze'; blackHole = null; screenFlash = 1; keys.clear(); resetGesture();
     document.body.classList.remove('blackhole'); document.body.classList.add('maze');
-    robotSay('Terminator cats activated. Eat all the fruit and run!', 'terminator-cats');
   }
   function resetMazeActors(delay) {
     const z = maze; z.readyUntil = time + delay; z.invulnUntil = z.readyUntil + .8;
