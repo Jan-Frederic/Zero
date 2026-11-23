@@ -471,6 +471,7 @@
     if (mode === 'invasion' && finale) drawAlarm();
     if (blackHole && mode === 'blackhole') drawBlackHole(shipX, shipY, shipSize);
     if (catLeaps.length) drawCatLeaps();
+    if (sceneShatter) drawSceneShatter();
     // A light scanline texture ties the entire scene together.
     ctx.fillStyle = '#05051b12'; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
     ctx.restore();

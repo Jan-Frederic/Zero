@@ -77,6 +77,9 @@ say black-hole "Whoa whoa whoa! Massive black hole. Terminator cats attack!"
 say time-tunnel "Time warp! Your rivals are fruit now!"
 say pink-hi "Oh hey, you here too?" en-us+anikaRobot 75
 say pink-bye "Toodle-oo!" en-us+anikaRobot 75
+say wash-cold "Brrr! Cold!" en-us+UniversalRobot 55
+say wash-tickle "Hee hee! That tickles!" en-us+UniversalRobot 60
+say wash-turbo "Turbo wax activated." en-us+Mr_Serious 8
 say dj-mofi "Yo yo yo! D J Mo Fi in the house! Party!" en-us+Mr_Serious 8
 fi
 
@@ -89,6 +92,7 @@ for slug in alien-killer fatality ufo-obliterated abduct-this invasion-cancelled
   invasion-incoming next-boss black-hole time-tunnel; do de "$slug"; done
 de hyperdrive-initiated anikaRobot 62
 de pink-hi anikaRobot 75; de pink-bye anikaRobot 75
+de wash-cold UniversalRobot 55; de wash-tickle UniversalRobot 60; de wash-turbo Mr_Serious 8
 de dj-mofi Mr_Serious 8
 say_alien congratulations "$(node tools/voice-de.js congratulations)" de+croak
 scream scream-robot "$(node tools/voice-de.js scream-robot)" de+UniversalRobot 25 115 "aeval='val(0)*(0.45+0.55*sin(2*PI*70*t))':c=same,aresample=8000,acrusher=bits=5:mode=lin:mix=0.9,aresample=22050,aecho=0.85:0.5:15|30:0.5|0.3"

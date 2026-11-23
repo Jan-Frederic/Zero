@@ -6,7 +6,7 @@
     ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
     ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
     ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
-  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', 'time-tunnel', 'pink-hi', 'pink-bye', 'dj-mofi', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', 'time-tunnel', 'pink-hi', 'pink-bye', 'dj-mofi', 'wash-cold', 'wash-tickle', 'wash-turbo', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
   // German announcer: voice/de/<clip> is rendered from these lines by tools/make-voice.sh (which reads this table).
   // Clips without a German line (the wordless boss screams) use the English file in both languages.
   const VOICE_DE = {
@@ -18,7 +18,7 @@
     'hyperdrive-initiated': 'Hyperantrieb aktiviert!', 'first-place': 'Erster Platz. Makelloser Sieg!', 'mothership-warning': 'Warnung! Mutterschiff im Anflug!',
     'mothership-down': 'Mutterschiff zerstört. Du bist eine Legende!', 'invasion-incoming': 'Warnung! Invasion im Anmarsch!', 'congratulations': 'Herzlichen Glückwunsch, Erdling!',
     'next-boss': 'Warnung! Nächster Boss im Anflug!', 'scream-robot': 'Fehler. Fehler. Systemausfall. Abschaaaltung',
-    'black-hole': 'Uiuiui! Krasses Schwarzes Loch. Terminator-Katzen greifen an!!!', 'time-tunnel': 'Zeitsprung! Alle Gegner sind jetzt Früchte!', 'pink-hi': 'Na, auch hier?', 'pink-bye': 'Tschüsselchen!', 'dj-mofi': 'Ey yo! DJ MoFi ist am Start! Party!',
+    'black-hole': 'Uiuiui! Krasses Schwarzes Loch. Terminator-Katzen greifen an!!!', 'time-tunnel': 'Zeitsprung! Alle Gegner sind jetzt Früchte!', 'pink-hi': 'Na, auch hier?', 'pink-bye': 'Tschüsselchen!', 'wash-cold': 'Brrr! Kalt!', 'wash-tickle': 'Hihi! Das kitzelt!', 'wash-turbo': 'Turbo-Wachs aktiviert.', 'dj-mofi': 'Ey yo! DJ MoFi ist am Start! Party!',
     'taunt-vex': 'Hier ist Vex. Du gehst unter, Anfänger!', 'down-vex': 'Unmöglich! Vex ist raus!',
     'taunt-kronos': 'Kronos beherrscht diese Strecke!', 'down-kronos': 'Kronos wird zurückkehren!',
     'taunt-null9': 'Null Neun. Ziel erfasst.', 'down-null9': 'Null Neun. Offline.',

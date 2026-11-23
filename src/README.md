@@ -41,7 +41,7 @@ concatenated in file-name order rather than imported as ES modules.
 | `27-garage.js` | upgrade and paint shop |
 | `28-share.js` | share card |
 | `29-cat-chaos.js` | cats leaping at the screen, the black hole and the maze with the terminator cats |
-| `30-dj-mofi.js` | sound desk, pause-menu player, DJ MoFi's club with the jukebox, and the elevator intro before the first race |
+| `30-dj-mofi.js` | sound desk, pause-menu player, DJ MoFi's club with the jukebox, and the cutscenes before the first races (elevator, car wash) |
 | `31-init.js` | start-up |
 
 **Load order matters.** Function declarations are hoisted across all parts, but `const`/`let` values that are
