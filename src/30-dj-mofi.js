@@ -63,26 +63,35 @@
   // 2. Car wash: rinse (too cold), brushes (too ticklish), foam, then a terminator cat pulls the TURBO WAX lever.
   const ELEV = { open1: 1.4, walkIn: 2, close1: 4.4, ride1: 5, open2: 8.4, pinkIn: 9, flirt: 10.6, pinkOut: 13.8, close2: 15.4, ride2: 16, tension: 16.2, boom: 18.4 };
   const WASH = { rollIn: 1.2, rinse: 3.4, cold: 3.7, brushes: 5.8, tickle: 6.4, foam: 9.2, lever: 11.4, turbo: 11.6, tension: 12.6, boom: 15 };
+  /** @type {{ id: string, t: any, draw: (t: number) => void, music?: () => any, lines: any[], dings?: number[], sounds?: any[], update?: (t: number, dt: number, state: any) => void }[]} */
   const CUTSCENES = [
     { id: 'elevator', t: ELEV, draw: t => drawElevator(t), music: () => startMuzak(), lines: [[ELEV.flirt + .1, 'Oh hey, you here too?', 'pink-hi'], [ELEV.pinkOut + .1, 'Toodle-oo!', 'pink-bye']],
       dings: [ELEV.open1 - .2, ELEV.open2 - .2] },
     { id: 'wash', t: WASH, draw: t => drawCarWash(t), music: () => startMuzak(WASH_BARS, 152), lines: [[WASH.cold, 'Brrr! Cold!', 'wash-cold'], [WASH.tickle, 'Hihi! That tickles!', 'wash-tickle'], [WASH.turbo, 'Turbo wax activated.', 'wash-turbo']],
       dings: [WASH.rollIn - .2, WASH.lever - .2] },
   ];
-  const SCENES_KEY = 'morbid-scenes-v1', INTRO_KEY = 'morbid-intro-v1';
+  const SCENES_KEY = 'morbid-scenes-v1', INTRO_KEY = 'morbid-intro-v1', SCENE_LAST_KEY = 'morbid-scene-last';
   let intro = null, sceneShatter = null;
   // How many cutscenes this pilot has seen (the first version only remembered the elevator).
   function scenesSeen() {
     try { const n = Number(localStorage.getItem(SCENES_KEY)); return n || (localStorage.getItem(INTRO_KEY) === '1' ? 1 : 0); } catch { return CUTSCENES.length; }
   }
-  const nextCutscene = () => scenesSeen() < CUTSCENES.length ? scenesSeen() : -1;
+  // The scenes play in order first; after that a random one before every race (never the same twice in a row).
+  // They can be switched off in the settings (SCENES).
+  function nextCutscene() {
+    if (settings.cutscenes === false) return -1;
+    const seen = scenesSeen(); if (seen < CUTSCENES.length) return seen;
+    let last = -1; try { last = Number(localStorage.getItem(SCENE_LAST_KEY) ?? -1); } catch { /* no storage */ }
+    const pick = Math.floor(Math.random() * (CUTSCENES.length - 1));
+    return pick >= last && last >= 0 ? pick + 1 : pick;
+  }
   // One cutscene per race start: the race right after a cutscene starts without the next one.
   let cutsceneJustPlayed = false;
   function cutsceneDue() { if (cutsceneJustPlayed) { cutsceneJustPlayed = false; return false; } return nextCutscene() >= 0; }
   function startIntro(scene = Math.max(0, nextCutscene())) {
     unlockQuietly();
     const def = CUTSCENES[scene];
-    mode = 'intro'; intro = { scene, def, at: time, said: {}, muzak: def.music(), burst: null, hero: null, nextCrackle: 0 };
+    mode = 'intro'; intro = { scene, def, at: time, said: {}, muzak: def.music ? def.music() : null, burst: null, hero: null, nextCrackle: 0, state: {} };
     $('menu').classList.add('hidden'); document.body.classList.add('dj'); $('dj-skip').classList.remove('hidden');
   }
   function skipIntro() {
@@ -93,7 +102,7 @@
   function finishIntro() {
     const snap = finaleSnapshot(), scene = intro.scene;
     stopMuzak(intro); intro = null; megaBlasts = [];
-    try { localStorage.setItem(SCENES_KEY, String(Math.max(scenesSeen(), scene + 1))); localStorage.setItem(INTRO_KEY, '1'); } catch { /* private mode: it plays again next time */ }
+    try { localStorage.setItem(SCENES_KEY, String(Math.max(scenesSeen(), scene + 1))); localStorage.setItem(INTRO_KEY, '1'); localStorage.setItem(SCENE_LAST_KEY, String(scene)); } catch { /* private mode: it plays again next time */ }
     document.body.classList.remove('dj'); $('dj-skip').classList.add('hidden'); mode = 'menu';
     sceneShatter = snap ? { snap, shards: makeShards(), at: time } : null; cutsceneJustPlayed = true;
     playNoiseBurst(1.1, .3, 9000, 2400); playToneSweep(95, 24, 1.2, 'sawtooth', .14);
@@ -132,7 +141,9 @@
     const def = intro.def, T = def.t, t = time - intro.at, at = moment => t >= moment && t - dt < moment;
     def.lines.forEach(([moment, text, clip], i) => { if (t > moment && !intro.said[i]) { intro.said[i] = 1; robotSay(text, clip); } });
     // "Ding-dong".
-    for (const moment of def.dings) { if (at(moment)) soundEffect(1319, .7); if (at(moment + .22)) soundEffect(1047, .9); }
+    for (const moment of def.dings || []) { if (at(moment)) soundEffect(1319, .7); if (at(moment + .22)) soundEffect(1047, .9); }
+    for (const [moment, play] of def.sounds || []) if (at(moment)) play();
+    if (def.update && t < T.boom) def.update(t, dt, intro.state);
     // Under tension: crackling sparks, faster and faster, then the blast – the same one as a wreck in the race.
     if (t > T.tension && t < T.boom && time >= intro.nextCrackle) {
       const k = (t - T.tension) / (T.boom - T.tension); intro.nextCrackle = time + .22 - k * .17;

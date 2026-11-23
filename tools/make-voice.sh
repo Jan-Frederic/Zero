@@ -80,6 +80,19 @@ say pink-bye "Toodle-oo!" en-us+anikaRobot 75
 say wash-cold "Brrr! Cold!" en-us+UniversalRobot 55
 say wash-tickle "Hee hee! That tickles!" en-us+UniversalRobot 60
 say wash-turbo "Turbo wax activated." en-us+Mr_Serious 8
+say bday-sing "Happy birthday!" en-us+anikaRobot 75
+say bday-wish "Make a wish!" en-us+Mr_Serious 8
+say bday-trick "Trick candles?!" en-us+UniversalRobot 55
+say red-come-on "Come on... come on!" en-us+UniversalRobot 55
+say red-seriously "Seriously?!" en-us+UniversalRobot 55
+say hic-water "Hic! Water... hic!" en-us+UniversalRobot 55
+say hic-boo "BOO!" en-us+Mr_Serious 8
+say zen-om "Ommm..." en-us+UniversalRobot 40
+say zen-calm "Ommm... calm... ommm..." en-us+UniversalRobot 40
+say gas-fill "Fill her up, please!" en-us+UniversalRobot 55
+say gas-what "How much?!" en-us+UniversalRobot 55
+say test-park "Park between the cones, please." en-us+Mr_Serious 8
+say test-failed "Failed!" en-us+Mr_Serious 8
 say dj-mofi "Yo yo yo! D J Mo Fi in the house! Party!" en-us+Mr_Serious 8
 fi
 
@@ -93,6 +106,19 @@ for slug in alien-killer fatality ufo-obliterated abduct-this invasion-cancelled
 de hyperdrive-initiated anikaRobot 62
 de pink-hi anikaRobot 75; de pink-bye anikaRobot 75
 de wash-cold UniversalRobot 55; de wash-tickle UniversalRobot 60; de wash-turbo Mr_Serious 8
+de bday-sing anikaRobot 75
+de bday-wish Mr_Serious 8
+de bday-trick UniversalRobot 55
+de red-come-on UniversalRobot 55
+de red-seriously UniversalRobot 55
+de hic-water UniversalRobot 55
+de hic-boo Mr_Serious 8
+de zen-om UniversalRobot 40
+de zen-calm UniversalRobot 40
+de gas-fill UniversalRobot 55
+de gas-what UniversalRobot 55
+de test-park Mr_Serious 8
+de test-failed Mr_Serious 8
 de dj-mofi Mr_Serious 8
 say_alien congratulations "$(node tools/voice-de.js congratulations)" de+croak
 scream scream-robot "$(node tools/voice-de.js scream-robot)" de+UniversalRobot 25 115 "aeval='val(0)*(0.45+0.55*sin(2*PI*70*t))':c=same,aresample=8000,acrusher=bits=5:mode=lin:mix=0.9,aresample=22050,aecho=0.85:0.5:15|30:0.5|0.3"

@@ -23,7 +23,7 @@ const HOOKS = "  window.__smoke = { mode: () => mode, win: () => { ufos = []; bo
     const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
     for (const vp of VIEWPORTS) {
       const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, hasTouch: !!vp.mobile, isMobile: !!vp.mobile, serviceWorkers: 'block', locale: 'en-GB' });
-      await ctx.addInitScript(() => localStorage.setItem('morbid-scenes-v1', '99')); // the cutscenes are checked in the iPhone run
+      await ctx.addInitScript(() => { const st = JSON.parse(localStorage.getItem('morbid-settings-v2') || '{}'); st.cutscenes = false; localStorage.setItem('morbid-settings-v2', JSON.stringify(st)); }); // the cutscenes are checked in the iPhone run
       const page = await ctx.newPage(), errors = [], lines = [];
       page.on('pageerror', e => errors.push(e.message));
       await page.route('**/game.js', r => r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(root, 'game.js'), 'utf8').replace('  function startDownloads() {', HOOKS + '  function startDownloads() {') }));
