@@ -76,7 +76,38 @@
   // Health warning: shown on every visit (not again after an in-app update reload within the same session).
   let healthSeen = false;
   try { healthSeen = sessionStorage.getItem('morbid-health-ok') === '1'; } catch { /* show it */ }
-  if (!healthSeen) { $('health-screen').classList.remove('hidden'); document.body.classList.add('dialog-open', 'health-open'); }
+  function showHealthWarning() { $('health-screen').classList.remove('hidden'); document.body.classList.add('dialog-open', 'health-open'); }
+  // ---- Start-up: a loading bar while the first Morbid Fingers song downloads, then PRESS START (browsers only play
+  // sound after a tap). The tap starts the song, the robot announces the game and MORBID RACERS races into view over
+  // the track; then the health warning. Not again after an in-app update reload within the same session.
+  const splash = { active: !healthSeen, ready: false, started: false, at: 0, said: false, hidden: false, welcomeOut: false, done: false };
+  if (splash.active) { document.body.classList.add('dialog-open', 'splash-open'); if ($('splash-song')) $('splash-song').textContent = `♫ MORBID FINGERS — ${SONGS[songIndex].title}`; }
+  else { $('splash').classList.add('hidden'); }
+  function updateSplash() {
+    if (!splash.active || splash.done) return;
+    if (splash.started) {
+      // The announcer's clip is decoded once the audio starts: wait for it briefly, else the system voice says it.
+      const t = time - splash.at;
+      if (!splash.said && (voiceBuffers.has('title') || t > 1.5)) { splash.said = true; robotSay('Morbid Racers', 'title'); }
+      if (t > .7 && !splash.hidden) { splash.hidden = true; $('splash').classList.add('hidden'); }
+      if (t > 4.3 && !splash.welcomeOut) { splash.welcomeOut = true; $('welcome').classList.add('out'); document.body.classList.remove('welcoming'); showHealthWarning(); }
+      if (t > 5.2) { splash.done = true; $('welcome').classList.add('hidden'); }
+      return;
+    }
+    const ready = downloadsReady(), pct = ready ? 100 : Math.min(99, Math.round(bootProgress() * 100));
+    $('splash-fill').style.width = `${pct}%`; $('splash-pct').textContent = `${pct}%`;
+    if (ready && !splash.ready) {
+      splash.ready = true; $('splash-text').textContent = 'SYSTEM READY';
+      $('splash-start').classList.remove('hidden'); try { $('splash-start').focus(); } catch { /* not focusable yet */ }
+    }
+  }
+  function startFromSplash() {
+    if (!splash.active || splash.started || !splash.ready) return;
+    splash.started = true; splash.at = time; playMusic();
+    document.body.classList.remove('splash-open', 'dialog-open'); document.body.classList.add('welcoming');
+    $('splash').classList.add('out'); $('welcome').classList.remove('hidden');
+  }
+  $('splash-start').addEventListener('click', startFromSplash);
   $('health-accept').addEventListener('click', () => {
     $('health-screen').classList.add('hidden'); document.body.classList.remove('dialog-open', 'health-open');
     try { sessionStorage.setItem('morbid-health-ok', '1'); } catch { /* ignore */ }

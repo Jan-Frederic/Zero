@@ -90,14 +90,14 @@ const LAYOUT = (root, skip = '#boot,#app-version,#music-status') => {
       await page.addInitScript(screen => {
         localStorage.setItem('morbid-profile-v1', JSON.stringify({ unlocked: 3, credits: 1234, tutorialDone: true, achievements: { 'first-race': Date.UTC(2026, 2, 1) }, stats: { races: 12, wins: 3, podiums: 5, km: 321, seconds: 5400 } }));
         localStorage.setItem('morbid-settings-v2', JSON.stringify({ perf: 'full', lang: 'en', screen, steering: 'touch', cutscenes: false }));
-        localStorage.setItem('morbid-scenes-v1', '99');
+        localStorage.setItem('morbid-scenes-v1', '99'); sessionStorage.setItem('morbid-health-ok', '1');
       }, vp.mobile ? 'portrait' : 'landscape');
       await page.goto(server.url);
       // Load every font face up front: faces first used inside a dialog would otherwise still be loading on a slow machine.
       await page.evaluate(async () => { await Promise.all([...document.fonts].map(f => f.load().catch(() => {}))); await document.fonts.ready; });
       // The start button opens once the soundtrack and voices are downloaded.
       await page.waitForFunction(() => !document.getElementById('start').disabled, null, { timeout: 30000 });
-      await page.click('#health-accept'); await page.addStyleTag({ content: FREEZE });
+      if (await page.isVisible('#health-accept')) await page.click('#health-accept'); await page.addStyleTag({ content: FREEZE });
       const mask = [page.locator('#boot'), page.locator('#app-version'), page.locator('#music-status')];
       for (const s of SCREENS) {
         if (s.open) { await page.click(s.open); }
@@ -116,13 +116,13 @@ const LAYOUT = (root, skip = '#boot,#app-version,#music-status') => {
       await page.addInitScript(screen => {
         localStorage.setItem('morbid-profile-v1', JSON.stringify({ unlocked: 3, tutorialDone: true }));
         localStorage.setItem('morbid-settings-v2', JSON.stringify({ perf: 'full', lang: 'en', screen, steering: 'touch', cutscenes: false, gameMode: 'trial' }));
-        localStorage.setItem('morbid-scenes-v1', '99');
+        localStorage.setItem('morbid-scenes-v1', '99'); sessionStorage.setItem('morbid-health-ok', '1');
       }, vp.width > vp.height ? 'landscape' : 'portrait');
       await page.goto(server.url);
       await page.evaluate(async () => { await Promise.all([...document.fonts].map(f => f.load().catch(() => {}))); await document.fonts.ready; });
       // The start button opens once the soundtrack and voices are downloaded.
       await page.waitForFunction(() => !document.getElementById('start').disabled, null, { timeout: 30000 });
-      await page.click('#health-accept'); await page.addStyleTag({ content: FREEZE });
+      if (await page.isVisible('#health-accept')) await page.click('#health-accept'); await page.addStyleTag({ content: FREEZE });
       await page.click('#start');
       await page.waitForFunction(() => document.body.classList.contains('racing') && !document.body.classList.contains('buffering') && document.getElementById('countdown').textContent === '', null, { timeout: 20000 });
       await page.waitForTimeout(300);

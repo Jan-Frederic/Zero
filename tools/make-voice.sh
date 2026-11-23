@@ -73,6 +73,7 @@ say down-null9 "Null nine. Offline." en-us+UniversalRobot 5
 say taunt-blaze "Ha! Eat my exhaust!" en-us+Andy 60
 say down-blaze "Noooo, my beautiful ship!" en-us+Andy 60
 
+say title "Morbid Racers!" en-us+Mr_Serious 4
 say black-hole "Whoa whoa whoa! Massive black hole. Terminator cats attack!"
 say time-tunnel "Time warp! Your rivals are fruit now!"
 say pink-hi "Oh hey, you here too?" en-us+anikaRobot 75

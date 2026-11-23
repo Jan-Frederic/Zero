@@ -438,7 +438,7 @@
     'UFO BOMB RUN': 'UFO-BOMBENANGRIFF', 'DODGE!': 'AUSWEICHEN!', 'UFO HIT': 'UFO GETROFFEN', 'IT IS GOING DOWN!': 'ES STÜRZT AB!', 'WARNING: MOTHERSHIP!': 'WARNUNG: MUTTERSCHIFF!',
     'WEBBED!  SLOWED DOWN': 'EINGESPONNEN!  VERLANGSAMT', '🎮 GAMEPAD CONNECTED': '🎮 GAMEPAD VERBUNDEN', 'AIRBORNE': 'IN DER LUFT', 'TRAMPOLINE BOOST': 'TRAMPOLIN-BOOST',
     'BUBBLE POPPED!': 'BLASE GEPLATZT!', 'CATASTROPHIC FAILURE / SHIELDS OFFLINE': 'TOTALAUSFALL / SCHILDE OFFLINE', 'CAT PIXEL-POOF!  LASER +1': 'KATZEN-PIXEL-POFF!  LASER +1', '⚠ ONE MORE CAT = BLACK HOLE': '⚠ NOCH EINE KATZE = SCHWARZES LOCH', '⚠ BLACK HOLE ⚠': '⚠ SCHWARZES LOCH ⚠', 'POOF!': 'POFF!',
-    'MAZE CLEARED!': 'LABYRINTH GESCHAFFT!', '🎚 MUSIC & FX': '🎚 MUSIK & FX', '🐱 CHILL WITH DJ MOFI': '🐱 CHILLEN MIT DJ MOFI', 'MORBID FINGERS · SOUND DESK': 'MORBID FINGERS · MISCHPULT', 'MUSIC & FX': 'MUSIK & FX',
+    'MAZE CLEARED!': 'LABYRINTH GESCHAFFT!', 'TUNING IN THE FIRST SONG…': 'DER ERSTE SONG WIRD EINGESTELLT …', 'SYSTEM READY': 'SYSTEM BEREIT', '▶ PRESS START': '▶ START DRÜCKEN', '🎚 MUSIC & FX': '🎚 MUSIK & FX', '🐱 CHILL WITH DJ MOFI': '🐱 CHILLEN MIT DJ MOFI', 'MORBID FINGERS · SOUND DESK': 'MORBID FINGERS · MISCHPULT', 'MUSIC & FX': 'MUSIK & FX',
     '🎸 MUSIC': '🎸 MUSIK', '✨ EFFECTS': '✨ EFFEKTE', '💥 EXPLOSIONS': '💥 EXPLOSIONEN', '🔥 ENGINES & JETS': '🔥 MOTOREN & DÜSEN', '🤖 ANNOUNCER': '🤖 ANSAGER',
     'LEAVE THE CLUB ✕': 'CLUB VERLASSEN ✕', 'SKIP ▸▸': 'ÜBERSPRINGEN ▸▸', 'Oh hey, you here too?': 'Na, auch hier?', 'Toodle-oo!': 'Tschüsselchen!', 'Brrr! Cold!': 'Brrr! Kalt!', 'Hihi! That tickles!': 'Hihi! Das kitzelt!', 'Turbo wax activated.': 'Turbo-Wachs aktiviert.',
     'Happy birthday!': 'Alles Gute zum Geburtstag!', 'Make a wish!': 'Wünsch dir was!', 'Trick candles?!': 'Scherzkerzen?!', 'Come on... come on!': 'Na los... na los!', 'Seriously?!': 'Echt jetzt?!', 'Hic! Water... hic!': 'Hicks! Wasser... hicks!', 'BOO!': 'BUH!', 'Ommm... calm... ommm...': 'Ommm... ruhig... ommm...', 'Fill her up, please!': 'Volltanken, bitte!', 'How much?!': 'Wie viel?!', 'Park between the cones, please.': 'Bitte zwischen den Hütchen einparken.', 'Failed!': 'Durchgefallen!', 'HAPPY BIRTHDAY': 'ALLES GUTE', 'HIC!': 'HICKS!', 'Hmmmmph!': 'Hmmmmpf!', '⚡ PLASMA STATION ⚡': '⚡ PLASMA-TANKSTELLE ⚡', 'DRIVING TEST': 'FAHRPRÜFUNG', 'FAILED': 'DURCHGEFALLEN', 'SCENES': 'SZENEN', 'BEFORE EACH RACE': 'VOR JEDEM RENNEN',
@@ -775,7 +775,7 @@
     ['GREEN MEN DOWN!', 'green-men-down'], ['PROBE DENIED!', 'probe-denied'], ['AREA 51 SAYS THANK YOU!', 'area-51'], ['TOASTED SAUCER!', 'toasted-saucer'],
     ['MOTHERSHIP WILL HEAR ABOUT THIS!', 'mothership'], ['ULTRA KILL!', 'ultra-kill'], ['GALACTIC HUMILIATION!', 'galactic-humiliation'],
     ['NO PARKING IN MY SKY!', 'no-parking'], ['RETURN TO SENDER!', 'return-to-sender']];
-  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'black-hole', 'time-tunnel', 'pink-hi', 'pink-bye', 'dj-mofi', 'wash-cold', 'wash-tickle', 'wash-turbo', 'bday-sing', 'bday-wish', 'bday-trick', 'red-come-on', 'red-seriously', 'hic-water', 'hic-boo', 'zen-om', 'zen-calm', 'gas-fill', 'gas-what', 'test-park', 'test-failed', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
+  const VOICE_CLIPS = [...KILL_CALLS.map(call => call[1]), 'hyperdrive-initiated', 'first-place', 'mothership-warning', 'mothership-down', 'invasion-incoming', 'congratulations', 'next-boss', 'scream-overlord', 'scream-cyclops', 'scream-maggot', 'scream-robot', 'title', 'black-hole', 'time-tunnel', 'pink-hi', 'pink-bye', 'dj-mofi', 'wash-cold', 'wash-tickle', 'wash-turbo', 'bday-sing', 'bday-wish', 'bday-trick', 'red-come-on', 'red-seriously', 'hic-water', 'hic-boo', 'zen-om', 'zen-calm', 'gas-fill', 'gas-what', 'test-park', 'test-failed', ...NEMESES.flatMap(n => [`taunt-${n.id}`, `down-${n.id}`])];
   // German announcer: voice/de/<clip> is rendered from these lines by tools/make-voice.sh (which reads this table).
   // Clips without a German line (the wordless boss screams) use the English file in both languages.
   const VOICE_DE = {
@@ -2316,7 +2316,7 @@
   }
   if (window.matchMedia) { placeBoot(); matchMedia('(max-width:600px) and (orientation:portrait)').addEventListener?.('change', placeBoot); }
   function updateBoot() {
-    watchDownloads(frameClock); renderStartButton();
+    watchDownloads(frameClock); renderStartButton(); updateSplash();
     const box = $('boot'); if (!box) return;
     document.body.classList.toggle('booting', !box.classList.contains('gone'));
     const done = downloadsDone(), pct = done ? 100 : Math.min(99, Math.round(bootProgress() * 100));
@@ -4125,6 +4125,7 @@
       if (on && !padHeld.has(code)) { padHeld.add(code); keys.add(code); } else if (!on && padHeld.has(code)) { padHeld.delete(code); keys.delete(code); }
     }
     const a = edge(0), start = edge(9);
+    if ((a || start) && document.body.classList.contains('splash-open')) { startFromSplash(); return; }
     if (start && ['racing', 'countdown', 'paused', 'maze'].includes(mode)) pauseRace();
     if (a && !document.body.classList.contains('dialog-open')) {
       if (mode === 'menu') startRace(); else if (mode === 'paused') pauseRace();
@@ -4286,7 +4287,38 @@
   // Health warning: shown on every visit (not again after an in-app update reload within the same session).
   let healthSeen = false;
   try { healthSeen = sessionStorage.getItem('morbid-health-ok') === '1'; } catch { /* show it */ }
-  if (!healthSeen) { $('health-screen').classList.remove('hidden'); document.body.classList.add('dialog-open', 'health-open'); }
+  function showHealthWarning() { $('health-screen').classList.remove('hidden'); document.body.classList.add('dialog-open', 'health-open'); }
+  // ---- Start-up: a loading bar while the first Morbid Fingers song downloads, then PRESS START (browsers only play
+  // sound after a tap). The tap starts the song, the robot announces the game and MORBID RACERS races into view over
+  // the track; then the health warning. Not again after an in-app update reload within the same session.
+  const splash = { active: !healthSeen, ready: false, started: false, at: 0, said: false, hidden: false, welcomeOut: false, done: false };
+  if (splash.active) { document.body.classList.add('dialog-open', 'splash-open'); if ($('splash-song')) $('splash-song').textContent = `♫ MORBID FINGERS — ${SONGS[songIndex].title}`; }
+  else { $('splash').classList.add('hidden'); }
+  function updateSplash() {
+    if (!splash.active || splash.done) return;
+    if (splash.started) {
+      // The announcer's clip is decoded once the audio starts: wait for it briefly, else the system voice says it.
+      const t = time - splash.at;
+      if (!splash.said && (voiceBuffers.has('title') || t > 1.5)) { splash.said = true; robotSay('Morbid Racers', 'title'); }
+      if (t > .7 && !splash.hidden) { splash.hidden = true; $('splash').classList.add('hidden'); }
+      if (t > 4.3 && !splash.welcomeOut) { splash.welcomeOut = true; $('welcome').classList.add('out'); document.body.classList.remove('welcoming'); showHealthWarning(); }
+      if (t > 5.2) { splash.done = true; $('welcome').classList.add('hidden'); }
+      return;
+    }
+    const ready = downloadsReady(), pct = ready ? 100 : Math.min(99, Math.round(bootProgress() * 100));
+    $('splash-fill').style.width = `${pct}%`; $('splash-pct').textContent = `${pct}%`;
+    if (ready && !splash.ready) {
+      splash.ready = true; $('splash-text').textContent = 'SYSTEM READY';
+      $('splash-start').classList.remove('hidden'); try { $('splash-start').focus(); } catch { /* not focusable yet */ }
+    }
+  }
+  function startFromSplash() {
+    if (!splash.active || splash.started || !splash.ready) return;
+    splash.started = true; splash.at = time; playMusic();
+    document.body.classList.remove('splash-open', 'dialog-open'); document.body.classList.add('welcoming');
+    $('splash').classList.add('out'); $('welcome').classList.remove('hidden');
+  }
+  $('splash-start').addEventListener('click', startFromSplash);
   $('health-accept').addEventListener('click', () => {
     $('health-screen').classList.add('hidden'); document.body.classList.remove('dialog-open', 'health-open');
     try { sessionStorage.setItem('morbid-health-ok', '1'); } catch { /* ignore */ }
@@ -5976,11 +6008,11 @@
       lines: [[BDAY.sing, 'Happy birthday!', 'bday-sing'], [BDAY.wish, 'Make a wish!', 'bday-wish'], [BDAY.trick, 'Trick candles?!', 'bday-trick']],
       sounds: [[BDAY.sing, playFanfare], ...[BDAY.blow1, BDAY.blow2].map(at => [at, () => playNoiseBurst(.5, .12, 2000, 300)]), [BDAY.blow3, () => playNoiseBurst(.9, .25, 3000, 200)],
         ...[BDAY.relight1, BDAY.relight2, BDAY.relight3].map(at => [at, () => soundEffect(1500, .15, 'triangle')])] },
-    { id: 'redlight', t: REDL, draw: drawRedLight, lines: [[REDL.comeOn, 'Come on... come on!', 'red-come-on'], [REDL.seriously, 'Seriously?!', 'red-seriously']],
+    { id: 'redlight', t: REDL, draw: drawRedLight, music: () => startMuzak(), lines: [[REDL.comeOn, 'Come on... come on!', 'red-come-on'], [REDL.seriously, 'Seriously?!', 'red-seriously']],
       sounds: [[REDL.green, () => soundEffect(880, .12)], ...[0, .5, 1, 1.4, 1.8, 2.1, 2.4].map(d => [REDL.rev + d, () => playBoostSound(1 + d * .3)])] },
     { id: 'hiccups', t: HIC, draw: drawHiccups, music: () => startMuzak(), lines: [[HIC.water, 'Hic! Water... hic!', 'hic-water'], [HIC.boo, 'BOO!', 'hic-boo']],
       sounds: [...HIC.hics.map(h => [h, () => { playToneSweep(520, 980, .08, 'square', .06); playNoiseBurst(.06, .05, 3000, 800); }]), [HIC.boo, () => playToneSweep(220, 70, .5, 'sawtooth', .12)]] },
-    { id: 'zen', t: ZEN, draw: drawZen, update: zenUpdate, lines: [[ZEN.om, 'Ommm...', 'zen-om'], [ZEN.calm, 'Ommm... calm... ommm...', 'zen-calm']],
+    { id: 'zen', t: ZEN, draw: drawZen, update: zenUpdate, music: () => startMuzak(), lines: [[ZEN.om, 'Ommm...', 'zen-om'], [ZEN.calm, 'Ommm... calm... ommm...', 'zen-calm']],
       sounds: [[.4, () => playToneSweep(180, 170, 2.5, 'sine', .08)], [ZEN.flies, () => playToneSweep(180, 170, 1.5, 'sine', .05)]] },
     { id: 'gas', t: GAS, draw: drawGasStation, update: gasUpdate, music: () => startMuzak(WASH_BARS, 118),
       lines: [[GAS.fill, 'Fill her up, please!', 'gas-fill'], [GAS.shock + .1, 'How much?!', 'gas-what']], sounds: [[GAS.shock, () => playToneSweep(900, 180, .6, 'sawtooth', .08)]] },

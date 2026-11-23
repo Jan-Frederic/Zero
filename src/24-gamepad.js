@@ -19,6 +19,7 @@
       if (on && !padHeld.has(code)) { padHeld.add(code); keys.add(code); } else if (!on && padHeld.has(code)) { padHeld.delete(code); keys.delete(code); }
     }
     const a = edge(0), start = edge(9);
+    if ((a || start) && document.body.classList.contains('splash-open')) { startFromSplash(); return; }
     if (start && ['racing', 'countdown', 'paused', 'maze'].includes(mode)) pauseRace();
     if (a && !document.body.classList.contains('dialog-open')) {
       if (mode === 'menu') startRace(); else if (mode === 'paused') pauseRace();
