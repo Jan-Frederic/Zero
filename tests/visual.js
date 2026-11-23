@@ -90,6 +90,7 @@ const LAYOUT = (root, skip = '#boot,#app-version,#music-status') => {
       await page.addInitScript(screen => {
         localStorage.setItem('morbid-profile-v1', JSON.stringify({ unlocked: 3, credits: 1234, tutorialDone: true, achievements: { 'first-race': Date.UTC(2026, 2, 1) }, stats: { races: 12, wins: 3, podiums: 5, km: 321, seconds: 5400 } }));
         localStorage.setItem('morbid-settings-v2', JSON.stringify({ perf: 'full', lang: 'en', screen, steering: 'touch' }));
+        localStorage.setItem('morbid-intro-v1', '1');
       }, vp.mobile ? 'portrait' : 'landscape');
       await page.goto(server.url);
       // Load every font face up front: faces first used inside a dialog would otherwise still be loading on a slow machine.
@@ -115,6 +116,7 @@ const LAYOUT = (root, skip = '#boot,#app-version,#music-status') => {
       await page.addInitScript(screen => {
         localStorage.setItem('morbid-profile-v1', JSON.stringify({ unlocked: 3, tutorialDone: true }));
         localStorage.setItem('morbid-settings-v2', JSON.stringify({ perf: 'full', lang: 'en', screen, steering: 'touch', gameMode: 'trial' }));
+        localStorage.setItem('morbid-intro-v1', '1');
       }, vp.width > vp.height ? 'landscape' : 'portrait');
       await page.goto(server.url);
       await page.evaluate(async () => { await Promise.all([...document.fonts].map(f => f.load().catch(() => {}))); await document.fonts.ready; });

@@ -2003,6 +2003,7 @@
     if (gameMode() === 'endless') { startEndless(); return; }
     if (gameMode() === 'cup') prepareCupRace(); else cup = null;
     if (trackLocked(trackIndex)) { renderLock(); playToneSweep(220, 120, .25, 'square', .05); showLockedHint(); return; }
+    if (!introSeen()) { startIntro(); return; } // the elevator ride plays once, before the very first race
     mode = 'countdown'; position = 0; distance = 0; playerX = 0; speed = 0; energy = 100; elapsed = 0; lap = 1; lapStart = 0;
     laps = []; countdown = 3; rank = PILOT_COUNT; shield = 100; collisionCooldown = 0; wallCooldown = 0; lastPad = -1; hitHazards = new Set(); hitRamps = new Set(); particles = []; explosions = []; laserShots = []; enemyShots = []; bombs = []; laserAmmo = laserCap(); laserCharge = 0; laserCooldown = 0; jumpHeight = 0; jumpVelocity = 0; jumpBoostTimer = 0; screenFlash = 0; wreckBurst = null; shake = 0; boosting = false; boostLocked = false; launchGoTime = 0;
     const track = tracks[trackIndex];
@@ -2428,6 +2429,7 @@
       jetWhine.frequency.setTargetAtTime(700 + speed / 8 + (jumpBoostTimer > 0 ? 600 : 0), now, .15);
     }
     if (mode === 'dj' && dj) { updateDJ(dt); return; }
+    if (mode === 'intro' && intro) { updateIntro(dt); return; }
     if (mode === 'menu') { position = mod(position + dt * 2900, LENGTH); playerX = Math.sin(time * .14) * .18; return; }
     if (mode === 'invasion' || mode === 'final' || mode === 'disco') { updateFinale(dt); return; }
     if (mode === 'blackhole') { updateBlackHole(dt); return; }
@@ -4010,6 +4012,7 @@
   }
   function render() {
     if (mode === 'dj' && dj) { renderDJ(); return; }
+    if (mode === 'intro' && intro) { renderIntro(); return; }
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
     if (mode === 'timetunnel' && timeTunnel) { renderTimeTunnel(); return; }
     if (maze) { renderMaze(); return; }
@@ -5175,8 +5178,8 @@
     for (let i = 0; i <= 6; i++) { const mx = -s * .22 + i * s * .073, my = s * .16 + (i % 2 ? -1 : 1) * s * .04; if (i) ctx.lineTo(mx, my); else ctx.moveTo(mx, my); }
     ctx.stroke(); ctx.restore();
   }
-  // ==== Music UI and "Chill with DJ MoFi": the sound desk, the pause-menu player, and the elevator ride that ends in
-  // DJ MoFi's club, where every Morbid Fingers song can be played from the jukebox.
+  // ==== Music UI, "Chill with DJ MoFi" and the elevator intro: the sound desk, the pause-menu player, DJ MoFi's club
+  // (every Morbid Fingers song on the jukebox) and the elevator ride that plays before the very first race.
   // ---- Sound desk (settings → MUSIC & FX): one slider per channel, a short test sound after each change.
   const VOLUME_TESTS = {
     fx: () => soundEffect(880, .25), boom: () => playExplosionSound(.7), engine: () => playJetBlast(.6),
@@ -5205,31 +5208,86 @@
     $('pp-next').addEventListener('click', () => { setupAudio(); musicWanted = true; nextSong(true); });
   }
 
-  // ---- Chill with DJ MoFi. Timeline of the elevator ride (seconds since the button was pressed).
-  const DJ = { open1: 1.4, walkIn: 2, close1: 4.4, ride1: 5, open2: 8.4, pinkIn: 9, flirt: 10.6, pinkOut: 13.8, close2: 15.4, ride2: 16, burst: 18, club: 20.5 };
+  // ---- Chill with DJ MoFi: straight into the club.
   let dj = null, posterImage = null, djSeeking = false;
-  function startDJ() {
-    if (mode !== 'menu') return;
+  function loadPoster() { if (!posterImage && typeof Image === 'function') { posterImage = new Image(); posterImage.src = 'images/poster-8-bit-fingers.jpg'; } }
+  // Unlocks the music element inside the player's tap (Safari), then keeps it quiet until the scene wants music.
+  function unlockQuietly() {
     setupAudio(); primeSpeech();
-    // Unlock the music element inside this tap (Safari), then keep it quiet until DJ MoFi drops the first record.
     const unlock = audio.play(); if (unlock && unlock.catch) unlock.catch(() => {});
     audio.pause(); cancelTuning(); musicWanted = false; musicBlocked = false;
-    if (!posterImage && typeof Image === 'function') { posterImage = new Image(); posterImage.src = 'images/poster-8-bit-fingers.jpg'; }
-    mode = 'dj'; dj = { at: time, said: {}, discs: [], booms: [], record: null, muzak: null, shown: false };
-    $('menu').classList.add('hidden'); document.body.classList.add('dj'); $('dj-skip').classList.remove('hidden');
-    dj.muzak = startMuzak();
+  }
+  function startDJ() {
+    if (mode !== 'menu') return;
+    unlockQuietly(); loadPoster();
+    mode = 'dj'; dj = { at: time, discs: [], record: null, shown: false };
+    $('menu').classList.add('hidden'); document.body.classList.add('dj');
+    enterClub();
   }
   function leaveDJ() {
     if (!dj) return;
-    stopMuzak(); dj = null; mode = 'menu';
-    $('dj-club').classList.add('hidden'); $('dj-skip').classList.add('hidden'); $('menu').classList.remove('hidden');
+    dj = null; mode = 'menu';
+    $('dj-club').classList.add('hidden'); $('menu').classList.remove('hidden');
     document.body.classList.remove('dj');
   }
-  function skipDJ() { if (dj && time - dj.at < DJ.burst) { dj.at = time - DJ.burst; dj.said = { hi: 1, bye: 1 }; stopMuzak(); } }
   function enterClub() {
-    dj.shown = true; $('dj-skip').classList.add('hidden'); $('dj-club').classList.remove('hidden');
+    dj.shown = true; $('dj-club').classList.remove('hidden');
     robotSay('Yo yo yo! DJ MoFi in the house! Party!', 'dj-mofi');
     renderMixer(); djPlay(songIndex);
+  }
+
+  // ---- The elevator ride before the very first race: the racer waddles in to elevator music, a pink racer gets on
+  // and flirts, our racer turns red... and is so embarrassed that it shakes, sparks and blows up. Then the race starts.
+  const ELEV = { open1: 1.4, walkIn: 2, close1: 4.4, ride1: 5, open2: 8.4, pinkIn: 9, flirt: 10.6, pinkOut: 13.8, close2: 15.4, ride2: 16, tension: 16.2, boom: 18.4, race: 20.8 };
+  const INTRO_KEY = 'morbid-intro-v1';
+  let intro = null;
+  const introSeen = () => { try { return localStorage.getItem(INTRO_KEY) === '1'; } catch { return true; } };
+  function startIntro() {
+    unlockQuietly();
+    mode = 'intro'; intro = { at: time, said: {}, muzak: startMuzak(), burst: null, hero: null, nextCrackle: 0 };
+    $('menu').classList.add('hidden'); document.body.classList.add('dj'); $('dj-skip').classList.remove('hidden');
+  }
+  function skipIntro() {
+    if (!intro || time - intro.at >= ELEV.boom - .3) return;
+    intro.at = time - (ELEV.boom - .3); intro.said = { hi: 1, bye: 1 }; stopMuzak(intro);
+  }
+  function finishIntro() {
+    stopMuzak(intro); intro = null; megaBlasts = [];
+    try { localStorage.setItem(INTRO_KEY, '1'); } catch { /* private mode: it plays again next time */ }
+    document.body.classList.remove('dj'); $('dj-skip').classList.add('hidden'); mode = 'menu';
+    startRace();
+  }
+  function updateIntro(dt) {
+    const t = time - intro.at, at = moment => t >= moment && t - dt < moment;
+    if (t > ELEV.flirt + .1 && !intro.said.hi) { intro.said.hi = 1; robotSay('Oh hey, you here too?', 'pink-hi'); }
+    if (t > ELEV.pinkOut + .1 && !intro.said.bye) { intro.said.bye = 1; robotSay('Toodle-oo!', 'pink-bye'); }
+    // "Ding-dong" when the cabin stops.
+    for (const [moment, freq] of [[ELEV.open1 - .2, 1319], [ELEV.open1 + .02, 1047], [ELEV.open2 - .2, 1319], [ELEV.open2 + .02, 1047]]) if (at(moment)) soundEffect(freq, .7);
+    // Under tension: crackling sparks, faster and faster, then the blast – the same one as a wreck in the race.
+    if (t > ELEV.tension && t < ELEV.boom && time >= intro.nextCrackle) {
+      const k = (t - ELEV.tension) / (ELEV.boom - ELEV.tension); intro.nextCrackle = time + .22 - k * .17;
+      playNoiseBurst(.08, .05 + k * .08, 7000, 2000); playToneSweep(2400, 600, .06, 'square', .02 + k * .03); buzz(20);
+    }
+    if (at(ELEV.tension)) stopMuzak(intro);
+    if (t >= ELEV.boom && !intro.burst) {
+      const h = intro.hero || { x: W / 2, y: H / 2, size: 100 };
+      intro.burst = { started: time, duration: 1.6, color: '#ffec87', size: 5, seed: Math.floor(time * 1000), cartoon: false };
+      megaBlasts.push({ x: h.x, y: h.y, started: time, duration: 2, color: '#ffec87', seed: 5, scale: 1 });
+      megaBlasts.push({ x: h.x - h.size, y: h.y - h.size * .3, started: time + .2, duration: 1.6, color: machines[shipIndex].color, seed: 9, scale: .65 });
+      megaBlasts.push({ x: h.x + h.size, y: h.y - h.size * .1, started: time + .35, duration: 1.6, color: '#ff4eb8', seed: 21, scale: .65 });
+      shake = 2.2; screenFlash = 1; playExplosionSound(2.2); buzz([120, 40, 90, 40, 260], 0);
+    }
+    for (const [moment, power] of [[ELEV.boom + .3, 1.4], [ELEV.boom + .75, 1.8]]) if (at(moment)) playExplosionSound(power);
+    megaBlasts = megaBlasts.filter(b => time - b.started < b.duration);
+    shake *= Math.pow(.08, dt); screenFlash = Math.max(0, screenFlash - dt * 1.2);
+    if (t >= ELEV.race) finishIntro();
+  }
+  function renderIntro() {
+    ctx.save();
+    if (shakeAmount() > .03) ctx.translate(Math.sin(time * 121) * shakeAmount() * 8, Math.cos(time * 93) * shakeAmount() * 6);
+    drawElevator(time - intro.at);
+    if (flashAmount(screenFlash) > .015) { ctx.fillStyle = `rgba(255,255,255,${flashAmount(screenFlash) * .85})`; ctx.fillRect(-20, -20, W + 40, H + 40); }
+    ctx.restore();
   }
   // DJ MoFi puts the record on (see changeSong): it flies from the crate onto the deck, a scratch, then the song.
   function djPlay(i) { if (!dj) return; playScratch(); playSongNow(i); }
@@ -5248,7 +5306,7 @@
   }
   if ($('dj-leave')) {
     $('dj-leave').addEventListener('click', leaveDJ);
-    $('dj-skip').addEventListener('click', skipDJ);
+    $('dj-skip').addEventListener('click', skipIntro);
     $('dj-play').addEventListener('click', toggleMusic);
     // In the club the DJ changes records directly (no radio in between).
     $('dj-prev').addEventListener('click', () => { musicWanted = true; playScratch(); if (playlistPos > 0 && audio.currentTime < 4) playlistPos--; changeSong(playlist[playlistPos]); });
@@ -5257,26 +5315,15 @@
     $('dj-seek').addEventListener('pointerdown', () => { djSeeking = true; });
     $('dj-seek').addEventListener('change', () => { djSeeking = false; if (audio.duration) try { audio.currentTime = Number($('dj-seek').value) / 1000 * audio.duration; } catch { /* not seekable */ } });
   }
-  window.addEventListener('keydown', event => { if (mode === 'dj' && event.code === 'Escape') leaveDJ(); });
+  window.addEventListener('keydown', event => { if (mode === 'dj' && event.code === 'Escape') leaveDJ(); if (mode === 'intro' && event.code === 'Escape') skipIntro(); });
   function updateDJ(dt) {
-    const t = time - dj.at;
-    if (t > DJ.flirt + .1 && !dj.said.hi) { dj.said.hi = 1; robotSay('Oh hey, you here too?', 'pink-hi'); }
-    if (t > DJ.pinkOut + .1 && !dj.said.bye) { dj.said.bye = 1; robotSay('Toodle-oo!', 'pink-bye'); }
-    // "Ding-dong" when the cabin stops; three blasts when DJ MoFi kicks the doors in.
-    const at = moment => t >= moment && t - dt < moment;
-    for (const [moment, freq] of [[DJ.open1 - .2, 1319], [DJ.open1 + .02, 1047], [DJ.open2 - .2, 1319], [DJ.open2 + .02, 1047]]) if (at(moment)) soundEffect(freq, .7);
-    for (const [moment, power] of [[DJ.burst + .35, 1.5], [DJ.burst + .9, 2]]) if (at(moment)) playExplosionSound(power);
-    if (t >= DJ.burst && !dj.burst) { dj.burst = true; stopMuzak(); shake = 1.6; screenFlash = 1; playExplosionSound(2); }
-    if (t >= DJ.burst && t < DJ.club + 1.5 && Math.random() < dt * 6) dj.booms.push({ x: Math.random(), y: Math.random() * .8, at: time, size: .08 + Math.random() * .15 });
-    if (t >= DJ.burst && Math.random() < dt * (t < DJ.club ? 5 : .5)) {
-      // DJ MoFi hurls discs around the room.
+    // DJ MoFi hurls a record across the room now and then.
+    if (Math.random() < dt * .5) {
       const fromLeft = Math.random() < .5;
       dj.discs.push({ x: .5, y: .45, vx: (fromLeft ? -1 : 1) * (.35 + Math.random() * .6), vy: -(.3 + Math.random() * .5), at: time, spin: (Math.random() - .5) * 30 });
     }
-    dj.discs = dj.discs.filter(d => time - d.at < 2.2); dj.booms = dj.booms.filter(b => time - b.at < .9);
+    dj.discs = dj.discs.filter(d => time - d.at < 2.2);
     for (const d of dj.discs) { d.x += d.vx * dt; d.y += d.vy * dt; d.vy += 1.1 * dt; }
-    if (t >= DJ.club && !dj.shown) enterClub();
-    shake *= Math.pow(.05, dt); screenFlash = Math.max(0, screenFlash - dt * 1.5);
     const seek = $('dj-seek');
     if (seek && dj.shown && audio.duration && !djSeeking) seek.value = String(Math.round((audio.currentTime || 0) / audio.duration * 1000));
   }
@@ -5325,9 +5372,9 @@
     schedule(); m.timer = setInterval(schedule, 120);
     return m;
   }
-  function stopMuzak() {
-    const m = dj && dj.muzak; if (!m) return;
-    clearInterval(m.timer); dj.muzak = null;
+  function stopMuzak(holder) {
+    const m = holder && holder.muzak; if (!m) return;
+    clearInterval(m.timer); holder.muzak = null;
     try { m.out.gain.setTargetAtTime(0, audioContext.currentTime, .05); setTimeout(() => m.out.disconnect(), 600); } catch { /* gone */ }
   }
   function playScratch() {
@@ -5341,17 +5388,9 @@
     return W >= H ? { x: 0, y: 0, w: W - Math.min(380, W * .4), h: H } : { x: 0, y: 0, w: W, h: H * .52 };
   }
   function renderDJ() {
-    const t = time - dj.at;
     ctx.save();
-    if (shakeAmount() > .03) ctx.translate(Math.sin(time * 121) * shakeAmount() * 8, Math.cos(time * 93) * shakeAmount() * 6);
-    if (t < DJ.burst) drawElevator(t); else drawClub(t);
-    for (const b of dj.booms) {
-      const k = (time - b.at) / .9, x = b.x * W, y = b.y * H, r = Math.min(W, H) * b.size * (.4 + k);
-      ctx.globalAlpha = 1 - k; const g = ctx.createRadialGradient(x, y, 1, x, y, r); g.addColorStop(0, '#fff6c8'); g.addColorStop(.4, '#ff9b2e'); g.addColorStop(1, '#ff2b2b00');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
-    }
+    drawClub(time - dj.at);
     for (const d of dj.discs) drawVinyl(d.x * W, d.y * H, Math.min(W, H) * .045, (time - d.at) * d.spin);
-    if (flashAmount(screenFlash) > .015) { ctx.fillStyle = `rgba(255,255,255,${flashAmount(screenFlash) * .85})`; ctx.fillRect(-20, -20, W + 40, H + 40); }
     ctx.restore();
   }
   function drawVinyl(x, y, r, spin) {
@@ -5412,15 +5451,15 @@
   }
   function drawElevator(t) {
     // Shaft: brick wall and floor slabs that scroll past while the cabin rides.
-    const ride = clamp((t - DJ.ride1) / (DJ.open2 - DJ.ride1), 0, 1) + clamp((t - DJ.ride2) / (DJ.burst - DJ.ride2), 0, 1);
+    const ride = clamp((t - ELEV.ride1) / (ELEV.open2 - ELEV.ride1), 0, 1) + clamp((t - ELEV.ride2) / (ELEV.boom - ELEV.ride2), 0, 1);
     const ease = x => x * x * (3 - 2 * x), scroll = (ease(Math.min(1, ride)) + ease(Math.max(0, ride - 1))) * H * 1.2;
     ctx.fillStyle = '#16121f'; ctx.fillRect(-20, -20, W + 40, H + 40);
     ctx.fillStyle = '#211a2e';
     for (let y = -40 + (scroll % 40); y < H + 40; y += 40) for (let x = ((y / 40) % 2) * 40 - 40; x < W + 80; x += 80) ctx.fillRect(x + 2, y + 2, 76, 36);
     for (let k = -1; k < 3; k++) { const y = mod(H * .9 + scroll, H * 1.2) - H * .2 + k * H * 1.2; ctx.fillStyle = '#3a3050'; ctx.fillRect(0, y, W, 14); }
     // Cabin slides up into view, then waits.
-    const ch = Math.min(H * .8, W * .95), cw = ch * .78, cx = W / 2, slide = 1 - ease(clamp(t / DJ.open1, 0, 1)), top = Math.max(H * .14, (H - ch) / 2) + slide * H * 1.1;
-    const doors = Math.max(ease(clamp((t - DJ.open1) / .6, 0, 1)) * (1 - ease(clamp((t - DJ.close1) / .6, 0, 1))), ease(clamp((t - DJ.open2) / .6, 0, 1)) * (1 - ease(clamp((t - DJ.close2) / .6, 0, 1))));
+    const ch = Math.min(H * .8, W * .95), cw = ch * .78, cx = W / 2, slide = 1 - ease(clamp(t / ELEV.open1, 0, 1)), top = Math.max(H * .14, (H - ch) / 2) + slide * H * 1.1;
+    const doors = Math.max(ease(clamp((t - ELEV.open1) / .6, 0, 1)) * (1 - ease(clamp((t - ELEV.close1) / .6, 0, 1))), ease(clamp((t - ELEV.open2) / .6, 0, 1)) * (1 - ease(clamp((t - ELEV.close2) / .6, 0, 1))));
     const left = cx - cw / 2, floorY = top + ch * .9;
     // Interior: warm wood panels, a checkered floor, a handrail and the button panel.
     const wood = ctx.createLinearGradient(left, top, left + cw, top); wood.addColorStop(0, '#5a3a22'); wood.addColorStop(.5, '#8a5a32'); wood.addColorStop(1, '#5a3a22');
@@ -5432,17 +5471,34 @@
     for (let i = 0; i < 6; i++) { ctx.fillStyle = i === Math.min(5, Math.floor(ride * 2.5)) ? '#ffd24a' : '#40465a'; ctx.beginPath(); ctx.arc(left + cw * (.85 + (i % 2) * .04), top + ch * (.33 + Math.floor(i / 2) * .055), ch * .012, 0, TAU); ctx.fill(); }
     // The racers inside.
     const size = Math.min(cw * .24, 120), standY = floorY - size * .58;
-    const walkIn = clamp((t - DJ.walkIn) / (DJ.close1 - DJ.walkIn - .2), 0, 1), heroX = lerp(W + size, cx + cw * .14, walkIn);
-    const pinkIn = clamp((t - DJ.pinkIn) / (DJ.flirt - DJ.pinkIn), 0, 1), pinkOut = clamp((t - DJ.pinkOut) / (DJ.close2 - DJ.pinkOut), 0, 1);
-    const pinkX = t < DJ.pinkOut ? lerp(-size, cx - cw * .2, pinkIn) : lerp(cx - cw * .2, -size * 1.5, pinkOut), pinkHere = t > DJ.pinkIn && pinkOut < 1;
-    const blush = t > DJ.flirt + .8 ? Math.min(1, (t - DJ.flirt - .8) * 1.5) * (t < DJ.ride2 + .6 ? 1 : Math.max(0, 1 - (t - DJ.ride2 - .6))) : 0;
-    if (pinkHere) drawPinkRacer(pinkX, standY, size, (t < DJ.flirt) || t > DJ.pinkOut, t > DJ.flirt + .5 && t < DJ.pinkOut && Math.sin(time * 3) > .6);
+    const walkIn = clamp((t - ELEV.walkIn) / (ELEV.close1 - ELEV.walkIn - .2), 0, 1), heroX = lerp(W + size, cx + cw * .14, walkIn);
+    const pinkIn = clamp((t - ELEV.pinkIn) / (ELEV.flirt - ELEV.pinkIn), 0, 1), pinkOut = clamp((t - ELEV.pinkOut) / (ELEV.close2 - ELEV.pinkOut), 0, 1);
+    const pinkX = t < ELEV.pinkOut ? lerp(-size, cx - cw * .2, pinkIn) : lerp(cx - cw * .2, -size * 1.5, pinkOut), pinkHere = t > ELEV.pinkIn && pinkOut < 1;
+    const blush = t > ELEV.flirt + .8 ? Math.min(1, (t - ELEV.flirt - .8) * 1.5) * (t < ELEV.ride2 + .6 ? 1 : Math.max(0, 1 - (t - ELEV.ride2 - .6))) : 0;
+    if (pinkHere) drawPinkRacer(pinkX, standY, size, (t < ELEV.flirt) || t > ELEV.pinkOut, t > ELEV.flirt + .5 && t < ELEV.pinkOut && Math.sin(time * 3) > .6);
     const tapping = walkIn >= 1 && !pinkHere && Math.sin(time * 6) > 0;
-    drawWalker(heroX, standY - (tapping ? size * .02 : 0), size, walkIn > 0 && walkIn < 1, walkIn < 1 ? -1 : pinkHere ? -1 : 0, blush);
+    // So embarrassed it is under tension: shaking harder and harder, sparks crackling around it, then it blows up.
+    const tension = clamp((t - ELEV.tension) / (ELEV.boom - ELEV.tension), 0, 1);
+    const jx = tension ? (Math.random() - .5) * size * .18 * tension : 0, jy = tension ? (Math.random() - .5) * size * .1 * tension : 0;
+    intro.hero = { x: heroX, y: standY, size };
+    if (t < ELEV.boom) {
+      drawWalker(heroX + jx, standY - (tapping ? size * .02 : 0) + jy, size, walkIn > 0 && walkIn < 1, walkIn < 1 ? -1 : pinkHere ? -1 : 0, Math.max(blush, tension));
+      if (tension > 0) {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 2 + Math.floor(tension * 6); i++) {
+          const a = Math.random() * TAU, r0 = size * .35, r1 = size * (.6 + tension * .5);
+          ctx.strokeStyle = i % 2 ? '#7dfcff' : '#fff36a'; ctx.lineWidth = Math.max(1.5, size * .025); ctx.beginPath(); ctx.moveTo(heroX + Math.cos(a) * r0, standY + Math.sin(a) * r0);
+          for (let k = 1; k <= 4; k++) { const rr = lerp(r0, r1, k / 4), aa = a + (Math.random() - .5) * .5; ctx.lineTo(heroX + Math.cos(aa) * rr, standY + Math.sin(aa) * rr); }
+          ctx.stroke();
+        }
+        const glow = ctx.createRadialGradient(heroX, standY, 1, heroX, standY, size * (.7 + tension * .6)); glow.addColorStop(0, `rgba(255,80,80,${.25 + tension * .45})`); glow.addColorStop(1, 'rgba(255,40,40,0)');
+        ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(heroX, standY, size * (.7 + tension * .6), 0, TAU); ctx.fill(); ctx.restore();
+      }
+    } else if (intro.burst) drawExplosion(heroX, standY, size * .9, intro.burst);
     // Flirting: hearts float up, speech bubbles.
-    if (t > DJ.flirt && t < DJ.pinkOut + .4) for (let i = 0; i < 5; i++) { const k = mod((time - dj.at) * .6 + i / 5, 1); ctx.globalAlpha = 1 - k; drawHeart(pinkX + Math.sin(time * 2 + i) * size * .3, standY - size * (.4 + k * 1.2), size * .14, '#ff4fa8'); ctx.globalAlpha = 1; }
-    if (t > DJ.flirt && t < DJ.flirt + 2.6) drawBubble(pinkX, standY - size * .6, 'Oh hey, you here too?', '#ff4fa8');
-    if (t > DJ.pinkOut && t < DJ.pinkOut + 1.6) drawBubble(pinkX + size * .3, standY - size * .6, 'Toodle-oo!', '#ff4fa8');
+    if (t > ELEV.flirt && t < ELEV.pinkOut + .4) for (let i = 0; i < 5; i++) { const k = mod(t * .6 + i / 5, 1); ctx.globalAlpha = 1 - k; drawHeart(pinkX + Math.sin(time * 2 + i) * size * .3, standY - size * (.4 + k * 1.2), size * .14, '#ff4fa8'); ctx.globalAlpha = 1; }
+    if (t > ELEV.flirt && t < ELEV.flirt + 2.6) drawBubble(pinkX, standY - size * .6, 'Oh hey, you here too?', '#ff4fa8');
+    if (t > ELEV.pinkOut && t < ELEV.pinkOut + 1.6) drawBubble(pinkX + size * .3, standY - size * .6, 'Toodle-oo!', '#ff4fa8');
     // Glass doors in front, the frame and the floor display above.
     for (const side of [-1, 1]) {
       const w = cw / 2 * (1 - doors * .96), x = side < 0 ? left : left + cw - w;
@@ -5454,12 +5510,12 @@
     const floorNo = 1 + Math.floor(ride * 3);
     ctx.fillStyle = '#0b0a12'; ctx.fillRect(cx - cw * .14, top - ch * .11, cw * .28, ch * .08);
     ctx.fillStyle = '#ff9b2e'; ctx.font = `700 ${Math.round(ch * .055)}px 'Share Tech Mono', monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(`${(t > DJ.ride1 && t < DJ.open2) || (t > DJ.ride2) ? '▲' : '•'} ${floorNo}`, cx, top - ch * .07);
-    // Something is coming… the doors bulge just before DJ MoFi kicks them in.
-    if (t > DJ.burst - .7) { ctx.fillStyle = `rgba(255,60,60,${(t - DJ.burst + .7) * .5})`; ctx.fillRect(left, top, cw, ch); }
+    ctx.fillText(`${(t > ELEV.ride1 && t < ELEV.open2) || (t > ELEV.ride2) ? '▲' : '•'} ${floorNo}`, cx, top - ch * .07);
+    // The blast, as big as a wreck in the race.
+    if (t >= ELEV.boom) drawCrashLayer();
   }
   function drawClub(t) {
-    const S = djStage(), cx = S.x + S.w / 2, k = clamp((t - DJ.burst) / (DJ.club - DJ.burst), 0, 1), big = Math.min(S.w, S.h), pulse = beat;
+    const S = djStage(), cx = S.x + S.w / 2, k = clamp(t / .9, 0, 1), big = Math.min(S.w, S.h), pulse = beat;
     ctx.fillStyle = '#0c0618'; ctx.fillRect(-20, -20, W + 40, H + 40);
     // Back wall with the poster, lit by a spot.
     const spot = ctx.createRadialGradient(cx, S.h * .3, 1, cx, S.h * .3, big * .55); spot.addColorStop(0, '#3a1f5c'); spot.addColorStop(1, '#0c061800');
