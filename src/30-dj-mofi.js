@@ -56,40 +56,90 @@
     renderMixer(); djPlay(songIndex);
   }
 
-  // ---- The elevator ride before the very first race: the racer waddles in to elevator music, a pink racer gets on
-  // and flirts, our racer turns red... and is so embarrassed that it shakes, sparks and blows up. Then the race starts.
-  const ELEV = { open1: 1.4, walkIn: 2, close1: 4.4, ride1: 5, open2: 8.4, pinkIn: 9, flirt: 10.6, pinkOut: 13.8, close2: 15.4, ride2: 16, tension: 16.2, boom: 18.4, race: 20.8 };
-  const INTRO_KEY = 'morbid-intro-v1';
-  let intro = null;
-  const introSeen = () => { try { return localStorage.getItem(INTRO_KEY) === '1'; } catch { return true; } };
-  function startIntro() {
+  // ---- Cutscenes before the first races. Running gag: each one ends with our racer blowing up, the picture bursts
+  // into shards, and the race starts behind them.
+  // 1. Elevator: the racer waddles in to elevator music, a pink racer gets on and flirts, our racer turns red and is
+  //    so embarrassed that it comes under tension and explodes.
+  // 2. Car wash: rinse (too cold), brushes (too ticklish), foam, then a terminator cat pulls the TURBO WAX lever.
+  const ELEV = { open1: 1.4, walkIn: 2, close1: 4.4, ride1: 5, open2: 8.4, pinkIn: 9, flirt: 10.6, pinkOut: 13.8, close2: 15.4, ride2: 16, tension: 16.2, boom: 18.4 };
+  const WASH = { rollIn: 1.2, rinse: 3.4, cold: 3.7, brushes: 5.8, tickle: 6.4, foam: 9.2, lever: 11.4, turbo: 11.6, tension: 12.6, boom: 15 };
+  const CUTSCENES = [
+    { id: 'elevator', t: ELEV, draw: t => drawElevator(t), music: () => startMuzak(), lines: [[ELEV.flirt + .1, 'Oh hey, you here too?', 'pink-hi'], [ELEV.pinkOut + .1, 'Toodle-oo!', 'pink-bye']],
+      dings: [ELEV.open1 - .2, ELEV.open2 - .2] },
+    { id: 'wash', t: WASH, draw: t => drawCarWash(t), music: () => startMuzak(WASH_BARS, 152), lines: [[WASH.cold, 'Brrr! Cold!', 'wash-cold'], [WASH.tickle, 'Hihi! That tickles!', 'wash-tickle'], [WASH.turbo, 'Turbo wax activated.', 'wash-turbo']],
+      dings: [WASH.rollIn - .2, WASH.lever - .2] },
+  ];
+  const SCENES_KEY = 'morbid-scenes-v1', INTRO_KEY = 'morbid-intro-v1';
+  let intro = null, sceneShatter = null;
+  // How many cutscenes this pilot has seen (the first version only remembered the elevator).
+  function scenesSeen() {
+    try { const n = Number(localStorage.getItem(SCENES_KEY)); return n || (localStorage.getItem(INTRO_KEY) === '1' ? 1 : 0); } catch { return CUTSCENES.length; }
+  }
+  const nextCutscene = () => scenesSeen() < CUTSCENES.length ? scenesSeen() : -1;
+  // One cutscene per race start: the race right after a cutscene starts without the next one.
+  let cutsceneJustPlayed = false;
+  function cutsceneDue() { if (cutsceneJustPlayed) { cutsceneJustPlayed = false; return false; } return nextCutscene() >= 0; }
+  function startIntro(scene = Math.max(0, nextCutscene())) {
     unlockQuietly();
-    mode = 'intro'; intro = { at: time, said: {}, muzak: startMuzak(), burst: null, hero: null, nextCrackle: 0 };
+    const def = CUTSCENES[scene];
+    mode = 'intro'; intro = { scene, def, at: time, said: {}, muzak: def.music(), burst: null, hero: null, nextCrackle: 0 };
     $('menu').classList.add('hidden'); document.body.classList.add('dj'); $('dj-skip').classList.remove('hidden');
   }
   function skipIntro() {
-    if (!intro || time - intro.at >= ELEV.boom - .3) return;
-    intro.at = time - (ELEV.boom - .3); intro.said = { hi: 1, bye: 1 }; stopMuzak(intro);
+    if (!intro || time - intro.at >= intro.def.t.boom - .3) return;
+    intro.at = time - (intro.def.t.boom - .3); intro.def.lines.forEach((_, i) => { intro.said[i] = 1; }); stopMuzak(intro);
   }
+  // The picture bursts into shards; the race starts right behind them.
   function finishIntro() {
+    const snap = finaleSnapshot(), scene = intro.scene;
     stopMuzak(intro); intro = null; megaBlasts = [];
-    try { localStorage.setItem(INTRO_KEY, '1'); } catch { /* private mode: it plays again next time */ }
+    try { localStorage.setItem(SCENES_KEY, String(Math.max(scenesSeen(), scene + 1))); localStorage.setItem(INTRO_KEY, '1'); } catch { /* private mode: it plays again next time */ }
     document.body.classList.remove('dj'); $('dj-skip').classList.add('hidden'); mode = 'menu';
+    sceneShatter = snap ? { snap, shards: makeShards(), at: time } : null; cutsceneJustPlayed = true;
+    playNoiseBurst(1.1, .3, 9000, 2400); playToneSweep(95, 24, 1.2, 'sawtooth', .14);
     startRace();
   }
+  function makeShards() {
+    const cols = 6, rows = 5, pts = [], shards = [];
+    for (let j = 0; j <= rows; j++) for (let i = 0; i <= cols; i++) {
+      const edge = i === 0 || j === 0 || i === cols || j === rows;
+      pts.push([W * i / cols + (edge ? 0 : (Math.random() - .5) * W / cols * .7), H * j / rows + (edge ? 0 : (Math.random() - .5) * H / rows * .7)]);
+    }
+    const P = (i, j) => pts[j * (cols + 1) + i];
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      for (const tri of [[P(i, j), P(i + 1, j), P(i + 1, j + 1)], [P(i, j), P(i + 1, j + 1), P(i, j + 1)]]) {
+        const cx = (tri[0][0] + tri[1][0] + tri[2][0]) / 3, cy = (tri[0][1] + tri[1][1] + tri[2][1]) / 3;
+        const dx = cx - W / 2, dy = cy - H / 2, d = Math.hypot(dx, dy) || 1, speed = 250 + Math.random() * 750;
+        shards.push({ tri, cx, cy, vx: dx / d * speed, vy: dy / d * speed - 220, vr: (Math.random() - .5) * 9 });
+      }
+    }
+    return shards;
+  }
+  // Drawn over the race start (called at the end of the race render).
+  function drawSceneShatter() {
+    const s = sceneShatter, t = time - s.at;
+    if (t > 1.8) { sceneShatter = null; return; }
+    ctx.save(); ctx.globalAlpha = clamp(1.8 - t, 0, 1);
+    for (const sh of s.shards) {
+      ctx.save(); ctx.translate(sh.cx + sh.vx * t, sh.cy + sh.vy * t + 520 * t * t); ctx.rotate(sh.vr * t); ctx.translate(-sh.cx, -sh.cy);
+      ctx.beginPath(); ctx.moveTo(sh.tri[0][0], sh.tri[0][1]); ctx.lineTo(sh.tri[1][0], sh.tri[1][1]); ctx.lineTo(sh.tri[2][0], sh.tri[2][1]); ctx.closePath();
+      ctx.save(); ctx.clip(); ctx.drawImage(s.snap, 0, 0, W, H); ctx.restore();
+      ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore();
+    }
+    ctx.restore();
+  }
   function updateIntro(dt) {
-    const t = time - intro.at, at = moment => t >= moment && t - dt < moment;
-    if (t > ELEV.flirt + .1 && !intro.said.hi) { intro.said.hi = 1; robotSay('Oh hey, you here too?', 'pink-hi'); }
-    if (t > ELEV.pinkOut + .1 && !intro.said.bye) { intro.said.bye = 1; robotSay('Toodle-oo!', 'pink-bye'); }
-    // "Ding-dong" when the cabin stops.
-    for (const [moment, freq] of [[ELEV.open1 - .2, 1319], [ELEV.open1 + .02, 1047], [ELEV.open2 - .2, 1319], [ELEV.open2 + .02, 1047]]) if (at(moment)) soundEffect(freq, .7);
+    const def = intro.def, T = def.t, t = time - intro.at, at = moment => t >= moment && t - dt < moment;
+    def.lines.forEach(([moment, text, clip], i) => { if (t > moment && !intro.said[i]) { intro.said[i] = 1; robotSay(text, clip); } });
+    // "Ding-dong".
+    for (const moment of def.dings) { if (at(moment)) soundEffect(1319, .7); if (at(moment + .22)) soundEffect(1047, .9); }
     // Under tension: crackling sparks, faster and faster, then the blast – the same one as a wreck in the race.
-    if (t > ELEV.tension && t < ELEV.boom && time >= intro.nextCrackle) {
-      const k = (t - ELEV.tension) / (ELEV.boom - ELEV.tension); intro.nextCrackle = time + .22 - k * .17;
+    if (t > T.tension && t < T.boom && time >= intro.nextCrackle) {
+      const k = (t - T.tension) / (T.boom - T.tension); intro.nextCrackle = time + .22 - k * .17;
       playNoiseBurst(.08, .05 + k * .08, 7000, 2000); playToneSweep(2400, 600, .06, 'square', .02 + k * .03); buzz(20);
     }
-    if (at(ELEV.tension)) stopMuzak(intro);
-    if (t >= ELEV.boom && !intro.burst) {
+    if (at(T.tension)) stopMuzak(intro);
+    if (t >= T.boom && !intro.burst) {
       const h = intro.hero || { x: W / 2, y: H / 2, size: 100 };
       intro.burst = { started: time, duration: 1.6, color: '#ffec87', size: 5, seed: Math.floor(time * 1000), cartoon: false };
       megaBlasts.push({ x: h.x, y: h.y, started: time, duration: 2, color: '#ffec87', seed: 5, scale: 1 });
@@ -97,17 +147,30 @@
       megaBlasts.push({ x: h.x + h.size, y: h.y - h.size * .1, started: time + .35, duration: 1.6, color: '#ff4eb8', seed: 21, scale: .65 });
       shake = 2.2; screenFlash = 1; playExplosionSound(2.2); buzz([120, 40, 90, 40, 260], 0);
     }
-    for (const [moment, power] of [[ELEV.boom + .3, 1.4], [ELEV.boom + .75, 1.8]]) if (at(moment)) playExplosionSound(power);
+    if (at(T.boom + .3)) playExplosionSound(1.4);
     megaBlasts = megaBlasts.filter(b => time - b.started < b.duration);
     shake *= Math.pow(.08, dt); screenFlash = Math.max(0, screenFlash - dt * 1.2);
-    if (t >= ELEV.race) finishIntro();
+    if (t >= T.boom + .65) finishIntro();
   }
   function renderIntro() {
     ctx.save();
     if (shakeAmount() > .03) ctx.translate(Math.sin(time * 121) * shakeAmount() * 8, Math.cos(time * 93) * shakeAmount() * 6);
-    drawElevator(time - intro.at);
+    intro.def.draw(time - intro.at);
     if (flashAmount(screenFlash) > .015) { ctx.fillStyle = `rgba(255,255,255,${flashAmount(screenFlash) * .85})`; ctx.fillRect(-20, -20, W + 40, H + 40); }
     ctx.restore();
+  }
+  // Sparks crackling around the racer and a red glow, growing with the tension (0-1).
+  function drawTension(x, y, size, tension) {
+    if (tension <= 0) return;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 2 + Math.floor(tension * 6); i++) {
+      const a = Math.random() * TAU, r0 = size * .35, r1 = size * (.6 + tension * .5);
+      ctx.strokeStyle = i % 2 ? '#7dfcff' : '#fff36a'; ctx.lineWidth = Math.max(1.5, size * .025); ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0);
+      for (let k = 1; k <= 4; k++) { const rr = lerp(r0, r1, k / 4), aa = a + (Math.random() - .5) * .5; ctx.lineTo(x + Math.cos(aa) * rr, y + Math.sin(aa) * rr); }
+      ctx.stroke();
+    }
+    const glow = ctx.createRadialGradient(x, y, 1, x, y, size * (.7 + tension * .6)); glow.addColorStop(0, `rgba(255,80,80,${.25 + tension * .45})`); glow.addColorStop(1, 'rgba(255,40,40,0)');
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(x, y, size * (.7 + tension * .6), 0, TAU); ctx.fill(); ctx.restore();
   }
   // DJ MoFi puts the record on (see changeSong): it flies from the crate onto the deck, a scratch, then the song.
   function djPlay(i) { if (!dj) return; playScratch(); playSongNow(i); }
@@ -149,7 +212,7 @@
   }
 
   // ---- Elevator music: an original, gentle bossa nova loop (electric piano, vibraphone, bass, shaker), synthesized.
-  const MUZAK_BPM = 128, EIGHTH = 60 / MUZAK_BPM / 2;
+  const MUZAK_BPM = 128;
   const MUZAK_BARS = [
     { chord: [57, 60, 64, 65], bass: [41, 48], melody: [[0, 69, 3], [3, 72, 2], [5, 76, 3]] },
     { chord: [57, 60, 64, 65], bass: [41, 48], melody: [[0, 74, 4], [4, 72, 4]] },
@@ -160,10 +223,18 @@
     { chord: [57, 60, 64, 65], bass: [41, 48], melody: [[0, 69, 8]] },
     { chord: [58, 60, 64, 67], bass: [36, 43], melody: [[0, 67, 3], [3, 69, 2], [5, 70, 3]] },
   ];
+  // Car-wash jingle: a bouncy, original little shuffle in C.
+  const WASH_BARS = [
+    { chord: [60, 64, 67, 69], bass: [36, 43], melody: [[0, 72, 2], [2, 76, 2], [4, 79, 2], [6, 76, 2]] },
+    { chord: [60, 64, 67, 69], bass: [36, 43], melody: [[0, 77, 2], [3, 76, 1], [4, 74, 4]] },
+    { chord: [57, 60, 65, 69], bass: [41, 48], melody: [[0, 72, 2], [2, 77, 2], [4, 81, 2], [6, 77, 2]] },
+    { chord: [59, 62, 65, 67], bass: [43, 50], melody: [[0, 79, 3], [3, 77, 1], [4, 74, 4]] },
+  ];
   const COMP = [0, 3, 5], SHAKE = [1, .4, .7, .4, 1, .4, .7, .5];
   const midiHz = n => 440 * Math.pow(2, (n - 69) / 12);
-  function startMuzak() {
+  function startMuzak(bars = MUZAK_BARS, bpm = MUZAK_BPM) {
     if (!audioContext || !analyser || muted) return null;
+    const EIGHTH = 60 / bpm / 2;
     const out = audioContext.createGain(); out.gain.value = 1.6; out.connect(analyser);
     const m = { out, next: audioContext.currentTime + .2, step: 0, timer: 0 };
     const note = (type, freq, at, dur, level, vibrato = 0) => {
@@ -180,7 +251,7 @@
     };
     const schedule = () => {
       while (m.next < audioContext.currentTime + .4) {
-        const bar = MUZAK_BARS[Math.floor(m.step / 8) % MUZAK_BARS.length], slot = m.step % 8, at = m.next;
+        const bar = bars[Math.floor(m.step / 8) % bars.length], slot = m.step % 8, at = m.next;
         if (COMP.includes(slot)) for (const n of bar.chord) { note('sine', midiHz(n), at, EIGHTH * 2.4, .028); note('triangle', midiHz(n + 12), at, EIGHTH * 1.2, .008); }
         if (slot === 0 || slot === 4) note('triangle', midiHz(bar.bass[0]), at, EIGHTH * 2.8, .12);
         if (slot === 3 || slot === 7) note('triangle', midiHz(bar.bass[1]), at, EIGHTH * 1.2, .09);
@@ -303,17 +374,7 @@
     intro.hero = { x: heroX, y: standY, size };
     if (t < ELEV.boom) {
       drawWalker(heroX + jx, standY - (tapping ? size * .02 : 0) + jy, size, walkIn > 0 && walkIn < 1, walkIn < 1 ? -1 : pinkHere ? -1 : 0, Math.max(blush, tension));
-      if (tension > 0) {
-        ctx.save(); ctx.globalCompositeOperation = 'lighter';
-        for (let i = 0; i < 2 + Math.floor(tension * 6); i++) {
-          const a = Math.random() * TAU, r0 = size * .35, r1 = size * (.6 + tension * .5);
-          ctx.strokeStyle = i % 2 ? '#7dfcff' : '#fff36a'; ctx.lineWidth = Math.max(1.5, size * .025); ctx.beginPath(); ctx.moveTo(heroX + Math.cos(a) * r0, standY + Math.sin(a) * r0);
-          for (let k = 1; k <= 4; k++) { const rr = lerp(r0, r1, k / 4), aa = a + (Math.random() - .5) * .5; ctx.lineTo(heroX + Math.cos(aa) * rr, standY + Math.sin(aa) * rr); }
-          ctx.stroke();
-        }
-        const glow = ctx.createRadialGradient(heroX, standY, 1, heroX, standY, size * (.7 + tension * .6)); glow.addColorStop(0, `rgba(255,80,80,${.25 + tension * .45})`); glow.addColorStop(1, 'rgba(255,40,40,0)');
-        ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(heroX, standY, size * (.7 + tension * .6), 0, TAU); ctx.fill(); ctx.restore();
-      }
+      drawTension(heroX, standY, size, tension);
     } else if (intro.burst) drawExplosion(heroX, standY, size * .9, intro.burst);
     // Flirting: hearts float up, speech bubbles.
     if (t > ELEV.flirt && t < ELEV.pinkOut + .4) for (let i = 0; i < 5; i++) { const k = mod(t * .6 + i / 5, 1); ctx.globalAlpha = 1 - k; drawHeart(pinkX + Math.sin(time * 2 + i) * size * .3, standY - size * (.4 + k * 1.2), size * .14, '#ff4fa8'); ctx.globalAlpha = 1; }
@@ -333,6 +394,81 @@
     ctx.fillText(`${(t > ELEV.ride1 && t < ELEV.open2) || (t > ELEV.ride2) ? '▲' : '•'} ${floorNo}`, cx, top - ch * .07);
     // The blast, as big as a wreck in the race.
     if (t >= ELEV.boom) drawCrashLayer();
+  }
+  // The car wash "MORBID WASH 3000": conveyor, rinse jets, spinning brushes, foam, and the TURBO WAX lever.
+  function drawCarWash(t) {
+    const T = WASH, big = Math.min(W, H), size = Math.min(big * .22, 160), floorY = H * .8, m = machines[shipIndex];
+    // Tiled wall, the tunnel frame with its neon sign and chasing bulbs.
+    ctx.fillStyle = '#0f2a33'; ctx.fillRect(-20, -20, W + 40, H + 40);
+    ctx.strokeStyle = '#174552'; ctx.lineWidth = 2;
+    for (let y = 0; y < H; y += 34) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    for (let x = 0; x < W; x += 34) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    const fx = W * .06, fw = W * .88, fy = H * .1;
+    ctx.fillStyle = '#081a20'; ctx.fillRect(fx, fy, fw, floorY - fy);
+    ctx.strokeStyle = '#4df8ff'; ctx.lineWidth = 4; ctx.strokeRect(fx, fy, fw, floorY - fy);
+    for (let i = 0; i < 24; i++) { const on = Math.floor(time * 8 + i) % 3 === 0; ctx.fillStyle = on ? '#ffe86a' : '#5a5020'; ctx.beginPath(); ctx.arc(fx + fw * (i + .5) / 24, fy, 4, 0, TAU); ctx.fill(); }
+    ctx.font = `900 ${Math.round(Math.min(W * .06, 46))}px 'Barlow Condensed', sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#ff46bc'; ctx.shadowBlur = 16; ctx.fillStyle = '#ff46bc'; ctx.fillText('MORBID WASH 3000', W / 2, fy - Math.min(W * .035, 26)); ctx.shadowBlur = 0;
+    const program = t >= T.turbo ? '⚠ TURBO WAX ⚠' : t >= T.foam ? 'FOAM' : t >= T.brushes ? 'BRUSHES' : t >= T.rinse ? 'RINSE' : '';
+    if (program) { ctx.font = `700 ${Math.round(Math.min(W * .03, 22))}px 'Share Tech Mono', monospace`; ctx.fillStyle = t >= T.turbo && Math.sin(time * 12) > 0 ? '#ff456d' : '#7dfcff'; ctx.fillText(program, W / 2, fy + Math.min(W * .035, 26)); }
+    // Pipe with nozzles, the conveyor belt.
+    const pipeY = fy + big * .12; line(fx + 10, pipeY, fx + fw - 10, pipeY, '#8e97a9', 10);
+    ctx.fillStyle = '#2b3040'; ctx.fillRect(fx, floorY - 8, fw, 22);
+    for (let x = -40 + mod(time * 140, 40); x < fw; x += 40) line(fx + x, floorY + 12, fx + x + 18, floorY - 6, '#ffd24a', 5);
+    // The racer rolls in on the conveyor and stays in the middle.
+    const roll = clamp((t - T.rollIn) / 2, 0, 1), x0 = lerp(-size, W * .42, 1 - Math.pow(1 - roll, 2)), y0 = floorY - size * .55;
+    const cold = t > T.rinse && t < T.brushes, tickled = t > T.brushes + .3 && t < T.foam;
+    const tension = clamp((t - T.tension) / (T.boom - T.tension), 0, 1), spinning = clamp((t - T.turbo) / (T.boom - T.turbo), 0, 1);
+    const jx = cold ? (Math.random() - .5) * size * .05 : tension ? (Math.random() - .5) * size * .18 * tension : 0;
+    const tilt = tickled ? Math.sin(time * 22) * .9 : 0, spin = spinning * spinning * (time - intro.at - T.turbo) * 9;
+    intro.hero = { x: x0, y: y0, size };
+    // Rinse: cold water jets from the nozzles.
+    if (t > T.rinse && t < T.brushes) for (let i = -2; i <= 2; i++) {
+      const nx = x0 + i * size * .35; ctx.globalAlpha = .55; line(nx, pipeY + 6, x0 + i * size * .2, y0 - size * .2, '#7dd8ff', 6); ctx.globalAlpha = 1;
+      for (let k = 0; k < 4; k++) { const q = mod(time * 2.2 + k / 4 + i * .13, 1); ctx.fillStyle = '#bfefff'; ctx.beginPath(); ctx.arc(lerp(nx, x0 + i * size * .2, q), lerp(pipeY, y0 - size * .2, q), 3, 0, TAU); ctx.fill(); }
+    }
+    if (t < T.boom) {
+      drawShip(x0 + jx, y0 + (cold ? Math.sin(time * 60) * 2 : 0), size, m.color, m.dark, tilt, true, false, true, spin);
+      if (cold) { ctx.globalAlpha = .35; ctx.fillStyle = '#7dd8ff'; ctx.beginPath(); ctx.arc(x0, y0 - size * .1, size * .55, 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }
+      if (tickled) for (const side of [-1, 1]) { ctx.fillStyle = '#ff6f8f'; ctx.beginPath(); ctx.ellipse(x0 + side * size * .2, y0 - size * .02, size * .09, size * .05, 0, 0, TAU); ctx.fill(); }
+      // Turbo wax: a mirror shine.
+      if (t > T.turbo) for (let i = 0; i < 6; i++) { const a = time * 3 + i, r = size * (.5 + .1 * Math.sin(time * 7 + i)); const sx = x0 + Math.cos(a) * r, sy = y0 - size * .1 + Math.sin(a) * r * .6; line(sx - 6, sy, sx + 6, sy, '#ffffff', 2); line(sx, sy - 6, sx, sy + 6, '#ffffff', 2); }
+      drawTension(x0, y0 - size * .1, size, tension);
+    } else if (intro.burst) drawExplosion(x0, y0, size * .9, intro.burst);
+    // Brushes: two spinning cylinders closing in.
+    if (t > T.brushes && t < T.foam + .8) {
+      const close = clamp((t - T.brushes) / .8, 0, 1) * (1 - clamp((t - T.foam) / .8, 0, 1)), gap = lerp(size * 1.7, size * .62, close), bh = size * 1.6, bw = size * .42;
+      for (const side of [-1, 1]) {
+        const bx = x0 + side * gap - bw / 2, by = y0 - bh * .6;
+        ctx.save(); ctx.beginPath(); ctx.rect(bx, by, bw, bh); ctx.clip();
+        for (let k = -1; k < 12; k++) { const yy = by + mod(k * bh / 10 + time * 420 * side, bh + bh / 10) - bh / 10; ctx.fillStyle = ['#ff4eb8', '#4df8ff', '#ffe24a'][(k + 3) % 3]; ctx.fillRect(bx, yy, bw, bh / 20); }
+        ctx.restore(); line(bx + bw / 2, pipeY, bx + bw / 2, by, '#8e97a9', 6);
+      }
+    }
+    // Foam piles up until only a shape is left, then the dryers blow it away.
+    const foam = clamp((t - T.foam) / 1.8, 0, 1) * (1 - clamp((t - T.turbo) / .9, 0, 1));
+    if (foam > 0) for (let i = 0; i < 70 * foam; i++) {
+      const a = random(i) * TAU, r = size * (.2 + random(i + 7) * .7), bx = x0 + Math.cos(a) * r, by = y0 - size * .1 + Math.sin(a) * r * .7 - (1 - foam) * size;
+      ctx.fillStyle = i % 4 ? 'rgba(255,255,255,.9)' : 'rgba(255,190,240,.9)'; ctx.beginPath(); ctx.arc(bx, by + Math.sin(time * 3 + i) * 2, size * (.08 + random(i + 3) * .1), 0, TAU); ctx.fill();
+    }
+    // Dryers at full blast.
+    if (t > T.turbo && t < T.boom) for (let i = 0; i < 18; i++) { const q = mod(time * 2.5 + random(i), 1), yy = y0 - size * .7 + random(i + 1) * size * 1.2; ctx.globalAlpha = .5 * (1 - q); for (const side of [-1, 1]) line(x0 + side * (size * 2.2 - q * size * 1.4), yy, x0 + side * (size * 1.8 - q * size * 1.4), yy, '#ffffff', 2); ctx.globalAlpha = 1; }
+    // The attendant's booth: a terminator cat with the TURBO WAX lever.
+    const bw2 = big * .26, bh2 = big * .34, boothX = W * .8, boothY = W < H ? H * .3 : floorY - bh2; // on the wall above the belt on tall screens
+    ctx.fillStyle = '#1b1e28'; ctx.fillRect(boothX - bw2 / 2, boothY, bw2, bh2); ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = 3; ctx.strokeRect(boothX - bw2 / 2, boothY, bw2, bh2);
+    if (t > T.foam - .4) drawTerminatorCat(boothX, boothY + bh2 * .32, bw2 * .7, false, { kind: 0, d: null, scaredUntil: 0 }, big * .02);
+    const leverAngle = lerp(-.9, .9, clamp((t - T.lever) / .4, 0, 1)), lx = boothX - bw2 / 2 - 6, ly = boothY + bh2 * .7;
+    line(lx, ly, lx + Math.sin(leverAngle) * bh2 * .5, ly - Math.cos(leverAngle) * bh2 * .5, '#c9d2e3', 6);
+    ctx.fillStyle = '#ff2b2b'; ctx.beginPath(); ctx.arc(lx + Math.sin(leverAngle) * bh2 * .5, ly - Math.cos(leverAngle) * bh2 * .5, 9, 0, TAU); ctx.fill();
+    if (t > T.turbo) {
+      for (const bxp of [fx + 24, fx + fw - 24]) { const a = time * 8; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,120,40,.35)'; ctx.beginPath(); ctx.moveTo(bxp, fy + 20); ctx.arc(bxp, fy + 20, big * .5, a, a + .5); ctx.fill(); ctx.restore(); ctx.fillStyle = '#ff7a2e'; ctx.beginPath(); ctx.arc(bxp, fy + 20, 10, 0, TAU); ctx.fill(); }
+      ctx.fillStyle = `rgba(255,40,60,${.08 + Math.max(0, Math.sin(time * 10)) * .12})`; ctx.fillRect(-20, -20, W + 40, H + 40);
+    }
+    // Speech bubbles.
+    if (t > T.cold && t < T.cold + 2) drawBubble(x0, y0 - size * .75, 'Brrr! Cold!', '#7dd8ff');
+    if (t > T.tickle && t < T.tickle + 2.4) drawBubble(x0, y0 - size * .75, 'Hihi! That tickles!', '#ff4fa8');
+    if (t > T.turbo && t < T.turbo + 2) drawBubble(boothX, boothY - 8, 'Turbo wax activated.', '#ff2b2b');
+    if (t >= T.boom) drawCrashLayer();
   }
   function drawClub(t) {
     const S = djStage(), cx = S.x + S.w / 2, k = clamp(t / .9, 0, 1), big = Math.min(S.w, S.h), pulse = beat;
