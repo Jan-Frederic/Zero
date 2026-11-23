@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.29.0](https://github.com/Jan-Frederic/Zero/compare/v1.28.0...v1.29.0) (2026-11-23)
+
+
+### Features
+
+* the elevator ride is now the intro to the very first race and ends in a blast; DJ MoFi opens straight into the club ([57dfcf3](https://github.com/Jan-Frederic/Zero/commit/57dfcf31ea83687e4d338d811055346c52331afa))
+
 # [1.28.0](https://github.com/Jan-Frederic/Zero/compare/v1.27.0...v1.28.0) (2026-11-22)
 
 
