@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.32.0](https://github.com/Jan-Frederic/Zero/compare/v1.31.0...v1.32.0) (2026-11-23)
+
+
+### Features
+
+* start-up with a loading bar, PRESS START and the MORBID RACERS welcome; elevator music for every scene ([4a92d4b](https://github.com/Jan-Frederic/Zero/commit/4a92d4be2b455fc89a5c9238d7e213b1e25083fd))
+
 # [1.31.0](https://github.com/Jan-Frederic/Zero/compare/v1.30.0...v1.31.0) (2026-11-23)
 
 
