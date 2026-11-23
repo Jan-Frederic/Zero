@@ -42,7 +42,8 @@ concatenated in file-name order rather than imported as ES modules.
 | `28-share.js` | share card |
 | `29-cat-chaos.js` | cats leaping at the screen, the black hole and the maze with the terminator cats |
 | `30-dj-mofi.js` | sound desk, pause-menu player, DJ MoFi's club with the jukebox, and the cutscenes before the first races (elevator, car wash) |
-| `31-init.js` | start-up |
+| `31-cutscenes.js` | more cutscenes (birthday, red light, hiccups, meditation, gas station, driving test) and the scene helpers |
+| `32-init.js` | start-up |
 
 **Load order matters.** Function declarations are hoisted across all parts, but `const`/`let` values that are
 computed while the script loads must be declared in an earlier part than the code that reads them — for example

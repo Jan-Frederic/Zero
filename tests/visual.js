@@ -89,7 +89,7 @@ const LAYOUT = (root, skip = '#boot,#app-version,#music-status') => {
       await page.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
       await page.addInitScript(screen => {
         localStorage.setItem('morbid-profile-v1', JSON.stringify({ unlocked: 3, credits: 1234, tutorialDone: true, achievements: { 'first-race': Date.UTC(2026, 2, 1) }, stats: { races: 12, wins: 3, podiums: 5, km: 321, seconds: 5400 } }));
-        localStorage.setItem('morbid-settings-v2', JSON.stringify({ perf: 'full', lang: 'en', screen, steering: 'touch' }));
+        localStorage.setItem('morbid-settings-v2', JSON.stringify({ perf: 'full', lang: 'en', screen, steering: 'touch', cutscenes: false }));
         localStorage.setItem('morbid-scenes-v1', '99');
       }, vp.mobile ? 'portrait' : 'landscape');
       await page.goto(server.url);
@@ -115,7 +115,7 @@ const LAYOUT = (root, skip = '#boot,#app-version,#music-status') => {
       await page.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
       await page.addInitScript(screen => {
         localStorage.setItem('morbid-profile-v1', JSON.stringify({ unlocked: 3, tutorialDone: true }));
-        localStorage.setItem('morbid-settings-v2', JSON.stringify({ perf: 'full', lang: 'en', screen, steering: 'touch', gameMode: 'trial' }));
+        localStorage.setItem('morbid-settings-v2', JSON.stringify({ perf: 'full', lang: 'en', screen, steering: 'touch', cutscenes: false, gameMode: 'trial' }));
         localStorage.setItem('morbid-scenes-v1', '99');
       }, vp.width > vp.height ? 'landscape' : 'portrait');
       await page.goto(server.url);
