@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.30.0](https://github.com/Jan-Frederic/Zero/compare/v1.29.0...v1.30.0) (2026-11-23)
+
+
+### Features
+
+* cutscenes burst into the race; new car-wash cutscene before the second race ([a736b2d](https://github.com/Jan-Frederic/Zero/commit/a736b2df739c63b87d2d9d3370e278ce95753c78))
+
 # [1.29.0](https://github.com/Jan-Frederic/Zero/compare/v1.28.0...v1.29.0) (2026-11-23)
 
 
