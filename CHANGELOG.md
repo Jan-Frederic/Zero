@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.31.0](https://github.com/Jan-Frederic/Zero/compare/v1.30.0...v1.31.0) (2026-11-23)
+
+
+### Features
+
+* a funny cutscene before every race – six new scenes, each ending in the running-gag blast ([271b0a3](https://github.com/Jan-Frederic/Zero/commit/271b0a348c0646d68f9531717b4a1727e8df9cce))
+
 # [1.30.0](https://github.com/Jan-Frederic/Zero/compare/v1.29.0...v1.30.0) (2026-11-23)
 
 
