@@ -23,6 +23,7 @@ const HOOKS = "  window.__smoke = { mode: () => mode, win: () => { ufos = []; bo
     const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
     for (const vp of VIEWPORTS) {
       const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, hasTouch: !!vp.mobile, isMobile: !!vp.mobile, serviceWorkers: 'block', locale: 'en-GB' });
+      await ctx.addInitScript(() => localStorage.setItem('morbid-intro-v1', '1')); // the elevator intro is checked in the iPhone run
       const page = await ctx.newPage(), errors = [], lines = [];
       page.on('pageerror', e => errors.push(e.message));
       await page.route('**/game.js', r => r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(root, 'game.js'), 'utf8').replace('  function startDownloads() {', HOOKS + '  function startDownloads() {') }));
@@ -107,8 +108,14 @@ const HOOKS = "  window.__smoke = { mode: () => mode, win: () => { ufos = []; bo
         if (!audio.length) throw new Error('no audio requested');
         const webm = audio.filter(f => f.endsWith('.webm')); if (webm.length) throw new Error(`WebM requested: ${webm.slice(0, 3).join(', ')}`);
       });
+      await step('the first race opens with the elevator ride, which can be skipped', async () => {
+        await page.tap('#start'); await page.waitForTimeout(800);
+        const mode = await page.evaluate(() => window.__smoke.mode());
+        if (mode !== 'intro') throw new Error(`mode is ${mode}`);
+        await page.tap('#dj-skip'); await page.waitForTimeout(2800);
+      });
       await step('race starts after the countdown with the music playing', async () => {
-        await page.tap('#start'); await page.waitForTimeout(3600);
+        await page.waitForTimeout(3600);
         const mode = await page.evaluate(() => window.__smoke.mode());
         if (mode !== 'racing') throw new Error(`mode is ${mode}`);
         const music = await page.evaluate(() => { const a = document.querySelector('audio'); return { paused: a.paused, src: a.src.slice(0, 5), t: a.currentTime }; });

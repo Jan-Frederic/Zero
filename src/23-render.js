@@ -423,6 +423,7 @@
   }
   function render() {
     if (mode === 'dj' && dj) { renderDJ(); return; }
+    if (mode === 'intro' && intro) { renderIntro(); return; }
     if (finale && (mode === 'final' || mode === 'disco')) { renderFinale(); return; }
     if (mode === 'timetunnel' && timeTunnel) { renderTimeTunnel(); return; }
     if (maze) { renderMaze(); return; }

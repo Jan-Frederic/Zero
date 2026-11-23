@@ -24,7 +24,7 @@ function harness(opts = {}) {
   }
   const ships = [0, 1, 2].map(n => { const el = element(`ship${n}`); el.dataset.ship = String(n); return el; });
   const hapticButtons = ['on', 'off'].map(v => { const el = element(`haptics-${v}`); el.dataset.haptics = v; return el; });
-  const windowEvents = {}, storage = new Map([['morbid-settings-v2', JSON.stringify({ perf: opts.perf || 'full' })], ...(opts.fresh ? [] : [['morbid-profile-v1', JSON.stringify(opts.profile || { unlocked: 8 })]])]), vibrations = [];
+  const windowEvents = {}, storage = new Map([['morbid-settings-v2', JSON.stringify({ perf: opts.perf || 'full' })], ...(opts.fresh ? [] : [['morbid-profile-v1', JSON.stringify(opts.profile || { unlocked: 8 })]]), ...(opts.intro ? [] : [['morbid-intro-v1', '1']])]), vibrations = [];
   let frame, now = 0;
   const sandbox = {
     console, Math, Uint8Array, btoa: s => Buffer.from(s, 'binary').toString('base64'), atob: s => Buffer.from(s, 'base64').toString('binary'), escape, unescape, navigator: { vibrate: pattern => { vibrations.push(pattern); return true; } }, innerWidth: 1280, innerHeight: 800, devicePixelRatio: 1,
@@ -1174,23 +1174,40 @@ test('sound desk: each channel has its own level, saved with the settings', () =
   sandbox.__setVolume('fx', 400); assert.equal(JSON.parse(storage.get('morbid-settings-v2')).vol.fx, 1.5, 'capped at 150 %');
 });
 
-test('Chill with DJ MoFi: elevator ride, pink racer, then the club with the jukebox', () => {
+test('Chill with DJ MoFi goes straight into the club with the jukebox', () => {
   const { step, inspect, sandbox, element: el } = harness();
   el('open-dj').fire('click');
   assert.equal(inspect().mode, 'dj'); assert.equal(el('menu').classList.contains('hidden'), true);
-  assert.equal(el('dj-skip').classList.contains('hidden'), false, 'the ride can be skipped');
-  step(11.2); assert.equal(inspect().callout === undefined || true, true);
-  step(10);
-  assert.equal(el('dj-club').classList.contains('hidden'), false, 'DJ MoFi opens the club');
-  assert.equal(el('soundtrack').paused, false, 'and drops a record');
+  assert.equal(el('dj-club').classList.contains('hidden'), false, 'the club opens right away');
+  assert.equal(el('soundtrack').paused, false, 'DJ MoFi drops a record');
+  step(2);
   const first = sandbox.__chaos().song;
   el('dj-next').fire('click'); assert.notEqual(sandbox.__chaos().song, first, 'next record');
   el('dj-leave').fire('click');
   assert.equal(inspect().mode, 'menu'); assert.equal(el('menu').classList.contains('hidden'), false);
-  // Skipping goes straight to DJ MoFi bursting in.
-  el('open-dj').fire('click'); el('dj-skip').fire('click'); step(3);
-  assert.equal(el('dj-club').classList.contains('hidden'), false);
   assert.equal(sandbox.localStorage.getItem('morbid-errors-v1'), undefined, 'no frame errors');
+});
+
+test('the elevator ride plays before the very first race, ends in a blast, then the race starts', () => {
+  const { step, inspect, sandbox, element: el, storage } = harness({ intro: true, profile: { unlocked: 8, tutorialDone: true } });
+  el('start').fire('click');
+  assert.equal(inspect().mode, 'intro', 'the elevator ride starts instead of the race');
+  assert.equal(el('dj-skip').classList.contains('hidden'), false, 'it can be skipped');
+  step(18); assert.equal(inspect().mode, 'intro', 'still blushing and shaking');
+  step(3.2);
+  assert.notEqual(inspect().mode, 'intro'); assert.ok(['countdown', 'racing'].includes(inspect().mode), 'then the race starts');
+  assert.equal(storage.get('morbid-intro-v1'), '1', 'only once');
+  assert.equal(sandbox.localStorage.getItem('morbid-errors-v1'), undefined, 'no frame errors');
+  el('quit').fire('click'); el('start').fire('click');
+  assert.equal(inspect().mode, 'countdown', 'the next race starts directly');
+});
+
+test('skipping the elevator ride jumps to the blast and the race', () => {
+  const { step, inspect, element: el } = harness({ intro: true, profile: { unlocked: 8, tutorialDone: true } });
+  el('start').fire('click'); step(1);
+  el('dj-skip').fire('click'); step(3);
+  assert.ok(['countdown', 'racing'].includes(inspect().mode));
+  assert.equal(el('dj-skip').classList.contains('hidden'), true);
 });
 
 test('in German the announcer speaks German', () => {

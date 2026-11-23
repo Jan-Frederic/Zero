@@ -19,6 +19,7 @@
       jetWhine.frequency.setTargetAtTime(700 + speed / 8 + (jumpBoostTimer > 0 ? 600 : 0), now, .15);
     }
     if (mode === 'dj' && dj) { updateDJ(dt); return; }
+    if (mode === 'intro' && intro) { updateIntro(dt); return; }
     if (mode === 'menu') { position = mod(position + dt * 2900, LENGTH); playerX = Math.sin(time * .14) * .18; return; }
     if (mode === 'invasion' || mode === 'final' || mode === 'disco') { updateFinale(dt); return; }
     if (mode === 'blackhole') { updateBlackHole(dt); return; }
