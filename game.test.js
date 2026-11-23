@@ -329,9 +329,21 @@ test('stylesheets have balanced braces (a broken rule silently drops everything 
   }
 });
 
-test('a health warning greets every visit on the home screen', () => {
-  const { element: el } = harness();
-  assert.equal(el('health-screen').classList.contains('hidden'), false, 'warning is shown on load');
+test('start-up: loading bar, PRESS START plays the first song, the title races in, then the health warning', () => {
+  const { element: el, step } = harness();
+  assert.equal(el('body').classList.contains('splash-open'), true, 'the loading screen comes first');
+  step(.1);
+  assert.equal(el('splash-fill').style.width, '100%'); assert.equal(el('splash-start').classList.contains('hidden'), false, 'PRESS START once the first song is there');
+  assert.match(el('splash-song').textContent, /MORBID FINGERS — /);
+  el('splash-start').fire('click');
+  assert.equal(el('soundtrack').paused, false, 'the first song plays right away');
+  assert.equal(el('welcome').classList.contains('hidden'), false, 'MORBID RACERS races into view');
+  assert.equal(el('body').classList.contains('welcoming'), true);
+  step(2); assert.equal(el('splash').classList.contains('hidden'), true);
+  assert.equal(el('health-screen').classList.contains('hidden'), true, 'the welcome comes first');
+  step(2.5);
+  assert.equal(el('health-screen').classList.contains('hidden'), false, 'then the health warning');
+  step(1); assert.equal(el('welcome').classList.contains('hidden'), true);
   el('health-accept').fire('click');
   assert.equal(el('health-screen').classList.contains('hidden'), true, 'acknowledging closes it');
   assert.equal(el('body').classList.contains('dialog-open'), false);
@@ -698,10 +710,12 @@ test('first-run tutorial: prompts advance as the player steers, boosts and fires
 
 test('gamepad: A starts the race, the stick steers, X fires', () => {
   const { element: el, step, inspect, sandbox } = harness();
-  el('health-accept').fire('click');
   const pad = { axes: [0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
   sandbox.navigator.getGamepads = () => [pad];
   const press = (i, on = true) => { pad.buttons[i] = { pressed: on, value: on ? 1 : 0 }; };
+  step(.1); press(0); step(.05); press(0, false);
+  assert.equal(el('welcome').classList.contains('hidden'), false, 'A also presses START on the loading screen');
+  step(5); el('health-accept').fire('click');
   press(0); step(.05); press(0, false);
   assert.equal(inspect().mode, 'countdown', 'A starts the race');
   step(3.1); press(7); step(1);

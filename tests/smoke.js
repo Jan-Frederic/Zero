@@ -24,6 +24,8 @@ const HOOKS = "  window.__smoke = { mode: () => mode, win: () => { ufos = []; bo
     for (const vp of VIEWPORTS) {
       const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, hasTouch: !!vp.mobile, isMobile: !!vp.mobile, serviceWorkers: 'block', locale: 'en-GB' });
       await ctx.addInitScript(() => { const st = JSON.parse(localStorage.getItem('morbid-settings-v2') || '{}'); st.cutscenes = false; localStorage.setItem('morbid-settings-v2', JSON.stringify(st)); }); // the cutscenes are checked in the iPhone run
+      // The start-up (loading screen, PRESS START, welcome, health warning) is played through on desktop only.
+      if (vp.name !== 'desktop') await ctx.addInitScript(() => sessionStorage.setItem('morbid-health-ok', '1'));
       const page = await ctx.newPage(), errors = [], lines = [];
       page.on('pageerror', e => errors.push(e.message));
       await page.route('**/game.js', r => r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(root, 'game.js'), 'utf8').replace('  function startDownloads() {', HOOKS + '  function startDownloads() {') }));
@@ -33,9 +35,14 @@ const HOOKS = "  window.__smoke = { mode: () => mode, win: () => { ufos = []; bo
       };
       await page.goto(server.url); await page.waitForTimeout(400);
       if (await page.isVisible('#rotate-overlay')) await tap('#rotate-switch');
-      await step('health warning is shown and accepted', async () => {
-        if (!await page.isVisible('#health-screen')) throw new Error('not visible');
-        await tap('#health-accept');
+      await step(vp.name === 'desktop' ? 'start-up: loading bar, PRESS START plays the first song, the title races in, then the health warning' : 'start-up skipped after a reload in the same session', async () => {
+        if (vp.name !== 'desktop') { if (await page.isVisible('#splash') || await page.isVisible('#health-screen')) throw new Error('start-up shown again'); return; }
+        if (!await page.isVisible('#splash')) throw new Error('no loading screen');
+        await page.waitForSelector('#splash-start:not(.hidden)', { timeout: 30000 }); await tap('#splash-start');
+        await page.waitForTimeout(400);
+        if (!await page.isVisible('#welcome')) throw new Error('no welcome title');
+        if (await page.evaluate(() => document.querySelector('audio').paused)) throw new Error('the first song does not play');
+        await page.waitForSelector('#health-screen:not(.hidden)', { timeout: 8000 }); await tap('#health-accept');
       });
       await page.screenshot({ path: path.join(shots, `${vp.name}-1-home.png`) });
       for (const [button, dialog] of [['#open-shop', '#shop-screen'], ['#open-trophies', '#trophy-screen'], ['#open-stats', '#stats-screen'], ['#open-settings', '#settings-screen'], ['#open-changelog', '#changelog-screen']]) {
@@ -77,6 +84,7 @@ const HOOKS = "  window.__smoke = { mode: () => mode, win: () => { ufos = []; bo
       const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, serviceWorkers: 'block', locale: 'en-GB',
         userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1' });
       await ctx.addInitScript(() => {
+        sessionStorage.setItem('morbid-health-ok', '1');
         for (const k of ['fullscreenEnabled', 'webkitFullscreenEnabled']) Object.defineProperty(Document.prototype, k, { get: () => false, configurable: true });
         Element.prototype.requestFullscreen = undefined;
       });

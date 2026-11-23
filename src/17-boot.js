@@ -17,7 +17,7 @@
   }
   if (window.matchMedia) { placeBoot(); matchMedia('(max-width:600px) and (orientation:portrait)').addEventListener?.('change', placeBoot); }
   function updateBoot() {
-    watchDownloads(frameClock); renderStartButton();
+    watchDownloads(frameClock); renderStartButton(); updateSplash();
     const box = $('boot'); if (!box) return;
     document.body.classList.toggle('booting', !box.classList.contains('gone'));
     const done = downloadsDone(), pct = done ? 100 : Math.min(99, Math.round(bootProgress() * 100));
